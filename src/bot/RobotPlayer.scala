@@ -3,8 +3,6 @@ package bot
 import battlecode.common._
 
 object RobotPlayer {
-	var rc: RobotController = null
-
 	/**
 	  * run() is the method that is called when a robot is instantiated in the Battlecode world.
 	  * If this method returns, the robot dies!
@@ -23,6 +21,7 @@ object RobotPlayer {
 			}
 
 			robot.rc = rc
+			robot.init()
 			robot.run()
 		} catch {
 			case e: Exception => {
@@ -30,7 +29,7 @@ object RobotPlayer {
 				e.printStackTrace()
 
 				// Initialize the unit completely from scratch
-				run(rc);
+				//run(rc)
 			}
 		}
 	}

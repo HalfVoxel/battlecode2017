@@ -2,11 +2,15 @@ package bot
 
 import battlecode.common._
 
-/**
-  * Created by arong on 17-1-10.
-  */
 abstract class Robot {
 	var rc : RobotController = null
+	var info : RobotType = null
+	var spawnPos : MapLocation = null
+
+	def init(): Unit = {
+		info = rc.getType
+		spawnPos = rc.getLocation
+	}
 
 	def run():Unit
 
@@ -17,6 +21,7 @@ abstract class Robot {
 	  */
 	def randomDirection: Direction = new Direction(Math.random.toFloat * 2 * Math.PI.toFloat)
 
+	def spawnedCount(tp: RobotType): Int = rc.readBroadcast(tp.ordinal())
 	/**
 	  * Attempts to move in a given direction, while avoiding small obstacles directly in the path.
 	  *

@@ -2,9 +2,6 @@ package bot
 
 import battlecode.common._
 
-/**
-  * Created by arong on 17-1-10.
-  */
 class Lumberjack extends Robot {
 	@throws[GameActionException]
 	override def run() {
@@ -17,8 +14,7 @@ class Lumberjack extends Robot {
 			if (robots.length > 0 && !rc.hasAttacked) {
 				// Use strike() to hit all nearby robots!
 				rc.strike()
-			}
-			else {
+			} else {
 				// No close robots, so search for robots within sight radius
 				robots = rc.senseNearbyRobots(-1, enemy)
 				// If there is a robot, move towards it
@@ -27,8 +23,7 @@ class Lumberjack extends Robot {
 					val enemyLocation: MapLocation = robots(0).getLocation
 					val toEnemy: Direction = myLocation.directionTo(enemyLocation)
 					tryMove(toEnemy)
-				}
-				else {
+				} else {
 					// Move Randomly
 					tryMove(randomDirection)
 				}

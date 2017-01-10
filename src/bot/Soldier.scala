@@ -2,9 +2,6 @@ package bot
 
 import battlecode.common._
 
-/**
-  * Created by arong on 17-1-10.
-  */
 class Soldier extends Robot {
 	@throws[GameActionException]
 	override def run() {
