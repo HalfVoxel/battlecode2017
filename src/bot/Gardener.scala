@@ -1,8 +1,8 @@
 package bot
 
-import java.util.Random
-
 import battlecode.common._
+
+import scala.util.Random
 
 class Gardener extends Robot {
 
@@ -47,8 +47,10 @@ class Gardener extends Robot {
 			val dir: Direction = randomDirection
 			target = rc.getLocation.add(dir, info.strideRadius * 5)
 
-			// Ensure it is far away from the spawn pos
-			target = spawnPos.add(spawnPos.directionTo(target), Math.max(spawnPos.distanceTo(target), info.bodyRadius*8))
+			if (Random.nextFloat() < 0.5) {
+				// Ensure it is far away from the spawn pos
+				target = spawnPos.add(spawnPos.directionTo(target), Math.max(spawnPos.distanceTo(target), info.bodyRadius * 8))
+			}
 
 			tests += 1
 		} while (tests < 10 && !likelyValidTarget(target, freeRadius))
@@ -84,8 +86,6 @@ class Gardener extends Robot {
 		val desiredRadius = info.bodyRadius + 2.01f*GameConstants.BULLET_TREE_RADIUS;
 		var moveFailCounter = 0
 		var hasBuiltScout = false
-		val rand = new Random(1)
-		val ind = rand.nextInt(5)
 
 		buildLumberjackInDenseForests()
 
