@@ -28,7 +28,11 @@ abstract class Robot {
 
 	def spawnedCount(tp: RobotType): Int = rc.readBroadcast(tp.ordinal())
 
-	def tryMove(to: MapLocation): Boolean = tryMove(rc.getLocation.directionTo(to))
+	def tryMove(to: MapLocation): Boolean = {
+		val dist = rc.getLocation.distanceTo(to)
+		if (dist > 0) tryMove(rc.getLocation.directionTo(to), 20, 3, dist)
+		else true
+	}
 
 	/**
 	  * Attempts to move in a given direction, while avoiding small obstacles directly in the path.
@@ -37,7 +41,7 @@ abstract class Robot {
 	  * @return true if a move was performed
 	  * @throws GameActionException
 	  */
-	def tryMove(dir: Direction): Boolean = tryMove(dir, 20, 3)
+	def tryMove(dir: Direction): Boolean = tryMove(dir, 20, 3, info.strideRadius)
 
 	/**
 	  * Attempts to move in a given direction, while avoiding small obstacles direction in the path.
@@ -49,10 +53,10 @@ abstract class Robot {
 	  * @throws GameActionException
 	  */
 	@throws[GameActionException]
-	def tryMove(dir: Direction, degreeOffset: Float, checksPerSide: Int): Boolean = {
+	def tryMove(dir: Direction, degreeOffset: Float, checksPerSide: Int, distance: Float): Boolean = {
 		// First, try intended direction
-		if (rc.canMove(dir)) {
-			rc.move(dir)
+		if (rc.canMove(dir, distance)) {
+			rc.move(dir, distance)
 			return true
 		}
 		// Now try a bunch of similar angles
@@ -61,13 +65,13 @@ abstract class Robot {
 		while (currentCheck <= checksPerSide) {
 			{
 				// Try the offset of the left side
-				if (rc.canMove(dir.rotateLeftDegrees(degreeOffset * currentCheck))) {
-					rc.move(dir.rotateLeftDegrees(degreeOffset * currentCheck))
+				if (rc.canMove(dir.rotateLeftDegrees(degreeOffset * currentCheck), distance)) {
+					rc.move(dir.rotateLeftDegrees(degreeOffset * currentCheck), distance)
 					return true
 				}
 				// Try the offset on the right side
-				if (rc.canMove(dir.rotateRightDegrees(degreeOffset * currentCheck))) {
-					rc.move(dir.rotateRightDegrees(degreeOffset * currentCheck))
+				if (rc.canMove(dir.rotateRightDegrees(degreeOffset * currentCheck), distance)) {
+					rc.move(dir.rotateRightDegrees(degreeOffset * currentCheck), distance)
 					return true
 				}
 				// No move performed, try slightly further
