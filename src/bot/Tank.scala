@@ -15,7 +15,7 @@ class Tank extends Robot {
 
 	@throws[GameActionException]
 	override def run() {
-		System.out.println("I'm an soldier!")
+		System.out.println("I'm an tank!")
 
 		val enemy: Team = rc.getTeam.opponent
 		var target = rc.getLocation

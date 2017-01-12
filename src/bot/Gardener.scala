@@ -68,15 +68,8 @@ class Gardener extends Robot {
 		val rand = new Random(1)
 		val ind = rand.nextInt(5)
 		var isBuilder = false
-		var prevHP = rc.getHealth
 
 		while (true) {
-			var countAsDeadLimit = 10
-			if(prevHP > countAsDeadLimit && rc.getHealth <= countAsDeadLimit){
-				val gardenerCount = spawnedCount(RobotType.GARDENER)
-				rc.broadcast(RobotType.GARDENER.ordinal(), gardenerCount - 1)
-			}
-
 			var saveForTank = false
 			val tankCount = spawnedCount(RobotType.TANK)
 			val lumberjackCount = spawnedCount(RobotType.LUMBERJACK)

@@ -3,7 +3,6 @@ package bot
 import battlecode.common._
 
 class Archon extends Robot {
-	var gardeners = 0
 
 	override def run(): Unit = {
 		System.out.println("I'm an archon!")
@@ -17,6 +16,7 @@ class Archon extends Robot {
 
 			var saveForTank = false
 			val tankCount = spawnedCount(RobotType.TANK)
+
 			if(rc.getTreeCount() > tankCount*4+4 && rc.getTeamBullets < 500){
 				saveForTank = true
 			}
@@ -27,7 +27,6 @@ class Archon extends Robot {
 				val dir: Direction = randomDirection
 				if (rc.canHireGardener(dir)) {
 					rc.hireGardener(dir)
-					gardeners += 1
 					rc.broadcast(RobotType.GARDENER.ordinal(), gardenerCount + 1)
 				}
 			}

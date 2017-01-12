@@ -10,6 +10,7 @@ abstract class Robot {
 	val MAP_EDGE_BROADCAST_OFFSET = 10
 	var mapEdgesDetermined = 0
 	var mapEdges = new Array[Float](4)
+	var countingAsAlive = true
 
 	def init(): Unit = {
 		info = rc.getType
@@ -77,7 +78,19 @@ abstract class Robot {
 	def yieldAndDoBackgroundTasks(): Unit ={
 		determineMapSize()
 		shakeNearbyTrees()
+		updateLiveness()
 		Clock.`yield`()
+	}
+
+	def updateLiveness (): Unit = {
+		val countAsDeadLimit = 10
+		if (countingAsAlive && rc.getHealth <= countAsDeadLimit) {
+			rc.broadcast(info.ordinal(), spawnedCount(info) - 1)
+			countingAsAlive = false
+		} else if (!countingAsAlive && rc.getHealth > countAsDeadLimit) {
+			rc.broadcast(info.ordinal(), spawnedCount(info) + 1)
+			countingAsAlive = true
+		}
 	}
 
 	def shakeNearbyTrees (): Unit = {
