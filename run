@@ -1,14 +1,29 @@
 #!/usr/bin/env python3
 
-import sys
+import argparse
 import os
 from subprocess import call
 
-args = ["./gradlew", "run"]
-if len(sys.argv) > 1:
-    args.append("-PteamAclasspath=" + os.path.join(os.getcwd(), "backups/" + sys.argv[1]))
+maps = ["Barrier", "DenseForest", "Enclosure", "Hurdle", "MagicWood", "SparseForest", "shrine"]
+lowerMaps = [m.lower() for m in maps]
 
-if len(sys.argv) > 2:
-    args.append("-PteamBclasspath=" + os.path.join(os.getcwd(), "backups/" + sys.argv[2]))
+parser = argparse.ArgumentParser(description='Build the A* Pathfinding Project Packages.')
+parser.add_argument("-m", "--map", help="Which map to use", choices=lowerMaps, default=maps[-1], type=str.lower)
+parser.add_argument("-a", "--teamA", help="Team A")
+parser.add_argument("-b", "--teamB", help="Team B")
+args = parser.parse_args()
 
-call(args)
+
+gradleArgs = ["./gradlew", "run"]
+
+if args.teamA is not None:
+    gradleArgs.append("-PteamAclasspath=" + os.path.join(os.getcwd(), "backups/" + args.teamA))
+
+if args.teamB is not None:
+    gradleArgs.append("-PteamAclasspath=" + os.path.join(os.getcwd(), "backups/" + args.teamB))
+
+if args.map is not None:
+    actualMap = maps[lowerMaps.index(args.map)]
+    gradleArgs.append("-Pmaps=" + actualMap)
+
+call(gradleArgs)

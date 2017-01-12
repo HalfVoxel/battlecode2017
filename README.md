@@ -9,9 +9,9 @@ Run a game using
 # to run two instances of the latest bot against each other
 ./run
 # to run the specified version against the latest version
-./run versionA
-# to run the two specified versions against each other
-./run versionA versionB
+./run -a versionA
+# to run the two specified versions against each other on a specific map
+./run -a versionA -b versionB -m sparseforest
 ~~~
 
 New backup versions can be created using the `backup` script
