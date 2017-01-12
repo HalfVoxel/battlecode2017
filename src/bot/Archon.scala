@@ -9,9 +9,9 @@ class Archon extends Robot {
 		System.out.println("I'm an archon!")
 		// The code you want your robot to perform every round should be in this loop
 		while (true) {
-			var maxPoints = rc.getTeamVictoryPoints + Math.floor(rc.getTeamBullets()/GameConstants.BULLET_EXCHANGE_RATE);
-			if(maxPoints >= GameConstants.VICTORY_POINTS_TO_WIN || rc.getRoundNum() == rc.getRoundLimit()-1){
-				var donate = Math.floor(rc.getTeamBullets/GameConstants.BULLET_EXCHANGE_RATE)*GameConstants.BULLET_EXCHANGE_RATE
+			val maxPoints = rc.getTeamVictoryPoints + Math.floor(rc.getTeamBullets/GameConstants.BULLET_EXCHANGE_RATE);
+			if(maxPoints >= GameConstants.VICTORY_POINTS_TO_WIN || rc.getRoundNum == rc.getRoundLimit-1){
+				val donate = Math.floor(rc.getTeamBullets/GameConstants.BULLET_EXCHANGE_RATE)*GameConstants.BULLET_EXCHANGE_RATE
 				rc.donate(donate.toFloat)
 			}
 

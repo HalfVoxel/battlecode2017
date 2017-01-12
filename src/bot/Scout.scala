@@ -5,8 +5,8 @@ import java.util.Random
 
 class Scout extends Robot {
 
-	def pickTarget (): MapLocation = {
-		var target : MapLocation = null
+	def pickTarget(): MapLocation = {
+		var target: MapLocation = null
 		val dir: Direction = randomDirection
 		target = rc.getLocation.add(dir, info.strideRadius * 10)
 		target
@@ -17,10 +17,10 @@ class Scout extends Robot {
 		System.out.println("I'm an scout!")
 		val enemy: Team = rc.getTeam.opponent
 		var target = rc.getLocation
-		var archons = rc.getInitialArchonLocations(enemy)
+		val archons = rc.getInitialArchonLocations(enemy)
 		var stepsWithTarget = 0
 		var targetHP = 0f
-		if(archons.length > 0) {
+		if (archons.length > 0) {
 			val rand = new Random(1)
 			val ind = rand.nextInt(archons.length)
 			target = archons(ind)
@@ -38,51 +38,51 @@ class Scout extends Robot {
 				var bestScore: Float = 0
 				for (robot <- robots) {
 					var score: Float = 0
-					if (robot.getType() == RobotType.GARDENER)
+					if (robot.getType == RobotType.GARDENER)
 						score += 100
-					else if (robot.getType() == RobotType.ARCHON)
+					else if (robot.getType == RobotType.ARCHON)
 						score += 0
-					else if (robot.getType() == RobotType.SCOUT)
+					else if (robot.getType == RobotType.SCOUT)
 						score += 100
-					score -= myLocation.distanceTo(robot.getLocation())
+					score -= myLocation.distanceTo(robot.getLocation
 					if (score > bestScore) {
 						bestScore = score
 						bestRobot = robot
 					}
 				}
-				if(bestRobot != null){
-					if(bestRobot.health < targetHP) {
+				if (bestRobot != null) {
+					if (bestRobot.health < targetHP) {
 						stepsWithTarget = 0
 					}
-					targetHP = bestRobot.health
-					var dir = rc.getLocation.directionTo(bestRobot.location)
+					targetHP = bestRobot.health.toFloat
+					val dir = rc.getLocation.directionTo(bestRobot.location)
 					hasMoved = true
 					var stride: Float = 2.5f
-					if(rc.hasAttacked)
+					if (rc.hasAttacked)
 						stride = 1.3f
-					while(stride > 0.05f) {
-						if (!rc.hasMoved() && rc.canMove(dir, stride)) {
+					while (stride > 0.05f) {
+						if (!rc.hasMoved && rc.canMove(dir, stride)) {
 							rc.move(dir, stride)
 						}
 						stride -= 0.1f
 					}
-					if(rc.canFireSingleShot && rc.getLocation().distanceTo(bestRobot.location) < 3.5f){
+					if (rc.canFireSingleShot && rc.getLocation.distanceTo(bestRobot.location) < 3.5f) {
 						rc.fireSingleShot(rc.getLocation.directionTo(bestRobot.location))
 					}
 				}
 			}
-			if(!hasMoved) {
+			if (!hasMoved) {
 				try {
 					rc.setIndicatorDot(target, 255, 0, 0)
 				} catch {
-					case _:Exception =>
+					case _: Exception =>
 				}
 				val canSeeTarget = target.distanceSquaredTo(rc.getLocation) < 10f
 				if (canSeeTarget) {
 					target = pickTarget()
 					stepsWithTarget = 0
 				}
-				var dir = myLocation.directionTo(target)
+				val dir = myLocation.directionTo(target)
 				if (rc.canMove(dir))
 					tryMove(dir)
 				else {

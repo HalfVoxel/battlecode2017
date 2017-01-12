@@ -15,8 +15,8 @@ class Lumberjack extends Robot {
 			var closestTree: TreeInfo = null
 			var smallestDistance: Float = 1000;
 			for (tree <- trees) {
-				if (tree.team != rc.getTeam && rc.getLocation().distanceTo(tree.location) < smallestDistance){
-					smallestDistance = rc.getLocation().distanceTo(tree.location)
+				if (tree.team != rc.getTeam && rc.getLocation.distanceTo(tree.location) < smallestDistance){
+					smallestDistance = rc.getLocation.distanceTo(tree.location)
 					closestTree = tree
 				}
 			}
