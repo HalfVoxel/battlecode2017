@@ -53,12 +53,14 @@ class Scout extends Robot {
 						stepsWithTarget = 0
 					}
 					targetHP = bestRobot.health
-					if(rc.canFireSingleShot && rc.getLocation().distanceTo(bestRobot.location) < 5f){
+					if(rc.canFireSingleShot && rc.getLocation().distanceTo(bestRobot.location) < 3.5f){
 						rc.fireSingleShot(rc.getLocation.directionTo(bestRobot.location))
 					}
 					var dir = rc.getLocation.directionTo(bestRobot.location)
 					hasMoved = true
-					var stride: Float = 1.2f
+					var stride: Float = 2.5f
+					if(rc.hasAttacked)
+						stride = 1.2f
 					while(stride > 0.05f) {
 						if (!rc.hasMoved() && rc.canMove(dir, stride)) {
 							rc.move(dir, stride)

@@ -5,7 +5,7 @@ import battlecode.common._
 class Lumberjack extends Robot {
 	@throws[GameActionException]
 	override def run() {
-		System.out.println("I'm a lumberjack!")
+		System.out.println("I'm a lumberjack and I'm okay!")
 		val enemy: Team = rc.getTeam.opponent
 		// The code you want your robot to perform every round should be in this loop
 		while (true) {
