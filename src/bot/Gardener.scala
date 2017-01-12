@@ -45,7 +45,7 @@ class Gardener extends Robot {
 			// Pick a new target
 			// Generate a random direction
 			val dir: Direction = randomDirection
-			target = rc.getLocation.add(dir, info.strideRadius * 2)
+			target = rc.getLocation.add(dir, info.strideRadius * 5)
 
 			// Ensure it is far away from the spawn pos
 			target = spawnPos.add(spawnPos.directionTo(target), Math.max(spawnPos.distanceTo(target), info.bodyRadius*8))
