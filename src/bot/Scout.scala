@@ -42,6 +42,8 @@ class Scout extends Robot {
 						score += 100
 					else if (robot.getType() == RobotType.ARCHON)
 						score += 0
+					else if (robot.getType() == RobotType.SCOUT)
+						score += 100
 					score -= myLocation.distanceTo(robot.getLocation())
 					if (score > bestScore) {
 						bestScore = score
@@ -53,19 +55,19 @@ class Scout extends Robot {
 						stepsWithTarget = 0
 					}
 					targetHP = bestRobot.health
-					if(rc.canFireSingleShot && rc.getLocation().distanceTo(bestRobot.location) < 3.5f){
-						rc.fireSingleShot(rc.getLocation.directionTo(bestRobot.location))
-					}
 					var dir = rc.getLocation.directionTo(bestRobot.location)
 					hasMoved = true
 					var stride: Float = 2.5f
 					if(rc.hasAttacked)
-						stride = 0.0f
+						stride = 1.3f
 					while(stride > 0.05f) {
 						if (!rc.hasMoved() && rc.canMove(dir, stride)) {
 							rc.move(dir, stride)
 						}
 						stride -= 0.1f
+					}
+					if(rc.canFireSingleShot && rc.getLocation().distanceTo(bestRobot.location) < 3.5f){
+						rc.fireSingleShot(rc.getLocation.directionTo(bestRobot.location))
 					}
 				}
 			}
