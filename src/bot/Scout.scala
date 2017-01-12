@@ -36,6 +36,7 @@ class Scout extends Robot {
 				stepsWithTarget += 1
 				var bestRobot: RobotInfo = null
 				var bestScore: Float = 0
+				var closestThreat: MapLocation = null
 
 				for (robot <- robots) {
 					var score: Float = 0
@@ -45,11 +46,21 @@ class Scout extends Robot {
 						score += 0
 					else if (robot.getType == RobotType.SCOUT)
 						score += 100
+					if(robot.getType == RobotType.LUMBERJACK || robot.getType == RobotType.SOLDIER || robot.getType == RobotType.TANK){
+						if(closestThreat == null || robot.location.distanceTo(myLocation) < closestThreat.distanceTo(myLocation)){
+							closestThreat = robot.location
+						}
+						score += 50
+					}
 					score -= myLocation.distanceTo(robot.getLocation)
 					if (score > bestScore) {
 						bestScore = score
 						bestRobot = robot
 					}
+				}
+				if(closestThreat != null && closestThreat.distanceTo(myLocation) < 15f){
+					var dir = closestThreat.directionTo(myLocation)
+					tryMove(dir)
 				}
 				if (bestRobot != null) {
 					if (bestRobot.health < targetHP) {

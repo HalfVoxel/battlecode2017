@@ -65,15 +65,6 @@ class Tank extends Robot {
 				}
 			}
 			else{
-				if (rc.canFirePentadShot) {
-					// ...Then fire a bullet in the direction of the enemy.
-					rc.firePentadShot(rc.getLocation.directionTo(archons(0)))
-				}
-				// And we have enough bullets, and haven't attacked yet this turn...
-				if (rc.canFireSingleShot) {
-					// ...Then fire a bullet in the direction of the enemy.
-					rc.fireSingleShot(rc.getLocation.directionTo(archons(0)))
-				}
 			}
 
 			yieldAndDoBackgroundTasks()

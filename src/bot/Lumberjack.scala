@@ -20,28 +20,29 @@ class Lumberjack extends Robot {
 					closestTree = tree
 				}
 			}
-			if (closestTree != null) {
-				val myLocation: MapLocation = rc.getLocation
-				rc.setIndicatorDot(closestTree.location, 255, 0, 0)
-				val towards: Direction = myLocation.directionTo(closestTree.location)
-				tryMove(towards)
-				if(rc.canChop(closestTree.ID)){
-					rc.chop(closestTree.ID)
-				}
-			}
-			else if (robots.length > 0 && !rc.hasAttacked) {
+			if (robots.length > 0 && !rc.hasAttacked) {
 				// Use strike() to hit all nearby robots!
 				rc.strike()
-			} else {
+			}
+			else {
 				// No close robots, so search for robots within sight radius
 				robots = rc.senseNearbyRobots(-1, enemy)
 				// If there is a robot, move towards it
+				if (closestTree != null && rc.canChop(closestTree.ID)) {
+					rc.chop(closestTree.ID)
+				}
 				if (robots.length > 0) {
 					val myLocation: MapLocation = rc.getLocation
 					val enemyLocation: MapLocation = robots(0).getLocation
 					val toEnemy: Direction = myLocation.directionTo(enemyLocation)
 					tryMove(toEnemy)
-				} else {
+				} else if (closestTree != null) {
+					val myLocation: MapLocation = rc.getLocation
+					rc.setIndicatorDot(closestTree.location, 255, 0, 0)
+					val towards: Direction = myLocation.directionTo(closestTree.location)
+					tryMove(towards)
+				}
+				else{
 					// Move Randomly
 					tryMove(randomDirection)
 				}
