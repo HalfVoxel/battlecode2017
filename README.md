@@ -3,6 +3,25 @@ Battlecode Bot
 
 ## Overview
 
+Run a game using
+
+~~~
+# to run two instances of the latest bot against each other
+./run
+# to run the specified version against the latest version
+./run versionA
+# to run the two specified versions against each other
+./run versionA versionB
+~~~
+
+New backup versions can be created using the `backup` script
+
+~~~
+./backup versionTag
+~~~
+
+Where `versionTag` is some identifier like `v1`
+
 ### Project structure
 
 - `README.md`
