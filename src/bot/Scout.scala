@@ -60,7 +60,7 @@ class Scout extends Robot {
 					hasMoved = true
 					var stride: Float = 2.5f
 					if(rc.hasAttacked)
-						stride = 1.2f
+						stride = 0.0f
 					while(stride > 0.05f) {
 						if (!rc.hasMoved() && rc.canMove(dir, stride)) {
 							rc.move(dir, stride)
