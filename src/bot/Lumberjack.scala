@@ -11,7 +11,25 @@ class Lumberjack extends Robot {
 		while (true) {
 			// See if there are any enemy robots within striking range (distance 1 from lumberjack's radius)
 			var robots: Array[RobotInfo] = rc.senseNearbyRobots(RobotType.LUMBERJACK.bodyRadius + GameConstants.LUMBERJACK_STRIKE_RADIUS, enemy)
-			if (robots.length > 0 && !rc.hasAttacked) {
+			val trees = rc.senseNearbyTrees()
+			var closestTree: TreeInfo = null
+			var smallestDistance: Float = 1000;
+			for (tree <- trees) {
+				if (tree.team != rc.getTeam && rc.getLocation().distanceTo(tree.location) < smallestDistance){
+					smallestDistance = rc.getLocation().distanceTo(tree.location)
+					closestTree = tree
+				}
+			}
+			if (closestTree != null) {
+				val myLocation: MapLocation = rc.getLocation
+				rc.setIndicatorDot(closestTree.location, 255, 0, 0)
+				val towards: Direction = myLocation.directionTo(closestTree.location)
+				tryMove(towards)
+				if(rc.canChop(closestTree.ID)){
+					rc.chop(closestTree.ID)
+				}
+			}
+			else if (robots.length > 0 && !rc.hasAttacked) {
 				// Use strike() to hit all nearby robots!
 				rc.strike()
 			} else {

@@ -17,6 +17,7 @@ object RobotPlayer {
 				case RobotType.GARDENER => new Gardener()
 				case RobotType.SOLDIER => new Soldier()
 				case RobotType.LUMBERJACK => new Lumberjack()
+				case RobotType.SCOUT => new Scout()
 				case _ => return
 			}
 

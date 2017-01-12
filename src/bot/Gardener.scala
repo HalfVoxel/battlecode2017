@@ -74,11 +74,17 @@ class Gardener extends Robot {
 		var target = rc.getLocation
 		val desiredRadius = info.bodyRadius + 2.01f*GameConstants.BULLET_TREE_RADIUS;
 		var moveFailCounter = 0
+		var hasBuiltScout = false
 
 		while (true) {
 			var invalidTarget = moveFailCounter > 5 || !likelyValidTarget(target, desiredRadius)
 			val canSeeTarget = target.distanceSquaredTo(rc.getLocation) < 0.01f || rc.canSenseAllOfCircle(target, desiredRadius)
 
+			var dir = randomDirection;
+			if (!hasBuiltScout && rc.canBuildRobot(RobotType.SCOUT, dir)){
+				rc.buildRobot(RobotType.SCOUT, dir);
+				hasBuiltScout = true
+			}
 			if (invalidTarget) {
 				target = pickTarget(desiredRadius)
 				//System.out.println("Picked new target " + target)

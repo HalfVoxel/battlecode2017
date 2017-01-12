@@ -80,43 +80,43 @@ abstract class Robot {
 	}
 
 	def determineMapSize (): Unit = {
-		// Abort if all map edges have already been determined
-		if (mapEdgesDetermined == 0xF) return
+			// Abort if all map edges have already been determined
+			if (mapEdgesDetermined == 0xF) return
 
-		val globalMapEdgesDetermined = rc.readBroadcast(MAP_EDGE_BROADCAST_OFFSET)
-		if (globalMapEdgesDetermined != mapEdgesDetermined) {
-			mapEdgesDetermined = globalMapEdgesDetermined
-			for (i <- 0 until 4) {
-				mapEdges(i) = rc.readBroadcast(MAP_EDGE_BROADCAST_OFFSET + i + 1) / 1000f
-			}
-		}
-
-		var tmpDetermined = mapEdgesDetermined
-		for (i <- 0 until 4) {
-			if ((mapEdgesDetermined & (1 << i)) == 0) {
-				val angle = i * Math.PI.toFloat / 4f
-				if (!rc.onTheMap(rc.getLocation.add(angle, info.sensorRadius * 0.99f))) {
-					// Found map edge
-					var mn = 0f
-					var mx = info.sensorRadius * 0.99f
-					while (mx - mn > 0.002f) {
-						val mid = (mn + mx) / 2
-						if (rc.onTheMap(rc.getLocation.add(angle, mid))) {
-							mn = mid
-						} else {
-							mx = mid
-						}
-					}
-
-					val result = (if (i % 2 == 0) rc.getLocation.x else rc.getLocation.y) + mn
-					rc.broadcast(MAP_EDGE_BROADCAST_OFFSET + i + 1, (result * 1000).toInt)
-					// This robot will pick up the change for real the next time determineMapSize is called
-					tmpDetermined |= (1 << i)
-					rc.broadcast(MAP_EDGE_BROADCAST_OFFSET, tmpDetermined)
-					System.out.println("Found map edge " + i + " at " + result)
+			val globalMapEdgesDetermined = rc.readBroadcast(MAP_EDGE_BROADCAST_OFFSET)
+			if (globalMapEdgesDetermined != mapEdgesDetermined) {
+				mapEdgesDetermined = globalMapEdgesDetermined
+				for (i <- 0 until 4) {
+					mapEdges(i) = rc.readBroadcast(MAP_EDGE_BROADCAST_OFFSET + i + 1) / 1000f
 				}
 			}
-		}
+
+			var tmpDetermined = mapEdgesDetermined
+			for (i <- 0 until 4) {
+				if ((mapEdgesDetermined & (1 << i)) == 0) {
+					val angle = i * Math.PI.toFloat / 4f
+					if (!rc.onTheMap(rc.getLocation.add(angle, info.sensorRadius * 0.99f))) {
+						// Found map edge
+						var mn = 0f
+						var mx = info.sensorRadius * 0.99f
+						while (mx - mn > 0.002f) {
+							val mid = (mn + mx) / 2
+							if (rc.onTheMap(rc.getLocation.add(angle, mid))) {
+								mn = mid
+							} else {
+								mx = mid
+							}
+						}
+
+						val result = (if (i % 2 == 0) rc.getLocation.x else rc.getLocation.y) + mn
+						rc.broadcast(MAP_EDGE_BROADCAST_OFFSET + i + 1, (result * 1000).toInt)
+						// This robot will pick up the change for real the next time determineMapSize is called
+						tmpDetermined |= (1 << i)
+						rc.broadcast(MAP_EDGE_BROADCAST_OFFSET, tmpDetermined)
+						System.out.println("Found map edge " + i + " at " + result)
+					}
+				}
+			}
 	}
 
 	/**
