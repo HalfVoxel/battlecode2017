@@ -20,7 +20,7 @@ if args.teamA is not None:
     gradleArgs.append("-PteamAclasspath=" + os.path.join(os.getcwd(), "backups/" + args.teamA))
 
 if args.teamB is not None:
-    gradleArgs.append("-PteamAclasspath=" + os.path.join(os.getcwd(), "backups/" + args.teamB))
+    gradleArgs.append("-PteamBclasspath=" + os.path.join(os.getcwd(), "backups/" + args.teamB))
 
 if args.map is not None:
     actualMap = maps[lowerMaps.index(args.map)]
