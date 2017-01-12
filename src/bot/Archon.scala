@@ -1,6 +1,6 @@
 package bot
 
-import battlecode.common.{Clock, Direction, MapLocation, RobotType}
+import battlecode.common._
 
 class Archon extends Robot {
 	var gardeners = 0
@@ -9,8 +9,10 @@ class Archon extends Robot {
 		System.out.println("I'm an archon!")
 		// The code you want your robot to perform every round should be in this loop
 		while (true) {
-			if (rc.getTeamBullets > 1000) {
-				rc.donate(500)
+			var maxPoints = rc.getTeamVictoryPoints + Math.floor(rc.getTeamBullets()/GameConstants.BULLET_EXCHANGE_RATE);
+			if(maxPoints >= GameConstants.VICTORY_POINTS_TO_WIN || rc.getRoundNum() == rc.getRoundLimit()-1){
+				var donate = Math.floor(rc.getTeamBullets/GameConstants.BULLET_EXCHANGE_RATE)*GameConstants.BULLET_EXCHANGE_RATE
+				rc.donate(donate.toFloat)
 			}
 
 			val gardenerCount = spawnedCount(RobotType.GARDENER)
