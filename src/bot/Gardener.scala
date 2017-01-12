@@ -56,9 +56,28 @@ class Gardener extends Robot {
 		target
 	}
 
+	def buildLumberjackInDenseForests(): Unit = {
+		val neutralTreeCount = rc.senseNearbyTrees(info.sensorRadius, Team.NEUTRAL).length
+		if (neutralTreeCount >= 3 && spawnedCount(RobotType.LUMBERJACK) < 2) {
+			// Create a woodcutter
+			var done = false
+			while(!done) {
+				val dir: Direction = randomDirection
+				if (rc.canBuildRobot(RobotType.LUMBERJACK, dir)) {
+					rc.buildRobot(RobotType.LUMBERJACK, dir)
+					rc.broadcast(RobotType.LUMBERJACK.ordinal(), spawnedCount(RobotType.LUMBERJACK) + 1)
+					done = true
+				} else {
+					yieldAndDoBackgroundTasks()
+				}
+			}
+		}
+	}
+
 	@throws[GameActionException]
 	override def run() {
 		System.out.println("I'm a gardener!")
+
 		// The code you want your robot to perform every round should be in this loop
 
 		var target = rc.getLocation
@@ -67,7 +86,8 @@ class Gardener extends Robot {
 		var hasBuiltScout = false
 		val rand = new Random(1)
 		val ind = rand.nextInt(5)
-		var isBuilder = false
+
+		buildLumberjackInDenseForests()
 
 		while (true) {
 			var saveForTank = false
