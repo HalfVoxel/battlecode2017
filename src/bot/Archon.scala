@@ -22,7 +22,7 @@ class Archon extends Robot {
 			}
 
 			val gardenerCount = spawnedCount(RobotType.GARDENER)
-			if ((gardenerCount < 1 || 3*rc.getTreeCount > gardenerCount) && !saveForTank) {
+			if ((gardenerCount < 1 || rc.getTreeCount > 3*gardenerCount) && !saveForTank) {
 				// Generate a random direction
 				val dir: Direction = randomDirection
 				if (rc.canHireGardener(dir)) {
