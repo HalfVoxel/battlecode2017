@@ -32,6 +32,26 @@ class Tank extends Robot {
 			val myLocation: MapLocation = rc.getLocation
 			// See if there are any nearby enemy robots
 			val robots: Array[RobotInfo] = rc.senseNearbyRobots(-1, enemy)
+
+			if(!rc.hasMoved) {
+				try {
+					rc.setIndicatorDot(target, 255, 0, 0)
+				} catch {
+					case _:Exception =>
+				}
+				val canSeeTarget = target.distanceSquaredTo(rc.getLocation) < 10f
+				if (canSeeTarget) {
+					target = pickTarget()
+					stepsWithTarget = 0
+				}
+				var dir = myLocation.directionTo(target)
+				if (rc.canMove(dir))
+					tryMove(dir)
+				else {
+					target = pickTarget()
+					tryMove(randomDirection)
+				}
+			}
 			// If there are some...
 			if (robots.length > 0) {
 				if (rc.canFirePentadShot) {
@@ -53,25 +73,6 @@ class Tank extends Robot {
 				if (rc.canFireSingleShot) {
 					// ...Then fire a bullet in the direction of the enemy.
 					rc.fireSingleShot(rc.getLocation.directionTo(archons(0)))
-				}
-			}
-			if(!rc.hasMoved) {
-				try {
-					rc.setIndicatorDot(target, 255, 0, 0)
-				} catch {
-					case _:Exception =>
-				}
-				val canSeeTarget = target.distanceSquaredTo(rc.getLocation) < 10f
-				if (canSeeTarget) {
-					target = pickTarget()
-					stepsWithTarget = 0
-				}
-				var dir = myLocation.directionTo(target)
-				if (rc.canMove(dir))
-					tryMove(dir)
-				else {
-					target = pickTarget()
-					tryMove(randomDirection)
 				}
 			}
 
