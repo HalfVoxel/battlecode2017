@@ -40,22 +40,35 @@ class Lumberjack extends Robot {
 				// Use strike() to hit all nearby robots!
 				rc.strike()
 			} else {
-				val bestTree = findBestTreeToChop()
-				if (bestTree != null) {
-					val myLocation: MapLocation = rc.getLocation
+				// Try to find a good tree to chop down
+				var done = false
+				var success = false
+				while(!done) {
+					val bestTree = findBestTreeToChop()
+					if (bestTree != null) {
+						val myLocation: MapLocation = rc.getLocation
 
-					val towards: Direction = myLocation.directionTo(bestTree.location)
-					if (rc.canChop(bestTree.ID)) {
-						rc.chop(bestTree.ID)
-						rc.setIndicatorLine(rc.getLocation, bestTree.location, 0, 255, 0)
-					} else if (!tryMove(towards)) {
-						// Don't try to chop down this tree until after N turns
-						badTrees(bestTree.getID) = rc.getRoundNum + 25
-						rc.setIndicatorLine(rc.getLocation, bestTree.location, 255, 0, 0)
+						val towards: Direction = myLocation.directionTo(bestTree.location)
+						if (rc.canChop(bestTree.ID)) {
+							rc.chop(bestTree.ID)
+							rc.setIndicatorLine(rc.getLocation, bestTree.location, 0, 255, 0)
+							done = true
+							success = true
+						} else if (tryMove(towards)) {
+							rc.setIndicatorLine(rc.getLocation, bestTree.location, 0, 0, 0)
+							done = true
+							success = true
+						} else {
+							// Don't try to chop down this tree until after N turns
+							badTrees(bestTree.getID) = rc.getRoundNum + 25
+							rc.setIndicatorLine(rc.getLocation, bestTree.location, 255, 0, 0)
+						}
 					} else {
-						rc.setIndicatorLine(rc.getLocation, bestTree.location, 0, 0, 0)
+						done = true
 					}
-				} else {
+				}
+
+				if (!success) {
 					// No close robots, so search for robots within sight radius
 					robots = rc.senseNearbyRobots(-1, enemy)
 					// If there is a robot, move towards it
