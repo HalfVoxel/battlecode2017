@@ -100,9 +100,9 @@ class Gardener extends Robot {
 			var invalidTarget = moveFailCounter > 5 || !likelyValidTarget(target, desiredRadius)
 			val canSeeTarget = target.distanceSquaredTo(rc.getLocation) < 0.01f || rc.canSenseAllOfCircle(target, desiredRadius)
 
-			var dir = randomDirection;
+			var dir = randomDirection
 			if (!hasBuiltScout && rc.canBuildRobot(RobotType.SCOUT, dir) && !saveForTank){
-				rc.buildRobot(RobotType.SCOUT, dir);
+				rc.buildRobot(RobotType.SCOUT, dir)
 				hasBuiltScout = true
 			}
 			if (invalidTarget) {
@@ -154,8 +154,7 @@ class Gardener extends Robot {
 				System.out.println("Lost all trees around me, moving again")
 			}
 
-			if (rc.canMove(target)) {
-				rc.move(target)
+			if (tryMove(target)) {
 				moveFailCounter = 0
 			} else {
 				// Couldn't move there? huh

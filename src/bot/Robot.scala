@@ -27,6 +27,9 @@ abstract class Robot {
 	def randomDirection: Direction = new Direction(Math.random.toFloat * 2 * Math.PI.toFloat)
 
 	def spawnedCount(tp: RobotType): Int = rc.readBroadcast(tp.ordinal())
+
+	def tryMove(to: MapLocation): Boolean = tryMove(rc.getLocation.directionTo(to))
+
 	/**
 	  * Attempts to move in a given direction, while avoiding small obstacles directly in the path.
 	  *
