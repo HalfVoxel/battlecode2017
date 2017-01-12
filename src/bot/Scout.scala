@@ -44,7 +44,7 @@ class Scout extends Robot {
 						score += 0
 					else if (robot.getType == RobotType.SCOUT)
 						score += 100
-					score -= myLocation.distanceTo(robot.getLocation
+					score -= myLocation.distanceTo(robot.getLocation)
 					if (score > bestScore) {
 						bestScore = score
 						bestRobot = robot
