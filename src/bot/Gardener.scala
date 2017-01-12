@@ -19,19 +19,7 @@ class Gardener extends Robot {
 			}
 		}
 
-		if (rc.canShake) {
-			val trees = rc.senseNearbyTrees(info.bodyRadius + info.strideRadius, rc.getTeam)
-			var bestTree: TreeInfo = null
-			for (tree <- trees) {
-				if (tree.containedBullets > 1 && (bestTree == null || tree.containedBullets > bestTree.containedBullets) && rc.canShake(tree.getID)) {
-					bestTree = tree
-				}
-			}
-
-			if (bestTree != null) {
-				rc.shake(bestTree.getID)
-			}
-		}
+		shakeNearbyTrees()
 	}
 
 	def likelyValidTarget (target : MapLocation, freeRadius : Float): Boolean = {
