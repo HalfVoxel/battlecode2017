@@ -93,6 +93,29 @@ abstract class Robot {
 		}
 	}
 
+	var prevMapPos : MapLocation = null
+	var prevValue : Float = 0f
+
+	def setIndicatorDot (pos : MapLocation, value : Float) {
+		val origValue = value
+		val origPos = pos
+
+		if (prevMapPos == null) {
+			prevMapPos = pos
+			prevValue = value
+		}
+
+		val r = Math.max(Math.min(value * 3f, 1f), 0f)
+		// Note b and g swapped because of a bug in the battlecode server
+		val b = Math.max(Math.min((value - 1/3f) * 3f, 1f), 0f)
+		val g = Math.max(Math.min((value - 2/3f) * 3f, 1f), 0f)
+
+		rc.setIndicatorDot(prevMapPos, (r * 255f).toInt, (g * 255f).toInt, (b * 255f).toInt)
+
+		prevValue = origValue
+		prevMapPos = origPos
+	}
+
 	def shakeNearbyTrees (): Unit = {
 		if (rc.canShake) {
 			val trees = rc.senseNearbyTrees(info.bodyRadius + info.strideRadius)
