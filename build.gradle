@@ -98,6 +98,13 @@ if (!project.hasProperty("maps")) {
     ext.maps = "shrine"
 }
 
+if (!project.hasProperty("teamAclasspath")) {
+    ext.teamAclasspath = sourceSets.main.output.classesDir
+}
+if (!project.hasProperty("teamBclasspath")) {
+    ext.teamBclasspath = sourceSets.main.output.classesDir
+}
+
 // Here we define a task. Tasks like this one, 'unpackClient', can be
 // executed in the terminal with `./gradlew unpackClient` in Unix or
 // `gradlew unpackClient` in Windows.
@@ -141,8 +148,8 @@ task run(type: JavaExec, dependsOn: 'build') {
         '-Dbc.engine.debug-methods=true',
         '-Dbc.game.team-a='+project.property('teamA'),
         '-Dbc.game.team-b='+project.property('teamB'),
-        '-Dbc.game.team-a.url='+sourceSets.main.output.classesDir,
-        '-Dbc.game.team-b.url='+sourceSets.main.output.classesDir,
+        '-Dbc.game.team-a.url='+project.property('teamAclasspath'),
+        '-Dbc.game.team-b.url='+project.property('teamBclasspath'),
         '-Dbc.game.maps='+project.property('maps'),
         '-Dbc.server.save-file=' + 'matches/' + project.property('teamA') + '-vs-' + project.property('teamB') + '-on-' + project.property('maps') + '.bc17'
     ]
