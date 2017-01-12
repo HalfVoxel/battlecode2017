@@ -32,7 +32,13 @@ class Tank extends Robot {
 			val myLocation: MapLocation = rc.getLocation
 			// See if there are any nearby enemy robots
 			val robots: Array[RobotInfo] = rc.senseNearbyRobots(-1, enemy)
-
+			var friendlyRobots: Array[RobotInfo] = rc.senseNearbyRobots(-1, rc.getTeam)
+			if(robots.length > 0){
+				val myLocation: MapLocation = rc.getLocation
+				val enemyLocation: MapLocation = robots(0).getLocation
+				val toEnemy: Direction = myLocation.directionTo(enemyLocation)
+				tryMove(toEnemy)
+			}
 			if(!rc.hasMoved) {
 				try {
 					rc.setIndicatorDot(target, 255, 0, 0)
@@ -54,7 +60,7 @@ class Tank extends Robot {
 			}
 			// If there are some...
 			if (robots.length > 0) {
-				if (rc.canFirePentadShot) {
+				if (rc.canFirePentadShot && friendlyRobots.size < robots.size) {
 					// ...Then fire a bullet in the direction of the enemy.
 					rc.firePentadShot(rc.getLocation.directionTo(robots(0).location))
 				}

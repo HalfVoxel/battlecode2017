@@ -59,7 +59,7 @@ class Scout extends Robot {
 					}
 				}
 				if(closestThreat != null && closestThreat.distanceTo(myLocation) < 15f){
-					var dir = closestThreat.directionTo(myLocation)
+					var dir = closestThreat.directionTo(myLocation).rotateLeftDegrees(70)
 					tryMove(dir)
 				}
 				if (bestRobot != null) {
