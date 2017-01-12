@@ -1,5 +1,7 @@
 package bot
 
+import java.util.Random
+
 import battlecode.common._
 
 class Gardener extends Robot {
@@ -63,13 +65,30 @@ class Gardener extends Robot {
 		val desiredRadius = info.bodyRadius + 2.01f*GameConstants.BULLET_TREE_RADIUS;
 		var moveFailCounter = 0
 		var hasBuiltScout = false
+		val rand = new Random(1)
+		val ind = rand.nextInt(5)
+		var isBuilder = false
+		var prevHP = rc.getHealth
 
 		while (true) {
+			var countAsDeadLimit = 10
+			if(prevHP > countAsDeadLimit && rc.getHealth <= countAsDeadLimit){
+				val gardenerCount = spawnedCount(RobotType.GARDENER)
+				rc.broadcast(RobotType.GARDENER.ordinal(), gardenerCount - 1)
+			}
+
+			var saveForTank = false
+			val tankCount = spawnedCount(RobotType.TANK)
+			val lumberjackCount = spawnedCount(RobotType.LUMBERJACK)
+			if(rc.getTreeCount() > tankCount*4+4){
+				saveForTank = true
+			}
+
 			var invalidTarget = moveFailCounter > 5 || !likelyValidTarget(target, desiredRadius)
 			val canSeeTarget = target.distanceSquaredTo(rc.getLocation) < 0.01f || rc.canSenseAllOfCircle(target, desiredRadius)
 
 			var dir = randomDirection;
-			if (!hasBuiltScout && rc.canBuildRobot(RobotType.SCOUT, dir)){
+			if (!hasBuiltScout && rc.canBuildRobot(RobotType.SCOUT, dir) && !saveForTank){
 				rc.buildRobot(RobotType.SCOUT, dir);
 				hasBuiltScout = true
 			}
@@ -94,10 +113,18 @@ class Gardener extends Robot {
 					}
 
 					val dir = new Direction(2*Math.PI.toFloat*i / 6f)
-					if (rc.canPlantTree(dir)) {
+					if (rc.canBuildRobot(RobotType.TANK, dir)) {
+						rc.buildRobot(RobotType.TANK, dir)
+						rc.broadcast(RobotType.TANK.ordinal(), tankCount + 1)
+					}
+					if (rc.canBuildRobot(RobotType.LUMBERJACK, dir) && lumberjackCount < 2) {
+						rc.buildRobot(RobotType.LUMBERJACK, dir)
+						rc.broadcast(RobotType.LUMBERJACK.ordinal(), lumberjackCount + 1)
+					}
+					if (rc.canPlantTree(dir) && !saveForTank) {
 						rc.plantTree(dir)
 						System.out.println("Planted tree")
-						System.out.println("Detected: " + rc.senseNearbyTrees(info.bodyRadius*2, rc.getTeam).length)
+						System.out.println("Detected: " + rc.senseNearbyTrees(info.bodyRadius * 2, rc.getTeam).length)
 					} else {
 						System.out.println("Tree location became blocked in direction " + dir)
 						// Ignore building a tree there

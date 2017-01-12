@@ -36,6 +36,7 @@ class Scout extends Robot {
 				stepsWithTarget += 1
 				var bestRobot: RobotInfo = null
 				var bestScore: Float = 0
+
 				for (robot <- robots) {
 					var score: Float = 0
 					if (robot.getType == RobotType.GARDENER)

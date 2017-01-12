@@ -15,8 +15,14 @@ class Archon extends Robot {
 				rc.donate(donate.toFloat)
 			}
 
+			var saveForTank = false
+			val tankCount = spawnedCount(RobotType.TANK)
+			if(rc.getTreeCount() > tankCount*4+4 && rc.getTeamBullets < 500){
+				saveForTank = true
+			}
+
 			val gardenerCount = spawnedCount(RobotType.GARDENER)
-			if (gardenerCount < 2 || 3*rc.getTreeCount > gardenerCount) {
+			if ((gardenerCount < 1 || 3*rc.getTreeCount > gardenerCount) && !saveForTank) {
 				// Generate a random direction
 				val dir: Direction = randomDirection
 				if (rc.canHireGardener(dir)) {
