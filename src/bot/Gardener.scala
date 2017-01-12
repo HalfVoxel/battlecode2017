@@ -81,7 +81,7 @@ class Gardener extends Robot {
 
 			if (invalidTarget) {
 				target = pickTarget(desiredRadius)
-				System.out.println("Picked new target " + target)
+				//System.out.println("Picked new target " + target)
 				moveFailCounter = 0
 				try {
 					rc.setIndicatorDot(target, 255, 0, 0)
@@ -96,7 +96,7 @@ class Gardener extends Robot {
 				for (i <- 0 until 6) {
 					while (!rc.hasTreeBuildRequirements || !rc.isBuildReady) {
 						water()
-						Clock.`yield`()
+						yieldAndDoBackgroundTasks()
 					}
 
 					val dir = new Direction(2*Math.PI.toFloat*i / 6f)
@@ -114,7 +114,7 @@ class Gardener extends Robot {
 
 				while(rc.senseNearbyTrees(info.bodyRadius*2, rc.getTeam).length > 0) {
 					water()
-					Clock.`yield`()
+					yieldAndDoBackgroundTasks()
 				}
 
 				System.out.println("Lost all trees around me, moving again")
@@ -141,7 +141,7 @@ class Gardener extends Robot {
 			*/
 			// Clock.yield() makes the robot wait until the next turn, then it will perform this loop again
 			water()
-			Clock.`yield`()
+			yieldAndDoBackgroundTasks()
 		}
 	}
 }
