@@ -1,0 +1,185 @@
+package bot;
+
+import battlecode.common.*;
+import java.util.Random;
+
+class Scout extends Robot {
+
+    boolean highPriorityTargetExists() throws GameActionException {
+        int lastAttackingEnemySpotted = rc.readBroadcast(HIGH_PRIORITY_TARGET_OFFSET);
+        int lastGardenerSpotted = rc.readBroadcast(HIGH_PRIORITY_TARGET_OFFSET);
+        return rc.getRoundNum() < lastAttackingEnemySpotted + 20 || rc.getRoundNum() < lastGardenerSpotted + 20;
+    }
+
+    MapLocation pickTarget() throws GameActionException {
+		int lastAttackingEnemySpotted = rc.readBroadcast(HIGH_PRIORITY_TARGET_OFFSET);
+		MapLocation highPriorityTargetPos = readBroadcastPosition(HIGH_PRIORITY_TARGET_OFFSET + 1);
+		if (rc.getRoundNum() < lastAttackingEnemySpotted + 50 && rc.getLocation().distanceTo(highPriorityTargetPos) < info.strideRadius*8) {
+			// Defend!
+			return highPriorityTargetPos;
+		} else {
+			int lastTimeGardenerSpotted = rc.readBroadcast(GARDENER_OFFSET);
+			if (rc.getRoundNum() < lastTimeGardenerSpotted + 50) {
+				// Follow that gardener!
+				return readBroadcastPosition(GARDENER_OFFSET + 1);
+			} else {
+				Direction dir = randomDirection();
+				MapLocation target = rc.getLocation().add(dir, info.strideRadius * 10);
+				return target;
+			}
+		}
+    }
+
+    float getPositionScore(MapLocation loc, MapLocation[] enemyArchons,
+                         RobotInfo[] units, BulletInfo[] bullets) {
+        //var pre = Clock.getBytecodesLeft()
+        Team myTeam = rc.getTeam();
+        float score = 0f;
+        for (MapLocation archon : enemyArchons) {
+            score += 1f/(loc.distanceSquaredTo(archon)+1);
+        }
+
+        for (RobotInfo unit : units) {
+            if (unit.team == myTeam) {
+                if (unit.getType() == RobotType.SCOUT)
+                    score -= 1f / (loc.distanceSquaredTo(unit.location) + 1);
+            } else {
+                if (unit.getType() == RobotType.GARDENER)
+                    score += 10f / (loc.distanceSquaredTo(unit.location) + 1);
+                else if(unit.getType() == RobotType.SCOUT)
+                    score += 2f / (loc.distanceSquaredTo(unit.location) + 1);
+                else if(unit.getType() == RobotType.LUMBERJACK)
+                    score -= 20f / (loc.distanceSquaredTo(unit.location) + 1);
+                else
+                    score -= 5f / (loc.distanceSquaredTo(unit.location) + 1);
+            }
+        }
+
+        float x3 = loc.x;
+        float y3 = loc.y;
+        for (BulletInfo bullet : bullets) {
+            float x1 = bullet.location.x - x3;
+            float y1 = bullet.location.y - y3;
+            float x2 = x1 + bullet.dir.getDeltaX(bullet.speed);
+            float y2 = y1 + bullet.dir.getDeltaY(bullet.speed);
+            float dx = x2-x1;
+            float dy = y2-y1;
+            double dis = (x1*dy-dx*y1)/Math.sqrt(dx*dx+dy*dy);
+            if(dis < 0)
+                dis = -dis;
+            float dis1 = x1*x1+y1*y1;
+            float dis2 = x2*x2+y2*y2;
+            if(dis1 > dis2)
+                dis1 = dis2;
+            if(dis1 > dis*dis)
+                dis = Math.sqrt(dis1);
+            if(dis < 1f){
+                score -= 1000f*bullet.damage;
+            }
+        }
+
+        //var after = Clock.getBytecodesLeft()
+        //System.out.println(units.size + " units took " + (after-pre))
+        return score;
+    }
+
+    public void run() throws GameActionException {
+        System.out.println("I'm an scout!");
+
+        Team enemy = rc.getTeam().opponent();
+        MapLocation target = rc.getLocation();
+        MapLocation[] archons = rc.getInitialArchonLocations(enemy);
+        int stepsWithTarget = 0;
+        double targetHP = 0f;
+        float fallbackRotation = 1;
+        final int STOP_SPENDING_AT_TIME = 50;
+        Random rand = new Random(1);
+        if (archons.length > 0) {
+            int ind = rand.nextInt(archons.length);
+            target = archons[ind];
+        }
+
+        // The code you want your robot to perform every round should be in this loop
+        while (true) {
+            int turnsLeft = rc.getRoundLimit() - rc.getRoundNum();
+            MapLocation myLocation = rc.getLocation();
+            // See if there are any nearby enemy robots
+            RobotInfo[] robots = rc.senseNearbyRobots(-1, enemy);
+            RobotInfo[] allRobots = rc.senseNearbyRobots();
+            BulletInfo[] nearbyBullets = rc.senseNearbyBullets(8f);
+            boolean hasMoved = false;
+
+            float bestScore = -1000000f;
+            MapLocation bestMove = null;
+            int iterationsDone = 0;
+            while(Clock.getBytecodesLeft() > 5000){
+                iterationsDone += 1;
+                Direction dir = randomDirection();
+                MapLocation loc = null;
+                int r = rand.nextInt(10);
+                if(r < 5)
+                    loc = myLocation.add(dir, 2.5f);
+                else if(r < 7)
+                    loc = myLocation.add(dir, 1f);
+                else
+                    loc = myLocation.add(dir, 0.2f);
+
+                if(rc.canMove(loc)) {
+                    float score = getPositionScore(loc, archons, allRobots, nearbyBullets);
+                    //System.out.println("Score = " + score)
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestMove = loc;
+                    }
+                }
+            }
+            System.out.println("Completed " + iterationsDone + " iterations");
+            if(bestMove != null){
+                rc.move(bestMove);
+            }
+
+            // If there are some...
+            if (stepsWithTarget < 30 && robots.length > 0) {
+                stepsWithTarget += 1;
+                RobotInfo bestRobot = null;
+                float bestScore2 = 0;
+                MapLocation closestThreat = null;
+
+                for (RobotInfo robot : robots) {
+                    float score = 0;
+                    if (robot.getType() == RobotType.GARDENER)
+                        score += 100;
+                    else if (robot.getType() == RobotType.ARCHON)
+                        score += (highPriorityTargetExists() || rc.getRoundNum() < 2000 ? 0f : 1f);
+					else if (robot.getType() == RobotType.SCOUT)
+                        score += 100;
+                    if(robot.getType() == RobotType.LUMBERJACK || robot.getType() == RobotType.SOLDIER || robot.getType() == RobotType.TANK){
+                        if(closestThreat == null || robot.location.distanceTo(myLocation) < closestThreat.distanceTo(myLocation)){
+                            closestThreat = robot.location;
+                        }
+                        score += 50;
+                    }
+                    score /= myLocation.distanceTo(robot.getLocation()) + 1;
+                    if (score > bestScore2) {
+                        bestScore2 = score;
+                        bestRobot = robot;
+                    }
+                }
+
+                if (bestRobot != null) {
+                    if (bestRobot.health < targetHP) {
+                        stepsWithTarget = 0;
+                    }
+                    targetHP = bestRobot.health;
+
+                    BodyInfo firstUnitHit = linecast(bestRobot.location);
+                    if (rc.canFireSingleShot() && rc.getLocation().distanceTo(bestRobot.location) < 2*info.sensorRadius && teamOf(firstUnitHit) == rc.getTeam().opponent() && turnsLeft > STOP_SPENDING_AT_TIME) {
+                        rc.fireSingleShot(rc.getLocation().directionTo(bestRobot.location));
+                    }
+                }
+            }
+
+            yieldAndDoBackgroundTasks();
+        }
+    }
+}
