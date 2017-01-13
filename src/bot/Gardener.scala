@@ -7,6 +7,7 @@ import scala.util.Random
 class Gardener extends Robot {
 
 	def water (): Unit = {
+		System.out.println("Water")
 		if (rc.canWater) {
 			val trees = rc.senseNearbyTrees(2*info.bodyRadius, rc.getTeam)
 			var minHealthTree: TreeInfo = null
@@ -31,7 +32,7 @@ class Gardener extends Robot {
 
 		val canSeeTarget = target.distanceSquaredTo(rc.getLocation) < 0.01f || rc.canSenseAllOfCircle(target, freeRadius)
 
-		if (canSeeTarget && (rc.isCircleOccupiedExceptByThisRobot(target.add(0, 0.001f), freeRadius) || !rc.onTheMap(target.add(0, 0.001f), info.bodyRadius + GameConstants.BULLET_TREE_RADIUS))) {
+		if (canSeeTarget && (!rc.onTheMap(target.add(0, 0.001f), info.bodyRadius + GameConstants.BULLET_TREE_RADIUS) || rc.isCircleOccupiedExceptByThisRobot(target.add(0, 0.001f), freeRadius))) {
 			return false
 		}
 
@@ -45,7 +46,7 @@ class Gardener extends Robot {
 			// Pick a new target
 			// Generate a random direction
 			val dir: Direction = randomDirection
-			target = rc.getLocation.add(dir, info.strideRadius * 5)
+			target = rc.getLocation.add(dir, info.strideRadius * 3)
 
 			if (Random.nextFloat() < 0.5) {
 				// Ensure it is far away from the spawn pos
@@ -97,6 +98,7 @@ class Gardener extends Robot {
 		val desiredRadius = info.bodyRadius + 2.01f*GameConstants.BULLET_TREE_RADIUS;
 		var moveFailCounter = 0
 		var hasBuiltScout = false
+		var hasSettled = false
 
 		buildLumberjackInDenseForests()
 
@@ -109,14 +111,24 @@ class Gardener extends Robot {
 				saveForTank = true
 			}
 
-			var invalidTarget = moveFailCounter > 5 || !likelyValidTarget(target, desiredRadius)
+			var invalidTarget = (moveFailCounter > 5 || !likelyValidTarget(target, desiredRadius)) && !hasSettled
 			val canSeeTarget = target.distanceSquaredTo(rc.getLocation) < 0.01f || rc.canSenseAllOfCircle(target, desiredRadius)
 
 			var dir = randomDirection
-			if ((!hasBuiltScout || Math.sqrt(rc.getTeamBullets) > scoutCount*5) && rc.canBuildRobot(RobotType.SCOUT, dir) && !saveForTank){
-				rc.buildRobot(RobotType.SCOUT, dir)
-				rc.broadcast(RobotType.SCOUT.ordinal(), scoutCount + 1)
-				hasBuiltScout = true
+			if ((!hasBuiltScout || Math.sqrt(rc.getTeamBullets) > scoutCount*5) && !saveForTank){
+				saveForTank = true
+				System.out.println("Trying to build scout ")
+				for (i <- 0 until 6) {
+					val dir = new Direction(2 * Math.PI.toFloat * i / 6f)
+					if (rc.canBuildRobot(RobotType.SCOUT, dir)) {
+						rc.buildRobot(RobotType.SCOUT, dir)
+						rc.broadcast(RobotType.SCOUT.ordinal(), scoutCount + 1)
+						hasBuiltScout = true
+					}
+				}
+			}
+			else{
+				System.out.println("Not trying to build scout ")
 			}
 			if (invalidTarget) {
 				target = pickTarget(desiredRadius)
@@ -142,18 +154,22 @@ class Gardener extends Robot {
 				}
 			}
 
-			if (canSeeTarget && !invalidTarget && rc.getLocation.distanceSquaredTo(target) < 0.001f) {
+			System.out.println("canSeeTarget = " + canSeeTarget)
+			System.out.println("invalidTarget = " + invalidTarget)
+			System.out.println("rc.getLocation.distanceSquaredTo(target) = " + rc.getLocation.distanceSquaredTo(target))
+			if (canSeeTarget && !invalidTarget && rc.getLocation.distanceSquaredTo(target) < 2f) {
 				// At target
 
 				for (i <- 0 until 6) {
-					while (!rc.hasTreeBuildRequirements || !rc.isBuildReady) {
+					/*while (!rc.hasTreeBuildRequirements || !rc.isBuildReady) {
 						water()
 						yieldAndDoBackgroundTasks()
-					}
+					}*/
 
 					val dir = new Direction(2 * Math.PI.toFloat * i / 6f)
 
 					if (rc.canPlantTree(dir) && !saveForTank) {
+						hasSettled = true
 						rc.plantTree(dir)
 						System.out.println("Planted tree")
 						System.out.println("Detected: " + rc.senseNearbyTrees(info.bodyRadius * 2, rc.getTeam).length)
@@ -165,20 +181,22 @@ class Gardener extends Robot {
 
 				System.out.println("Planted all trees")
 
-				while(rc.senseNearbyTrees(info.bodyRadius*2, rc.getTeam).length > 0) {
+				/*while(rc.senseNearbyTrees(info.bodyRadius*2, rc.getTeam).length > 0) {
 					water()
 					yieldAndDoBackgroundTasks()
-				}
+				}*/
 
 				System.out.println("Lost all trees around me, moving again")
 			}
 
-			if (tryMove(target)) {
-				moveFailCounter = 0
-			} else {
-				// Couldn't move there? huh
-				moveFailCounter += 1
-				//System.out.println("Move failed")
+			if(!hasSettled) {
+				if (tryMove(target)) {
+					moveFailCounter = 0
+				} else {
+					// Couldn't move there? huh
+					moveFailCounter += 1
+					//System.out.println("Move failed")
+				}
 			}
 
 			/*
