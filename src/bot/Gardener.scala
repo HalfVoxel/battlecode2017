@@ -98,6 +98,7 @@ class Gardener extends Robot {
 		var moveFailCounter = 0
 		var hasBuiltScout = false
 		var hasSettled = false
+		var unsettledTime = 0
 
 		buildLumberjackInDenseForests()
 
@@ -111,6 +112,7 @@ class Gardener extends Robot {
 			}
 
 			if(!hasSettled) {
+				unsettledTime += 1
 				val trees = rc.senseNearbyTrees(info.sensorRadius, rc.getTeam)
 				var minHealthTree: TreeInfo = null
 				for (tree <- trees) {
@@ -169,7 +171,10 @@ class Gardener extends Robot {
 				}
 			}
 
-			if (canSeeTarget && !invalidTarget && rc.getLocation.distanceSquaredTo(target) < 2f) {
+			System.out.println("unsettledTime = " + unsettledTime)
+			System.out.println("canSeeTarget = " + canSeeTarget)
+			System.out.println("rc.getLocation.distanceSquaredTo(target) = " + rc.getLocation.distanceSquaredTo(target))
+			if (canSeeTarget && ((!invalidTarget && rc.getLocation.distanceSquaredTo(target) < 2f) || unsettledTime > 30)) {
 				// At target
 
 				for (i <- 0 until 6) {
