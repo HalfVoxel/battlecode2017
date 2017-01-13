@@ -9,6 +9,12 @@ class Archon extends Robot {
 		rc.broadcast(HIGH_PRIORITY_TARGET_OFFSET, -1000)
 		val STOP_SPENDING_AT_TIME = 100
 
+		// Set the exploration origin if it has not been set already
+		if (readBroadcastPosition(EXPLORATION_ORIGIN) == new MapLocation(0, 0)) {
+			System.out.println("Set exploration origin")
+			broadcast(EXPLORATION_ORIGIN, rc.getLocation)
+		}
+
 		System.out.println("I'm an archon! ")
 		// The code you want your robot to perform every round should be in this loop
 		while (true) {
@@ -23,7 +29,7 @@ class Archon extends Robot {
 			val tankCount = spawnedCount(RobotType.TANK)
 			val turnsLeft = rc.getRoundLimit - rc.getRoundNum
 
-			if(rc.getTreeCount() > tankCount*4+4 && rc.getTeamBullets <= RobotType.TANK.bulletCost + 100 && gardenerCount > 1) {
+			if(rc.getTreeCount > tankCount*4+4 && rc.getTeamBullets <= RobotType.TANK.bulletCost + 100 && gardenerCount > 1) {
 				saveForTank = true
 			}
 

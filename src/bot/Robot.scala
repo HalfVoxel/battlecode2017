@@ -12,9 +12,18 @@ abstract class Robot {
 	val MAP_EDGE_BROADCAST_OFFSET = 10
 	val HIGH_PRIORITY_TARGET_OFFSET = 20
 	val GARDENER_OFFSET = 25
+
+	protected val EXPLORATION_OFFSET = 100
+	protected val EXPLORATION_CHUNK_SIZE = 25
+
+	protected val EXPLORATION_ORIGIN = EXPLORATION_OFFSET + 0
+	protected val EXPLORATION_EXPLORED = EXPLORATION_OFFSET + 2
+	protected val EXPLORATION_OUTSIDE_MAP = EXPLORATION_OFFSET + 4
+
 	var mapEdgesDetermined = 0
 	var mapEdges = new Array[Float](4)
 	var countingAsAlive = true
+
 
 	def init(): Unit = {
 		info = rc.getType
@@ -94,6 +103,95 @@ abstract class Robot {
 		Clock.`yield`()
 	}
 
+	def broadcastExploration(): Unit = {
+		// Determine chunk
+		val origin = readBroadcastPosition(EXPLORATION_ORIGIN)
+		val relativePos = rc.getLocation.translate(-origin.x, -origin.y)
+		val cx = Math.floor(relativePos.x / EXPLORATION_CHUNK_SIZE + 4).toInt
+		val cy = Math.floor(relativePos.y / EXPLORATION_CHUNK_SIZE + 4).toInt
+		if (cx < 0 || cy < 0 || cx >= 8 || cy >= 8) {
+			System.out.println("In chunk that is out of bounds! " + cx + " " + cy)
+			return
+		}
+
+		val exploredChunks = readBroadcastLong(EXPLORATION_EXPLORED)
+
+		// Mark the chunk we are in as explored
+		val chunkIndex = cy * 8 + cx
+		val newExploredChunks = exploredChunks | (1 << chunkIndex)
+		if (exploredChunks != newExploredChunks) {
+			broadcast(EXPLORATION_EXPLORED, newExploredChunks)
+		}
+	}
+
+	def findBestUnexploredChunk(): MapLocation = {
+		var exploredChunks = readBroadcastLong(EXPLORATION_EXPLORED)
+		var chunksOutsideMap = readBroadcastLong(EXPLORATION_OUTSIDE_MAP)
+		val origin = readBroadcastPosition(EXPLORATION_ORIGIN)
+
+		while(true) {
+			// Consider chunks that have not been explored yet and are not outside the map
+			val chunksToConsider = ~exploredChunks & ~chunksOutsideMap
+
+			var bestChunk: MapLocation = null
+			var bestChunkIndex = -1
+			var bestScore = 0f
+
+			// Loop through all chunks
+			for (y <- 0 until 8) {
+				val indexy = y * 8
+				for (x <- 0 until 8) {
+					val index = indexy + x
+					// Ignore chunks that we can never reach or that are already explored
+					if ((chunksToConsider & (1L << index)) != 0) {
+						// Chunk position
+						val chunkPosition = new MapLocation(origin.x + (x - 4 + 0.5f) * EXPLORATION_CHUNK_SIZE, origin.y + (y - 4 + 0.5f) * EXPLORATION_CHUNK_SIZE)
+						val score = 1f / chunkPosition.distanceTo(rc.getLocation)
+
+						/*try {
+							setIndicatorDot(chunkPosition, 10 * score)
+						} catch {
+							case e:Exception =>
+						}*/
+
+						if (score > bestScore) {
+							bestScore = score
+							bestChunk = chunkPosition
+							bestChunkIndex = index
+						}
+					}
+				}
+			}
+
+			if (bestChunk != null) {
+				// Check if the chunk is on the map using the currently known information
+				if (onMap(bestChunk)) {
+					return bestChunk
+				} else {
+					chunksOutsideMap |= 1L << bestChunkIndex
+					broadcast(EXPLORATION_OUTSIDE_MAP, chunksOutsideMap)
+				}
+			} else {
+				// Reset exploration
+				exploredChunks = 0L
+				broadcast(EXPLORATION_EXPLORED, exploredChunks)
+			}
+		}
+
+		// Cannot reach
+		null
+	}
+
+	/** True if the location is on the map using the information known so far */
+	def onMap (pos : MapLocation): Boolean = {
+		!(
+		    ((mapEdgesDetermined & 1) == 0 || pos.x < mapEdges(0)) &&
+			((mapEdgesDetermined & 2) == 0 || pos.y < mapEdges(1)) &&
+			((mapEdgesDetermined & 4) == 0 || pos.x > mapEdges(2)) &&
+			((mapEdgesDetermined & 8) == 0 || pos.y > mapEdges(3))
+		)
+	}
+
 	def broadcastEnemyLocations(): Unit = {
 		val robots = rc.senseNearbyRobots(info.sensorRadius, rc.getTeam.opponent())
 
@@ -146,6 +244,12 @@ abstract class Robot {
 		rc.broadcast(channel + 1, (pos.y * 1000).toInt)
 	}
 
+	def broadcast (channel : Int, v : Long): Unit ={
+		rc.broadcast(channel, (v >> 32).toInt)
+		rc.broadcast(channel + 1, v.toInt)
+	}
+
+	def readBroadcastLong (channel : Int) : Long = (rc.readBroadcast(channel).toLong << 32) | rc.readBroadcast(channel+1)
 	def readBroadcastPosition (channel : Int) = new MapLocation(rc.readBroadcast(channel) / 1000f, rc.readBroadcast(channel+1) / 1000f)
 
 	def updateLiveness (): Unit = {
@@ -231,7 +335,8 @@ abstract class Robot {
 							}
 						}
 
-						val result = (if (i % 2 == 0) rc.getLocation.x else rc.getLocation.y) + mn
+						val mapEdge = rc.getLocation.add(angle, mn)
+						val result = if (i % 2 == 0) mapEdge.x else mapEdge.y
 						rc.broadcast(MAP_EDGE_BROADCAST_OFFSET + i + 1, (result * 1000).toInt)
 						// This robot will pick up the change for real the next time determineMapSize is called
 						tmpDetermined |= (1 << i)
