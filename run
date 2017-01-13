@@ -4,7 +4,7 @@ import argparse
 import os
 from subprocess import call
 
-maps = ["Barrier", "DenseForest", "Enclosure", "Hurdle", "MagicWood", "SparseForest", "shrine"]
+maps = ["Barrier", "DenseForest", "Enclosure", "Hurdle", "LineOfFire", "MagicWood", "SparseForest", "shrine"]
 lowerMaps = [m.lower() for m in maps]
 
 parser = argparse.ArgumentParser(description='Build the A* Pathfinding Project Packages.')
