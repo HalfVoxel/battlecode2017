@@ -131,7 +131,7 @@ class Gardener extends Robot {
 			val canSeeTarget = target.distanceSquaredTo(rc.getLocation) < 0.01f || rc.canSenseAllOfCircle(target, desiredRadius)
 
 			var dir = randomDirection
-			if ((!hasBuiltScout || Math.sqrt(rc.getTeamBullets) > scoutCount*5) && !saveForTank){
+			if ((!hasBuiltScout || Math.sqrt(rc.getTreeCount+1) > scoutCount) && !saveForTank){
 				saveForTank = true
 				System.out.println("Trying to build scout ")
 				for (i <- 0 until 6) {

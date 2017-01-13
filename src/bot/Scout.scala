@@ -117,7 +117,7 @@ class Scout extends Robot {
 
 					// Linecast again after we moved
 					firstUnitHit = linecast(bestRobot.location)
-					if (rc.canFireSingleShot && rc.getLocation.distanceTo(bestRobot.location) < 2*info.sensorRadius && teamOf(firstUnitHit) != rc.getTeam) {
+					if (rc.canFireSingleShot && rc.getLocation.distanceTo(bestRobot.location) < 2*info.sensorRadius && teamOf(firstUnitHit) == rc.getTeam.opponent) {
 						rc.fireSingleShot(rc.getLocation.directionTo(bestRobot.location))
 					}
 				}
