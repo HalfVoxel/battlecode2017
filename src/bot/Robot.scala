@@ -30,6 +30,7 @@ abstract class Robot {
 		spawnPos = rc.getLocation
 	}
 
+	@throws[GameActionException]
 	def run():Unit
 
 	/**
