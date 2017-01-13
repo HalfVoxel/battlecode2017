@@ -62,7 +62,7 @@ class Tank extends Robot {
 
 			// If there are some...
 			if (robots.length > 0) {
-				if (rc.canFirePentadShot && friendlyRobots.length < robots.length) {
+				if (rc.canFirePentadShot && rc.getTeamBullets > 200 && friendlyRobots.length < robots.length) {
 					// ...Then fire a bullet in the direction of the enemy.
 					rc.firePentadShot(rc.getLocation.directionTo(robots(0).location))
 				}
