@@ -90,7 +90,7 @@ class Scout extends Robot {
 					var triedToMove = false
 					// If we have line of sight to the enemy don't move closer
 					var firstUnitHit = linecast(bestRobot.location)
-					if (firstUnitHit == null || firstUnitHit.isTree || teamOf(firstUnitHit) != enemy) {
+					if (firstUnitHit == null || firstUnitHit.isTree || teamOf(firstUnitHit) != enemy || bestRobot.getType == RobotType.GARDENER) {
 						triedToMove = true
 						targetHP = bestRobot.health.toFloat
 						val dir = rc.getLocation.directionTo(bestRobot.location)

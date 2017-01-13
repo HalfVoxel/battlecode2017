@@ -7,7 +7,6 @@ import scala.util.Random
 class Gardener extends Robot {
 
 	def water (): Unit = {
-		System.out.println("Water")
 		if (rc.canWater) {
 			val trees = rc.senseNearbyTrees(2*info.bodyRadius, rc.getTeam)
 			var minHealthTree: TreeInfo = null
@@ -111,6 +110,21 @@ class Gardener extends Robot {
 				saveForTank = true
 			}
 
+			if(!hasSettled) {
+				val trees = rc.senseNearbyTrees(info.sensorRadius, rc.getTeam)
+				var minHealthTree: TreeInfo = null
+				for (tree <- trees) {
+					if ((minHealthTree == null || tree.health < minHealthTree.health) && tree.health < 30) {
+						// This probably means the tree isn't tended to by anyone else
+						minHealthTree = tree
+					}
+				}
+				if (minHealthTree != null) {
+					tryMove(rc.getLocation.directionTo(minHealthTree.location))
+					target = rc.getLocation
+				}
+			}
+
 			var invalidTarget = (moveFailCounter > 5 || !likelyValidTarget(target, desiredRadius)) && !hasSettled
 			val canSeeTarget = target.distanceSquaredTo(rc.getLocation) < 0.01f || rc.canSenseAllOfCircle(target, desiredRadius)
 
@@ -130,6 +144,7 @@ class Gardener extends Robot {
 			else{
 				System.out.println("Not trying to build scout ")
 			}
+
 			if (invalidTarget) {
 				target = pickTarget(desiredRadius)
 				//System.out.println("Picked new target " + target)
@@ -154,9 +169,6 @@ class Gardener extends Robot {
 				}
 			}
 
-			System.out.println("canSeeTarget = " + canSeeTarget)
-			System.out.println("invalidTarget = " + invalidTarget)
-			System.out.println("rc.getLocation.distanceSquaredTo(target) = " + rc.getLocation.distanceSquaredTo(target))
 			if (canSeeTarget && !invalidTarget && rc.getLocation.distanceSquaredTo(target) < 2f) {
 				// At target
 
@@ -190,7 +202,7 @@ class Gardener extends Robot {
 			}
 
 			if(!hasSettled) {
-				if (tryMove(target)) {
+				if (!rc.hasMoved && tryMove(target)) {
 					moveFailCounter = 0
 				} else {
 					// Couldn't move there? huh

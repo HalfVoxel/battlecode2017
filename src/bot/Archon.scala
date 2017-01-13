@@ -25,7 +25,7 @@ class Archon extends Robot {
 				saveForTank = true
 			}
 
-			if ((gardenerCount < 1 || rc.getTreeCount > 3*gardenerCount) && !saveForTank) {
+			if ((gardenerCount < 1 || rc.getTreeCount > 3*gardenerCount || rc.getTeamBullets > RobotType.TANK.bulletCost + 100) && !saveForTank) {
 				// Generate a random direction
 				val dir: Direction = randomDirection
 				if (rc.canHireGardener(dir)) {
