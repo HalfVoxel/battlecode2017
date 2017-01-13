@@ -5,11 +5,29 @@ import java.util.Random
 
 class Scout extends Robot {
 
+	def highPriorityTargetExists(): Boolean = {
+		val lastAttackingEnemySpotted = rc.readBroadcast(HIGH_PRIORITY_TARGET_OFFSET)
+		val lastGardenerSpotted = rc.readBroadcast(HIGH_PRIORITY_TARGET_OFFSET)
+		rc.getRoundNum < lastAttackingEnemySpotted + 20 || rc.getRoundNum < lastGardenerSpotted + 20
+	}
+
 	def pickTarget(): MapLocation = {
-		var target: MapLocation = null
-		val dir: Direction = randomDirection
-		target = rc.getLocation.add(dir, info.strideRadius * 10)
-		target
+		val lastAttackingEnemySpotted = rc.readBroadcast(HIGH_PRIORITY_TARGET_OFFSET)
+		val highPriorityTargetPos = readBroadcastPosition(HIGH_PRIORITY_TARGET_OFFSET + 1)
+		if (rc.getRoundNum < lastAttackingEnemySpotted + 50 && rc.getLocation.distanceTo(highPriorityTargetPos) < info.strideRadius*8) {
+			// Defend!
+			highPriorityTargetPos
+		} else {
+			val lastTimeGardenerSpotted = rc.readBroadcast(GARDENER_OFFSET)
+			if (rc.getRoundNum < lastTimeGardenerSpotted + 50) {
+				// Follow that gardener!
+				readBroadcastPosition(GARDENER_OFFSET + 1)
+			} else {
+				val dir: Direction = randomDirection
+				val target = rc.getLocation.add(dir, info.strideRadius * 10)
+				target
+			}
+		}
 	}
 
 	@throws[GameActionException]
@@ -20,6 +38,7 @@ class Scout extends Robot {
 		val archons = rc.getInitialArchonLocations(enemy)
 		var stepsWithTarget = 0
 		var targetHP = 0f
+		var fallbackRotation = 1
 		if (archons.length > 0) {
 			val rand = new Random(1)
 			val ind = rand.nextInt(archons.length)
@@ -43,7 +62,7 @@ class Scout extends Robot {
 					if (robot.getType == RobotType.GARDENER)
 						score += 100
 					else if (robot.getType == RobotType.ARCHON)
-						score += 0
+						score += (if(highPriorityTargetExists() || rc.getRoundNum < 2000) 0f else 1f)
 					else if (robot.getType == RobotType.SCOUT)
 						score += 100
 					if(robot.getType == RobotType.LUMBERJACK || robot.getType == RobotType.SOLDIER || robot.getType == RobotType.TANK){
@@ -52,7 +71,7 @@ class Scout extends Robot {
 						}
 						score += 50
 					}
-					score -= myLocation.distanceTo(robot.getLocation)
+					score /= myLocation.distanceTo(robot.getLocation) + 1
 					if (score > bestScore) {
 						bestScore = score
 						bestRobot = robot
@@ -66,24 +85,44 @@ class Scout extends Robot {
 					if (bestRobot.health < targetHP) {
 						stepsWithTarget = 0
 					}
-					targetHP = bestRobot.health.toFloat
-					val dir = rc.getLocation.directionTo(bestRobot.location)
+
 					hasMoved = true
-					var stride: Float = 2.5f
-					if (rc.hasAttacked)
-						stride = 1.3f
-					while (stride > 0.05f) {
-						if (!rc.hasMoved && rc.canMove(dir, stride)) {
-							rc.move(dir, stride)
+					var triedToMove = false
+					// If we have line of sight to the enemy don't move closer
+					var firstUnitHit = linecast(bestRobot.location)
+					if (firstUnitHit == null || firstUnitHit.isTree || teamOf(firstUnitHit) != enemy) {
+						triedToMove = true
+						targetHP = bestRobot.health.toFloat
+						val dir = rc.getLocation.directionTo(bestRobot.location)
+						var stride: Float = 2.5f
+						if (rc.hasAttacked)
+							stride = 1.3f
+						while (stride > 0.05f) {
+							if (!rc.hasMoved && rc.canMove(dir, stride)) {
+								rc.move(dir, stride)
+							}
+							stride -= 0.1f
 						}
-						stride -= 0.1f
 					}
-					if (rc.canFireSingleShot && rc.getLocation.distanceTo(bestRobot.location) < 3.5f) {
+
+					// Move in an arc
+					val nearbyEnemiesThatCanAttack = rc.senseNearbyRobots(info.sensorRadius, enemy).exists(e => e.getType != RobotType.ARCHON && e.getType != RobotType.GARDENER)
+					if (!rc.hasMoved && (triedToMove || nearbyEnemiesThatCanAttack)) {
+						val targetDir = bestRobot.location.directionTo(rc.getLocation).rotateLeftRads(fallbackRotation * info.strideRadius / rc.getLocation.distanceTo(bestRobot.location))
+						val targetPoint = bestRobot.location.add(targetDir)
+						if (!tryMove(targetPoint)) {
+							fallbackRotation = -fallbackRotation
+						}
+					}
+
+					// Linecast again after we moved
+					firstUnitHit = linecast(bestRobot.location)
+					if (rc.canFireSingleShot && rc.getLocation.distanceTo(bestRobot.location) < 2*info.sensorRadius && teamOf(firstUnitHit) != rc.getTeam) {
 						rc.fireSingleShot(rc.getLocation.directionTo(bestRobot.location))
 					}
 				}
 			}
-			if (!hasMoved) {
+			if (!rc.hasMoved && !hasMoved) {
 				try {
 					rc.setIndicatorDot(target, 255, 0, 0)
 				} catch {
@@ -94,10 +133,8 @@ class Scout extends Robot {
 					target = pickTarget()
 					stepsWithTarget = 0
 				}
-				val dir = myLocation.directionTo(target)
-				if (rc.canMove(dir))
-					tryMove(dir)
-				else {
+
+				if (!tryMove(target)) {
 					target = pickTarget()
 					tryMove(randomDirection)
 				}

@@ -2,12 +2,16 @@ package bot
 
 import battlecode.common._
 
+import scala.util.Random
+
 abstract class Robot {
 	var rc : RobotController = null
 	var info : RobotType = null
 	var spawnPos : MapLocation = null
 
 	val MAP_EDGE_BROADCAST_OFFSET = 10
+	val HIGH_PRIORITY_TARGET_OFFSET = 20
+	val GARDENER_OFFSET = 25
 	var mapEdgesDetermined = 0
 	var mapEdges = new Array[Float](4)
 	var countingAsAlive = true
@@ -86,8 +90,63 @@ abstract class Robot {
 		determineMapSize()
 		shakeNearbyTrees()
 		updateLiveness()
+		broadcastEnemyLocations()
 		Clock.`yield`()
 	}
+
+	def broadcastEnemyLocations(): Unit = {
+		val robots = rc.senseNearbyRobots(info.sensorRadius, rc.getTeam.opponent())
+
+		val lastAttackingEnemySpotted = rc.readBroadcast(HIGH_PRIORITY_TARGET_OFFSET)
+		val lastGardenerSpotted = rc.readBroadcast(GARDENER_OFFSET)
+
+		var anyHostiles = false
+		var anyGardeners = false
+		for (robot <- robots) {
+			if (robot.getType != RobotType.ARCHON) {
+				anyHostiles = true
+				anyGardeners |= robot.getType == RobotType.GARDENER
+
+				if (robot.attackCount > 0) {
+					// Aaaaah! They are attacking!! High priority target
+					val previousTick = rc.readBroadcast(HIGH_PRIORITY_TARGET_OFFSET)
+
+					// Keep the same target for at least 5 ticks
+					if (rc.getRoundNum > previousTick + 5) {
+						rc.broadcast(HIGH_PRIORITY_TARGET_OFFSET, rc.getRoundNum)
+						broadcast(HIGH_PRIORITY_TARGET_OFFSET + 1, robot.location)
+					}
+				}
+
+				if (robot.getType == RobotType.GARDENER) {
+					// Ha! Found a gardener, we can harass that one
+
+					// Keep the same target for at least 5 ticks
+					val previousTick = rc.readBroadcast(GARDENER_OFFSET)
+					if (rc.getRoundNum > previousTick + 5) {
+						rc.broadcast(GARDENER_OFFSET, rc.getRoundNum)
+						broadcast(GARDENER_OFFSET + 1, robot.location)
+					}
+				}
+			}
+		}
+
+		// Clear gardener and high priority target if we can see those positions but we cannot see any hostile units
+		if (!anyHostiles && lastAttackingEnemySpotted != -1000 && rc.getLocation.isWithinDistance(readBroadcastPosition(HIGH_PRIORITY_TARGET_OFFSET+1), info.sensorRadius*0.7f)) {
+			rc.broadcast(HIGH_PRIORITY_TARGET_OFFSET, -1000)
+		}
+
+		if (!anyGardeners && lastGardenerSpotted != -1000 && rc.getLocation.isWithinDistance(readBroadcastPosition(GARDENER_OFFSET+1), info.sensorRadius*0.7f)) {
+			rc.broadcast(GARDENER_OFFSET, -1000)
+		}
+	}
+
+	def broadcast (channel : Int, pos: MapLocation): Unit = {
+		rc.broadcast(channel, (pos.x * 1000).toInt)
+		rc.broadcast(channel + 1, (pos.y * 1000).toInt)
+	}
+
+	def readBroadcastPosition (channel : Int) = new MapLocation(rc.readBroadcast(channel) / 1000f, rc.readBroadcast(channel+1) / 1000f)
 
 	def updateLiveness (): Unit = {
 		val countAsDeadLimit = 10
@@ -209,5 +268,45 @@ abstract class Robot {
 		// line that is the path of the bullet.
 		val perpendicularDist: Float = Math.abs(distToRobot * Math.sin(theta)).toFloat // soh cah toa :)
 		return (perpendicularDist <= rc.getType.bodyRadius)
+	}
+
+	/** Return value in [bullets/tick] */
+	def treeScore (tree: TreeInfo, fromPos : MapLocation = null): Float = {
+		var turnsToChopDown = 1f
+		turnsToChopDown += (tree.health/GameConstants.LUMBERJACK_CHOP_DAMAGE)
+		if (fromPos != null) turnsToChopDown += Math.sqrt(fromPos.distanceTo(tree.location)/info.strideRadius).toFloat
+
+		val score = ((if (tree.containedRobot != null) tree.containedRobot.bulletCost * 1.5f else 0) + tree.containedBullets + 1) / turnsToChopDown
+		score
+	}
+
+	def teamOf (b: BodyInfo): Team = {
+		b match {
+			case r:RobotInfo => r.team
+			case t:TreeInfo => t.team
+			case _ => Team.NEUTRAL
+		}
+	}
+
+	def linecast (b: MapLocation): BodyInfo = {
+		val a = rc.getLocation
+		val dist = Math.min(a.distanceTo(b), info.sensorRadius * 0.99f)
+		if (dist == 0) {
+			// TODO: Sense current position
+			return null
+		}
+
+		val steps = (dist / 0.7f).toInt
+		val dir = a.directionTo(b)
+		for (t <- 1 to steps) {
+			val p = a.add(dir, dist * t / steps.toFloat)
+			val robot = rc.senseRobotAtLocation(p)
+			if (robot != null && robot.ID != rc.getID) return robot
+
+			val tree = rc.senseTreeAtLocation(p)
+			if (tree != null) return tree
+		}
+
+		null
 	}
 }
