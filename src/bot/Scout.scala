@@ -2,7 +2,6 @@ package bot
 
 import battlecode.common._
 import java.util.Random
-import scala.collection.mutable.ListBuffer
 
 class Scout extends Robot {
 
@@ -70,23 +69,17 @@ class Scout extends Robot {
 			val y1 = bullet.location.y - y3
 			val x2 = x1 + bullet.dir.getDeltaX(bullet.speed)
 			val y2 = y1 + bullet.dir.getDeltaY(bullet.speed)
-			//System.out.println("(" + x1 + ", " + y1 + "), (" + x2 + ", " + y2 + ")")
 			val dx = x2-x1
 			val dy = y2-y1
 			var dis = (x1*dy-dx*y1)/Math.sqrt(dx*dx+dy*dy)
 			if(dis < 0)
 				dis = -dis
-			//System.out.println("dis = " + dis)
 			var dis1 = x1*x1+y1*y1
-			//System.out.println("dis1 = " + Math.sqrt(dis1))
 			var dis2 = x2*x2+y2*y2
-			//System.out.println("dis2 = " + Math.sqrt(dis2))
 			if(dis1 > dis2)
 				dis1 = dis2
 			if(dis1 > dis*dis)
 				dis = Math.sqrt(dis1)
-			//System.out.println("disf = " + dis)
-			//if(loc.distanceTo(bullet.location) < 1f+bullet.speed){
 			if(dis < 1f){
 				score -= 1000f*bullets(i).damage
 			}
@@ -178,71 +171,18 @@ class Scout extends Robot {
 						bestRobot = robot
 					}
 				}
-				/*if(closestThreat != null && closestThreat.distanceTo(myLocation) < 15f){
-					var dir = closestThreat.directionTo(myLocation).rotateLeftDegrees(70)
-					tryMove(dir)
-				}*/
 				if (bestRobot != null) {
 					if (bestRobot.health < targetHP) {
 						stepsWithTarget = 0
 					}
 					targetHP = bestRobot.health
 
-					/*hasMoved = true
-					var triedToMove = false
-					// If we have line of sight to the enemy don't move closer
-					var firstUnitHit = linecast(bestRobot.location)
-					if (firstUnitHit == null || firstUnitHit.isTree || teamOf(firstUnitHit) != enemy || bestRobot.getType == RobotType.GARDENER) {
-						triedToMove = true
-						targetHP = bestRobot.health.toFloat
-						val dir = rc.getLocation.directionTo(bestRobot.location)
-						var stride: Float = 2.5f
-						if (rc.hasAttacked)
-							stride = 1.3f
-						while (stride > 0.05f) {
-							if (!rc.hasMoved && rc.canMove(dir, stride)) {
-								rc.move(dir, stride)
-							}
-							stride -= 0.1f
-						}
-					}
-
-					// Move in an arc
-					val nearbyEnemiesThatCanAttack = rc.senseNearbyRobots(info.sensorRadius, enemy).exists(e => e.getType != RobotType.ARCHON && e.getType != RobotType.GARDENER)
-					if (!rc.hasMoved && (triedToMove || nearbyEnemiesThatCanAttack)) {
-						val targetDir = bestRobot.location.directionTo(rc.getLocation).rotateLeftRads(fallbackRotation * info.strideRadius / rc.getLocation.distanceTo(bestRobot.location))
-						val targetPoint = bestRobot.location.add(targetDir)
-						if (!tryMove(targetPoint)) {
-							fallbackRotation = -fallbackRotation
-						}
-					}*/
-
-					//System.out.println("Can fire?")
-					// Linecast again after we moved
 					var firstUnitHit = linecast(bestRobot.location)
 					if (rc.canFireSingleShot && rc.getLocation.distanceTo(bestRobot.location) < 2*info.sensorRadius && teamOf(firstUnitHit) == rc.getTeam.opponent && turnsLeft > STOP_SPENDING_AT_TIME) {
 						rc.fireSingleShot(rc.getLocation.directionTo(bestRobot.location))
-						//System.out.println("Firing!")
 					}
 				}
 			}
-			/*if (!rc.hasMoved && !hasMoved) {
-				try {
-					rc.setIndicatorDot(target, 255, 0, 0)
-				} catch {
-					case _: Exception =>
-				}
-				val canSeeTarget = target.distanceSquaredTo(rc.getLocation) < 10f
-				if (canSeeTarget) {
-					target = pickTarget()
-					stepsWithTarget = 0
-				}
-
-				if (!tryMove(target)) {
-					target = pickTarget()
-					tryMove(randomDirection)
-				}
-			}*/
 			// Clock.yield() makes the robot wait until the next turn, then it will perform this loop again
 			yieldAndDoBackgroundTasks()
 		}
