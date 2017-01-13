@@ -7,6 +7,7 @@ class Archon extends Robot {
 	override def run(): Unit = {
 		rc.broadcast(GARDENER_OFFSET, -1000)
 		rc.broadcast(HIGH_PRIORITY_TARGET_OFFSET, -1000)
+		val STOP_SPENDING_AT_TIME = 100
 
 		System.out.println("I'm an archon! ")
 		// The code you want your robot to perform every round should be in this loop
@@ -20,6 +21,7 @@ class Archon extends Robot {
 			val gardenerCount = spawnedCount(RobotType.GARDENER)
 			var saveForTank = false
 			val tankCount = spawnedCount(RobotType.TANK)
+			val turnsLeft = rc.getRoundLimit - rc.getRoundNum
 
 			if(rc.getTreeCount() > tankCount*4+4 && rc.getTeamBullets <= RobotType.TANK.bulletCost + 100 && gardenerCount > 1) {
 				saveForTank = true
@@ -28,7 +30,7 @@ class Archon extends Robot {
 			if ((gardenerCount < 1 || rc.getTreeCount > 3*gardenerCount || rc.getTeamBullets > RobotType.TANK.bulletCost + 100) && !saveForTank) {
 				// Generate a random direction
 				val dir: Direction = randomDirection
-				if (rc.canHireGardener(dir)) {
+				if (rc.canHireGardener(dir) && turnsLeft > STOP_SPENDING_AT_TIME) {
 					rc.hireGardener(dir)
 					rc.broadcast(RobotType.GARDENER.ordinal(), gardenerCount + 1)
 				}

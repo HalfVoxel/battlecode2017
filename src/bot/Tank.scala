@@ -22,6 +22,7 @@ class Tank extends Robot {
 		var target = rc.getLocation
 		val archons = rc.getInitialArchonLocations(enemy)
 		var stepsWithTarget = 0
+		val STOP_SPENDING_AT_TIME = 50
 
 		if(archons.length > 0) {
 			val rand = new Random(1)
@@ -31,6 +32,7 @@ class Tank extends Robot {
 
 		// The code you want your robot to perform every round should be in this loop
 		while (true) {
+			val turnsLeft = rc.getRoundLimit - rc.getRoundNum
 			// See if there are any nearby enemy robots
 			val robots: Array[RobotInfo] = rc.senseNearbyRobots(-1, enemy)
 			val friendlyRobots: Array[RobotInfo] = rc.senseNearbyRobots(-1, rc.getTeam)
@@ -61,7 +63,7 @@ class Tank extends Robot {
 			}
 
 			// If there are some...
-			if (robots.length > 0) {
+			if (robots.length > 0 && turnsLeft > STOP_SPENDING_AT_TIME) {
 				if (rc.canFirePentadShot && friendlyRobots.length < robots.length) {
 					// ...Then fire a bullet in the direction of the enemy.
 					rc.firePentadShot(rc.getLocation.directionTo(robots(0).location))

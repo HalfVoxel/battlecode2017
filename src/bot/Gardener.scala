@@ -99,10 +99,12 @@ class Gardener extends Robot {
 		var hasBuiltScout = false
 		var hasSettled = false
 		var unsettledTime = 0
+		val STOP_SPENDING_AT_TIME = 100
 
 		buildLumberjackInDenseForests()
 
 		while (true) {
+			val turnsLeft = rc.getRoundLimit - rc.getRoundNum
 			var saveForTank = false
 			var tankCount = spawnedCount(RobotType.TANK)
 			val gardenerCount = spawnedCount(RobotType.GARDENER)
@@ -136,7 +138,7 @@ class Gardener extends Robot {
 				System.out.println("Trying to build scout ")
 				for (i <- 0 until 6) {
 					val dir = new Direction(2 * Math.PI.toFloat * i / 6f)
-					if (rc.canBuildRobot(RobotType.SCOUT, dir)) {
+					if (rc.canBuildRobot(RobotType.SCOUT, dir) && turnsLeft > STOP_SPENDING_AT_TIME) {
 						rc.buildRobot(RobotType.SCOUT, dir)
 						rc.broadcast(RobotType.SCOUT.ordinal(), scoutCount + 1)
 						hasBuiltScout = true
@@ -157,13 +159,13 @@ class Gardener extends Robot {
 					case _:Exception =>
 				}
 			}
-
-			buildLumberjackInDenseForests()
+			if(turnsLeft > STOP_SPENDING_AT_TIME)
+				buildLumberjackInDenseForests()
 
 			if (rc.hasRobotBuildRequirements(RobotType.TANK) && tankCount < 5) {
 				for (i <- 0 until 6) {
 					val dir = new Direction(2 * Math.PI.toFloat * i / 6f)
-					if (rc.canBuildRobot(RobotType.TANK, dir)) {
+					if (rc.canBuildRobot(RobotType.TANK, dir) && turnsLeft > STOP_SPENDING_AT_TIME) {
 						rc.buildRobot(RobotType.TANK, dir)
 						tankCount += 1
 						rc.broadcast(RobotType.TANK.ordinal(), tankCount)
@@ -185,7 +187,7 @@ class Gardener extends Robot {
 
 					val dir = new Direction(2 * Math.PI.toFloat * i / 6f)
 
-					if (rc.canPlantTree(dir) && !saveForTank) {
+					if (rc.canPlantTree(dir) && !saveForTank && turnsLeft > STOP_SPENDING_AT_TIME) {
 						hasSettled = true
 						rc.plantTree(dir)
 						System.out.println("Planted tree")

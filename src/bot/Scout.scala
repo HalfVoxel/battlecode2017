@@ -39,6 +39,7 @@ class Scout extends Robot {
 		var stepsWithTarget = 0
 		var targetHP = 0f
 		var fallbackRotation = 1
+		val STOP_SPENDING_AT_TIME = 50
 		if (archons.length > 0) {
 			val rand = new Random(1)
 			val ind = rand.nextInt(archons.length)
@@ -46,6 +47,7 @@ class Scout extends Robot {
 		}
 		// The code you want your robot to perform every round should be in this loop
 		while (true) {
+			val turnsLeft = rc.getRoundLimit - rc.getRoundNum
 			val myLocation: MapLocation = rc.getLocation
 			// See if there are any nearby enemy robots
 			val robots: Array[RobotInfo] = rc.senseNearbyRobots(-1, enemy)
@@ -117,7 +119,7 @@ class Scout extends Robot {
 
 					// Linecast again after we moved
 					firstUnitHit = linecast(bestRobot.location)
-					if (rc.canFireSingleShot && rc.getLocation.distanceTo(bestRobot.location) < 2*info.sensorRadius && teamOf(firstUnitHit) == rc.getTeam.opponent) {
+					if (rc.canFireSingleShot && rc.getLocation.distanceTo(bestRobot.location) < 2*info.sensorRadius && teamOf(firstUnitHit) == rc.getTeam.opponent && turnsLeft > STOP_SPENDING_AT_TIME) {
 						rc.fireSingleShot(rc.getLocation.directionTo(bestRobot.location))
 					}
 				}
