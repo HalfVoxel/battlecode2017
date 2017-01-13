@@ -267,27 +267,12 @@ abstract class Robot {
         }
     }
 
-    MapLocation prevMapPos = null;
-    float prevValue = 0f;
-
     void setIndicatorDot (MapLocation pos, float value) throws GameActionException {
-        float origValue = value;
-        MapLocation origPos = pos;
-
-        if (prevMapPos == null) {
-            prevMapPos = pos;
-            prevValue = value;
-        }
-
         float r = Math.max(Math.min(value * 3f, 1f), 0f);
-        // Note b and g swapped because of a bug in the battlecode server
-        float b = Math.max(Math.min((value - 1/3f) * 3f, 1f), 0f);
-        float g = Math.max(Math.min((value - 2/3f) * 3f, 1f), 0f);
+        float g = Math.max(Math.min((value - 1/3f) * 3f, 1f), 0f);
+        float b = Math.max(Math.min((value - 2/3f) * 3f, 1f), 0f);
 
-        rc.setIndicatorDot(prevMapPos, (int)(r * 255f), (int)(g * 255f), (int)(b * 255f));
-
-        prevValue = origValue;
-        prevMapPos = origPos;
+        rc.setIndicatorDot(pos, (int)(r * 255f), (int)(g * 255f), (int)(b * 255f));
     }
 
     void shakeNearbyTrees () throws GameActionException {
