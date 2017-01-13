@@ -7,8 +7,6 @@ import java.util.Random;
 
 class Gardener extends Robot {
 
-    Random rnd = new Random(1);
-
     void water() throws GameActionException {
         if (rc.canWater()) {
             TreeInfo[] trees = rc.senseNearbyTrees(2*info.bodyRadius, rc.getTeam());
@@ -50,7 +48,7 @@ class Gardener extends Robot {
             Direction dir = randomDirection();
             target = rc.getLocation().add(dir, info.strideRadius * 3);
 
-            if (rnd.nextFloat() < 0.5) {
+            if (Math.random() < 0.5) {
                 // Ensure it is far away from the spawn pos
                 target = spawnPos.add(spawnPos.directionTo(target), Math.max(spawnPos.distanceTo(target), info.bodyRadius * 8));
             }
