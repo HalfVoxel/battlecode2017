@@ -135,7 +135,6 @@ class Gardener extends Robot {
 			var dir = randomDirection
 			if ((!hasBuiltScout || Math.sqrt(rc.getTreeCount+1) > scoutCount) && !saveForTank){
 				saveForTank = true
-				System.out.println("Trying to build scout ")
 				for (i <- 0 until 6) {
 					val dir = new Direction(2 * Math.PI.toFloat * i / 6f)
 					if (rc.canBuildRobot(RobotType.SCOUT, dir) && turnsLeft > STOP_SPENDING_AT_TIME) {
@@ -144,9 +143,6 @@ class Gardener extends Robot {
 						hasBuiltScout = true
 					}
 				}
-			}
-			else{
-				System.out.println("Not trying to build scout ")
 			}
 
 			if (invalidTarget) {
@@ -173,39 +169,23 @@ class Gardener extends Robot {
 				}
 			}
 
-			System.out.println("unsettledTime = " + unsettledTime)
-			System.out.println("canSeeTarget = " + canSeeTarget)
-			System.out.println("rc.getLocation.distanceSquaredTo(target) = " + rc.getLocation.distanceSquaredTo(target))
 			if (canSeeTarget && ((!invalidTarget && rc.getLocation.distanceSquaredTo(target) < 2f) || unsettledTime > 30)) {
 				// At target
 
 				for (i <- 0 until 6) {
-					/*while (!rc.hasTreeBuildRequirements || !rc.isBuildReady) {
-						water()
-						yieldAndDoBackgroundTasks()
-					}*/
-
 					val dir = new Direction(2 * Math.PI.toFloat * i / 6f)
 
 					if (rc.canPlantTree(dir) && !saveForTank && turnsLeft > STOP_SPENDING_AT_TIME) {
 						hasSettled = true
 						rc.plantTree(dir)
 						System.out.println("Planted tree")
-						System.out.println("Detected: " + rc.senseNearbyTrees(info.bodyRadius * 2, rc.getTeam).length)
 					} else {
-						System.out.println("Tree location became blocked in direction " + dir)
+						//System.out.println("Tree location became blocked in direction " + dir)
 						// Ignore building a tree there
 					}
 				}
 
-				System.out.println("Planted all trees")
-
-				/*while(rc.senseNearbyTrees(info.bodyRadius*2, rc.getTeam).length > 0) {
-					water()
-					yieldAndDoBackgroundTasks()
-				}*/
-
-				System.out.println("Lost all trees around me, moving again")
+				//System.out.println("Lost all trees around me, moving again")
 			}
 
 			if(!hasSettled) {
