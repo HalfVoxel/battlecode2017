@@ -375,8 +375,8 @@ abstract class Robot {
     }
 
     Team teamOf (BodyInfo b) {
-        if (b.isRobot()) return ((RobotInfo)b).team;
-        if (b.isTree()) return ((TreeInfo)b).team;
+        if (b != null && b.isRobot()) return ((RobotInfo)b).team;
+        if (b != null && b.isTree()) return ((TreeInfo)b).team;
         return Team.NEUTRAL;
     }
 
