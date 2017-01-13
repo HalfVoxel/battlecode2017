@@ -59,18 +59,29 @@ class Gardener extends Robot {
 	}
 
 	def buildLumberjackInDenseForests(): Unit = {
-		val neutralTreeCount = rc.senseNearbyTrees(info.sensorRadius, Team.NEUTRAL).length
-		if (neutralTreeCount >= 3 && spawnedCount(RobotType.LUMBERJACK) < 2) {
+		if (!rc.hasRobotBuildRequirements(RobotType.LUMBERJACK)) return
+		//if (spawnedCount(RobotType.LUMBERJACK) >= 2) return
+
+		val trees = rc.senseNearbyTrees(info.sensorRadius, Team.NEUTRAL)
+		var totalScore = 0f
+		for (tree <- trees) {
+			// Add a small constant to make it favorable to just chop down trees for space
+			totalScore += treeScore(tree) + 0.1f
+		}
+
+		// Very approximate
+		val turnsToBreakEven = RobotType.LUMBERJACK.bulletCost / (totalScore + 0.001)
+
+		//System.out.println("Score " + totalScore + " turns to break even " + turnsToBreakEven)
+		val modifier = (1 + rc.getTeamBullets*0.001f) / (1f + spawnedCount(RobotType.LUMBERJACK))
+		if (turnsToBreakEven < 100 * modifier) {
 			// Create a woodcutter
-			var done = false
-			while(!done) {
+			for (i <- 0 to 6) {
 				val dir: Direction = randomDirection
 				if (rc.canBuildRobot(RobotType.LUMBERJACK, dir)) {
 					rc.buildRobot(RobotType.LUMBERJACK, dir)
 					rc.broadcast(RobotType.LUMBERJACK.ordinal(), spawnedCount(RobotType.LUMBERJACK) + 1)
-					done = true
-				} else {
-					yieldAndDoBackgroundTasks()
+					return
 				}
 			}
 		}
@@ -91,9 +102,10 @@ class Gardener extends Robot {
 
 		while (true) {
 			var saveForTank = false
-			val tankCount = spawnedCount(RobotType.TANK)
-			val lumberjackCount = spawnedCount(RobotType.LUMBERJACK)
-			if(rc.getTreeCount() > tankCount*4+4){
+			var tankCount = spawnedCount(RobotType.TANK)
+			val gardenerCount = spawnedCount(RobotType.GARDENER)
+			val scoutCount = spawnedCount(RobotType.SCOUT)
+			if(rc.getTreeCount > tankCount*4+4 && rc.getTeamBullets <= RobotType.TANK.bulletCost + 100 && gardenerCount > 1 && scoutCount > 2){
 				saveForTank = true
 			}
 
@@ -101,8 +113,9 @@ class Gardener extends Robot {
 			val canSeeTarget = target.distanceSquaredTo(rc.getLocation) < 0.01f || rc.canSenseAllOfCircle(target, desiredRadius)
 
 			var dir = randomDirection
-			if (!hasBuiltScout && rc.canBuildRobot(RobotType.SCOUT, dir) && !saveForTank){
+			if ((!hasBuiltScout || Math.sqrt(rc.getTeamBullets) > scoutCount*5) && rc.canBuildRobot(RobotType.SCOUT, dir) && !saveForTank){
 				rc.buildRobot(RobotType.SCOUT, dir)
+				rc.broadcast(RobotType.SCOUT.ordinal(), scoutCount + 1)
 				hasBuiltScout = true
 			}
 			if (invalidTarget) {
@@ -116,6 +129,19 @@ class Gardener extends Robot {
 				}
 			}
 
+			buildLumberjackInDenseForests()
+
+			if (rc.hasRobotBuildRequirements(RobotType.TANK) && tankCount < 5) {
+				for (i <- 0 until 6) {
+					val dir = new Direction(2 * Math.PI.toFloat * i / 6f)
+					if (rc.canBuildRobot(RobotType.TANK, dir)) {
+						rc.buildRobot(RobotType.TANK, dir)
+						tankCount += 1
+						rc.broadcast(RobotType.TANK.ordinal(), tankCount)
+					}
+				}
+			}
+
 			if (canSeeTarget && !invalidTarget && rc.getLocation.distanceSquaredTo(target) < 0.001f) {
 				// At target
 
@@ -125,15 +151,8 @@ class Gardener extends Robot {
 						yieldAndDoBackgroundTasks()
 					}
 
-					val dir = new Direction(2*Math.PI.toFloat*i / 6f)
-					if (rc.canBuildRobot(RobotType.TANK, dir)) {
-						rc.buildRobot(RobotType.TANK, dir)
-						rc.broadcast(RobotType.TANK.ordinal(), tankCount + 1)
-					}
-					if (rc.canBuildRobot(RobotType.LUMBERJACK, dir) && lumberjackCount < 2) {
-						rc.buildRobot(RobotType.LUMBERJACK, dir)
-						rc.broadcast(RobotType.LUMBERJACK.ordinal(), lumberjackCount + 1)
-					}
+					val dir = new Direction(2 * Math.PI.toFloat * i / 6f)
+
 					if (rc.canPlantTree(dir) && !saveForTank) {
 						rc.plantTree(dir)
 						System.out.println("Planted tree")
