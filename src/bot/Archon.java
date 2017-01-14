@@ -30,7 +30,7 @@ class Archon extends Robot {
             int tankCount = spawnedCount(RobotType.TANK);
             int turnsLeft = rc.getRoundLimit() - rc.getRoundNum();
 
-            if(rc.getTreeCount() > tankCount*4+4 && rc.getTeamBullets() <= RobotType.TANK.bulletCost + 100 && gardenerCount > 1) {
+            if(rc.getTreeCount() > tankCount*4+400 && rc.getTeamBullets() <= RobotType.TANK.bulletCost + 100 && gardenerCount > 1) {
                 saveForTank = true;
             }
 

@@ -75,7 +75,10 @@ class Gardener extends Robot {
 
         //System.out.println("Score " + totalScore + " turns to break even " + turnsToBreakEven)
         float modifier = (1 + rc.getTeamBullets()*0.001f) / (1f + spawnedCount(RobotType.LUMBERJACK));
-        if (turnsToBreakEven < 100 * modifier) {
+        boolean createLumberjack = false;
+        if(spawnedCount(RobotType.LUMBERJACK) == 0 && rc.getTeamBullets() > 200)
+            createLumberjack = true;
+        if (createLumberjack || turnsToBreakEven < 100 * modifier) {
             // Create a woodcutter
             for (int i = 0; i < 6; i++) {
                 Direction dir = randomDirection();
@@ -111,7 +114,7 @@ class Gardener extends Robot {
             int gardenerCount = spawnedCount(RobotType.GARDENER);
             int scoutCount = spawnedCount(RobotType.SCOUT);
 
-            if(rc.getTreeCount() > tankCount*4+4 && rc.getTeamBullets() <= RobotType.TANK.bulletCost + 100 && gardenerCount > 1 && scoutCount > 2){
+            if(rc.getTreeCount() > tankCount*4+400 && rc.getTeamBullets() <= RobotType.TANK.bulletCost + 100 && gardenerCount > 1 && scoutCount > 2){
                 saveForTank = true;
             }
 
@@ -159,7 +162,7 @@ class Gardener extends Robot {
             if(turnsLeft > STOP_SPENDING_AT_TIME)
                 buildLumberjackInDenseForests();
 
-            if (rc.hasRobotBuildRequirements(RobotType.TANK) && tankCount < 5) {
+            if (rc.hasRobotBuildRequirements(RobotType.TANK) && tankCount < 0) {
                 for (int i = 0; i < 6; i++) {
                     Direction dir = new Direction(2 * (int)Math.PI * i / 6f);
                     if (rc.canBuildRobot(RobotType.TANK, dir) && turnsLeft > STOP_SPENDING_AT_TIME) {

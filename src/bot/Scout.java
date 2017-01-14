@@ -181,6 +181,7 @@ class Scout extends Robot {
             }
 
             System.out.println("stepsWithTarget = " + stepsWithTarget);
+            boolean nearbyEnemyGardener = false;
 
             // If there are some...
             if (stepsWithTarget < 100000 && robots.length > 0) {
@@ -190,11 +191,11 @@ class Scout extends Robot {
                 MapLocation closestThreat = null;
 
                 for (RobotInfo robot : robots) {
-                    if(robot.ID == rc.getID())
-                        continue;
                     float score = 0;
-                    if (robot.getType() == RobotType.GARDENER)
+                    if (robot.getType() == RobotType.GARDENER) {
                         score += 100;
+                        nearbyEnemyGardener = true;
+                    }
                     else if (robot.getType() == RobotType.ARCHON)
                         score += (highPriorityTargetExists() || rc.getRoundNum() < 2000 ? 0f : 1f);
 					else if (robot.getType() == RobotType.SCOUT)
@@ -224,6 +225,27 @@ class Scout extends Robot {
                     if (rc.canFireSingleShot() && rc.getLocation().distanceTo(bestRobot.location) < 2*info.sensorRadius && teamOf(firstUnitHit) == rc.getTeam().opponent() && turnsLeft > STOP_SPENDING_AT_TIME) {
                         rc.fireSingleShot(rc.getLocation().directionTo(bestRobot.location));
                         System.out.println("Firing!");
+                    }
+                }
+            }
+            if(!nearbyEnemyGardener) {
+                if (!rc.hasAttacked()) {
+                    for (TreeInfo tree : trees) {
+                        if(Clock.getBytecodesLeft() < 2000)
+                            break;
+                        if (tree.getTeam() == enemy) {
+                            BodyInfo firstUnitHit = linecast(tree.location);
+                            if (firstUnitHit != null && firstUnitHit.isTree()) {
+                                TreeInfo t = (TreeInfo) firstUnitHit;
+                                if (t.getHealth() > 30f) {
+                                    if (rc.canFireSingleShot() && turnsLeft > STOP_SPENDING_AT_TIME) {
+                                        rc.fireSingleShot(rc.getLocation().directionTo(tree.location));
+                                        System.out.println("Firing at tree!");
+                                    }
+                                    break;
+                                }
+                            }
+                        }
                     }
                 }
             }
