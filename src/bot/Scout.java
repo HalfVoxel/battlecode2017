@@ -76,8 +76,11 @@ class Scout extends Robot {
                 else if(unit.getType() == RobotType.ARCHON) {
 
                 }
-                else
-                    score -= 5f / (loc.distanceSquaredTo(unit.location) + 1);
+                else {
+                    float dis = loc.distanceTo(unit.location);
+                    score -= 3f / (dis*dis + 1);
+                    score += 0.2f / (dis + 1);
+                }
             }
         }
 
@@ -172,17 +175,39 @@ class Scout extends Robot {
             float bestScore = -1000000f;
             MapLocation bestMove = null;
             int iterationsDone = 0;
+            List<MapLocation> movesToConsider = new ArrayList<MapLocation>();
+            RobotInfo closestEnemy = null;
+            float disToClosestEnemy = 1000000f;
+            for (RobotInfo robot : robots) {
+                if(myLocation.distanceTo(robot.location) < disToClosestEnemy){
+                    disToClosestEnemy = myLocation.distanceTo(robot.location);
+                    closestEnemy = robot;
+                }
+            }
+            if(closestEnemy != null){
+                Direction dir = myLocation.directionTo(closestEnemy.location);
+                movesToConsider.add(myLocation.add(dir.opposite(), 2.5f));
+                movesToConsider.add(myLocation.add(dir,
+                        Math.max(0f, Math.min(myLocation.distanceTo(closestEnemy.location)-2.01f, 2.5f))));
+            }
+
             while(Clock.getBytecodesLeft() > 5000){
                 iterationsDone += 1;
                 Direction dir = randomDirection();
                 MapLocation loc = null;
-                int r = rand.nextInt(10);
-                if(r < 5)
-                    loc = myLocation.add(dir, 2.5f);
-                else if(r < 7)
-                    loc = myLocation.add(dir, 1f);
-                else
-                    loc = myLocation.add(dir, 0.2f);
+                if(movesToConsider.isEmpty()) {
+                    int r = rand.nextInt(10);
+                    if (r < 5)
+                        loc = myLocation.add(dir, 2.5f);
+                    else if (r < 7)
+                        loc = myLocation.add(dir, 1f);
+                    else
+                        loc = myLocation.add(dir, 0.2f);
+                }
+                else{
+                    loc = movesToConsider.get(0);
+                    movesToConsider.remove(0);
+                }
 
                 if(rc.canMove(loc)) {
                     float score = getPositionScore(loc, archons, allRobots, nearbyBullets, bestTree, target);
@@ -246,6 +271,9 @@ class Scout extends Robot {
                             rc.fireSingleShot(rc.getLocation().directionTo(bestRobot.location));
                             System.out.println("Firing!");
                         }
+                    }
+                    else{
+                        break;
                     }
                 }
             }
