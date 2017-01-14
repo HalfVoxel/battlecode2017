@@ -76,7 +76,7 @@ class Gardener extends Robot {
         //System.out.println("Score " + totalScore + " turns to break even " + turnsToBreakEven)
         float modifier = (1 + rc.getTeamBullets()*0.001f) / (1f + spawnedCount(RobotType.LUMBERJACK));
         boolean createLumberjack = false;
-        if(spawnedCount(RobotType.LUMBERJACK) == 0 && rc.getTeamBullets() > 200)
+        if(spawnedCount(RobotType.LUMBERJACK) == 0 && rc.getTeamBullets() > 200 && rc.getTreeCount() > 0)
             createLumberjack = true;
         if (createLumberjack || turnsToBreakEven < 100 * modifier) {
             // Create a woodcutter
@@ -114,9 +114,10 @@ class Gardener extends Robot {
             int gardenerCount = spawnedCount(RobotType.GARDENER);
             int scoutCount = spawnedCount(RobotType.SCOUT);
 
-            if(rc.getTreeCount() > tankCount*4+4 && rc.getTeamBullets() <= RobotType.TANK.bulletCost + 100 && gardenerCount > 1 && scoutCount > 2){
+            if(rc.getTreeCount() > tankCount*20+10 && rc.getTeamBullets() <= RobotType.TANK.bulletCost + 100 && gardenerCount > 1 && scoutCount > 2){
                 saveForTank = true;
             }
+            System.out.println("saveForTank = " + saveForTank);
 
             if(!hasSettled) {
                 unsettledTime += 1;
@@ -137,7 +138,7 @@ class Gardener extends Robot {
             boolean invalidTarget = (moveFailCounter > 5 || !likelyValidTarget(target, desiredRadius)) && !hasSettled;
             boolean canSeeTarget = target.distanceSquaredTo(rc.getLocation()) < 0.01f || rc.canSenseAllOfCircle(target, desiredRadius);
 
-            if ((!hasBuiltScout || Math.sqrt(rc.getTreeCount()+4) > scoutCount) && !saveForTank){
+            if ((!hasBuiltScout || Math.pow(rc.getTreeCount()+2, 0.9) > scoutCount) && !saveForTank){
                 saveForTank = true;
                 for (int i = 0; i < 6; i++) {
                     Direction dir = new Direction(2 * (float)Math.PI * i / 6f);
@@ -183,6 +184,7 @@ class Gardener extends Robot {
                         hasSettled = true;
                         rc.plantTree(dir);
                         System.out.println("Planted tree");
+                        target = rc.getLocation();
                     } else {
                         //System.out.println("Tree location became blocked in direction " + dir)
                         // Ignore building a tree there

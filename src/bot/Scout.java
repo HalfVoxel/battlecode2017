@@ -78,7 +78,7 @@ class Scout extends Robot {
                 }
                 else {
                     float dis = loc.distanceTo(unit.location);
-                    score -= 3f / (dis*dis + 1);
+                    score -= 5f / (dis*dis + 1);
                     score += 0.2f / (dis + 1);
                 }
             }
