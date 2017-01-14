@@ -24,20 +24,31 @@ class Scout extends Robot {
 				return readBroadcastPosition(GARDENER_OFFSET + 1);
 			} else {
 				Direction dir = randomDirection();
-				MapLocation target = rc.getLocation().add(dir, info.strideRadius * 10);
+				MapLocation target = rc.getLocation().add(dir, info.sensorRadius - 1f);
+				int iterationNumber = 0;
+				if(!rc.onTheMap(target) && iterationNumber < 10){
+                    dir = randomDirection();
+                    target = rc.getLocation().add(dir, info.sensorRadius - 1f);
+                    iterationNumber += 1;
+                }
+                if(!rc.onTheMap(target)){
+				    target = rc.getLocation();
+                }
 				return target;
 			}
 		}
     }
 
     float getPositionScore(MapLocation loc, MapLocation[] enemyArchons,
-                         RobotInfo[] units, BulletInfo[] bullets) {
+                         RobotInfo[] units, BulletInfo[] bullets, TreeInfo[] trees, MapLocation target) {
         //var pre = Clock.getBytecodesLeft()
         Team myTeam = rc.getTeam();
+        Team opponentTeam = myTeam.opponent();
         float score = 0f;
-        for (MapLocation archon : enemyArchons) {
+        /*for (MapLocation archon : enemyArchons) {
             score += 1f/(loc.distanceSquaredTo(archon)+1);
-        }
+        }*/
+        score += 100f/(loc.distanceSquaredTo(target)+10);
 
         for (RobotInfo unit : units) {
             if (unit.team == myTeam) {
@@ -46,14 +57,38 @@ class Scout extends Robot {
             } else {
                 if (unit.getType() == RobotType.GARDENER)
                     score += 10f / (loc.distanceSquaredTo(unit.location) + 1);
-                else if(unit.getType() == RobotType.SCOUT)
-                    score += 2f / (loc.distanceSquaredTo(unit.location) + 1);
-                else if(unit.getType() == RobotType.LUMBERJACK)
-                    score -= 20f / (loc.distanceSquaredTo(unit.location) + 1);
+                else if(unit.getType() == RobotType.SCOUT) {
+                    if(rc.getHealth() >= unit.getHealth())
+                        score += 2f / (loc.distanceSquaredTo(unit.location) + 1);
+                    else
+                        score -= 2f / (loc.distanceSquaredTo(unit.location) + 1);
+                }
+                else if(unit.getType() == RobotType.LUMBERJACK) {
+                    float dis = loc.distanceTo(unit.location);
+                    score -= 2f / (dis + 1);
+                    if(dis < GameConstants.LUMBERJACK_STRIKE_RADIUS + 2.5f){
+                        score -= 1000;
+                    }
+                }
+                else if(unit.getType() == RobotType.ARCHON) {
+
+                }
                 else
-                    score -= 5f / (loc.distanceSquaredTo(unit.location) + 1);
+                    score -= 2f / (loc.distanceSquaredTo(unit.location) + 1);
             }
         }
+
+        /*for (TreeInfo tree : trees){
+            if(tree.getTeam() == myTeam){
+
+            }
+            else if(tree.getTeam() == opponentTeam){
+                score += 0.05f / (loc.distanceSquaredTo(tree.location) + 5);
+            }
+            else{
+                score += (tree.containedBullets * 0.5) / (loc.distanceSquaredTo(tree.location) + 1);
+            }
+        }*/
 
         float x3 = loc.x;
         float y3 = loc.y;
@@ -69,6 +104,7 @@ class Scout extends Robot {
                 dis = -dis;
             float dis1 = x1*x1+y1*y1;
             float dis2 = x2*x2+y2*y2;
+            score -= bullet.damage * 2f / (dis2*dis2+1);
             if(dis1 > dis2)
                 dis1 = dis2;
             if(dis1 > dis*dis)
@@ -107,7 +143,13 @@ class Scout extends Robot {
             RobotInfo[] robots = rc.senseNearbyRobots(-1, enemy);
             RobotInfo[] allRobots = rc.senseNearbyRobots();
             BulletInfo[] nearbyBullets = rc.senseNearbyBullets(8f);
+            TreeInfo[] trees = rc.senseNearbyTrees();
             boolean hasMoved = false;
+
+            if(rand.nextInt(200) < 1 || myLocation.distanceTo(target) < 4f){
+                target = pickTarget();
+            }
+            System.out.println("Target: " + target.x + ", " + target.y);
 
             float bestScore = -1000000f;
             MapLocation bestMove = null;
@@ -125,7 +167,7 @@ class Scout extends Robot {
                     loc = myLocation.add(dir, 0.2f);
 
                 if(rc.canMove(loc)) {
-                    float score = getPositionScore(loc, archons, allRobots, nearbyBullets);
+                    float score = getPositionScore(loc, archons, allRobots, nearbyBullets, trees, target);
                     //System.out.println("Score = " + score)
                     if (score > bestScore) {
                         bestScore = score;
@@ -138,21 +180,25 @@ class Scout extends Robot {
                 rc.move(bestMove);
             }
 
+            System.out.println("stepsWithTarget = " + stepsWithTarget);
+
             // If there are some...
-            if (stepsWithTarget < 30 && robots.length > 0) {
+            if (stepsWithTarget < 100000 && robots.length > 0) {
                 stepsWithTarget += 1;
                 RobotInfo bestRobot = null;
                 float bestScore2 = 0;
                 MapLocation closestThreat = null;
 
                 for (RobotInfo robot : robots) {
+                    if(robot.ID == rc.getID())
+                        continue;
                     float score = 0;
                     if (robot.getType() == RobotType.GARDENER)
                         score += 100;
                     else if (robot.getType() == RobotType.ARCHON)
                         score += (highPriorityTargetExists() || rc.getRoundNum() < 2000 ? 0f : 1f);
 					else if (robot.getType() == RobotType.SCOUT)
-                        score += 100;
+                        score += 150;
                     if(robot.getType() == RobotType.LUMBERJACK || robot.getType() == RobotType.SOLDIER || robot.getType() == RobotType.TANK){
                         if(closestThreat == null || robot.location.distanceTo(myLocation) < closestThreat.distanceTo(myLocation)){
                             closestThreat = robot.location;
@@ -165,8 +211,10 @@ class Scout extends Robot {
                         bestRobot = robot;
                     }
                 }
+                System.out.println("bestRobot = " + bestRobot);
 
                 if (bestRobot != null) {
+                    System.out.println("bestRobot.ID = " + bestRobot.ID);
                     if (bestRobot.health < targetHP) {
                         stepsWithTarget = 0;
                     }
@@ -175,6 +223,7 @@ class Scout extends Robot {
                     BodyInfo firstUnitHit = linecast(bestRobot.location);
                     if (rc.canFireSingleShot() && rc.getLocation().distanceTo(bestRobot.location) < 2*info.sensorRadius && teamOf(firstUnitHit) == rc.getTeam().opponent() && turnsLeft > STOP_SPENDING_AT_TIME) {
                         rc.fireSingleShot(rc.getLocation().directionTo(bestRobot.location));
+                        System.out.println("Firing!");
                     }
                 }
             }

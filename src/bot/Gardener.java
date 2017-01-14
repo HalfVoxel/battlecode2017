@@ -134,7 +134,7 @@ class Gardener extends Robot {
             boolean invalidTarget = (moveFailCounter > 5 || !likelyValidTarget(target, desiredRadius)) && !hasSettled;
             boolean canSeeTarget = target.distanceSquaredTo(rc.getLocation()) < 0.01f || rc.canSenseAllOfCircle(target, desiredRadius);
 
-            if ((!hasBuiltScout || Math.sqrt(rc.getTreeCount()+1) > scoutCount) && !saveForTank){
+            if ((!hasBuiltScout || Math.sqrt(rc.getTreeCount()+4) > scoutCount) && !saveForTank){
                 saveForTank = true;
                 for (int i = 0; i < 6; i++) {
                     Direction dir = new Direction(2 * (float)Math.PI * i / 6f);
