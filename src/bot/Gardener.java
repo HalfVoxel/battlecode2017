@@ -123,10 +123,13 @@ class Gardener extends Robot {
                 unsettledTime += 1;
                 TreeInfo[] trees = rc.senseNearbyTrees(info.sensorRadius, rc.getTeam());
                 TreeInfo minHealthTree = null;
+                float bestScore = -1000000;
                 for (TreeInfo tree : trees) {
-                    if ((minHealthTree == null || tree.health < minHealthTree.health) && tree.health < 30) {
+                    float score = (50f-tree.health)/tree.location.distanceTo(rc.getLocation());
+                    if (minHealthTree == null || score > bestScore) {
                         // This probably means the tree isn't tended to by anyone else
                         minHealthTree = tree;
+                        bestScore = score;
                     }
                 }
                 if (minHealthTree != null) {

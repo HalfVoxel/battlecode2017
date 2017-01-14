@@ -4,6 +4,8 @@ import battlecode.common.*;
 import java.util.Random;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 class Scout extends Robot {
 
@@ -67,7 +69,7 @@ class Scout extends Robot {
                 }
                 else if(unit.getType() == RobotType.LUMBERJACK) {
                     float dis = loc.distanceTo(unit.location);
-                    score -= 5f / (dis*dis + 1);
+                    score -= 10f / (dis*dis + 1);
                     score += 0.8f / (dis + 1);
                     if(dis < GameConstants.LUMBERJACK_STRIKE_RADIUS + 3f){
                         score -= 1000;
@@ -143,6 +145,7 @@ class Scout extends Robot {
             int ind = rand.nextInt(archons.length);
             target = archons[ind];
         }
+        Map<Integer, Float> treeLifeMap = new HashMap<Integer, Float>();
 
         // The code you want your robot to perform every round should be in this loop
         while (true) {
@@ -308,15 +311,18 @@ class Scout extends Robot {
                         break;
                     if (tree.getTeam() == enemy) {
                         BodyInfo firstUnitHit = linecast(tree.location);
-                        if (firstUnitHit != null && firstUnitHit.isTree()) {
+                        if (firstUnitHit != null && firstUnitHit.isTree() && ((TreeInfo)firstUnitHit).getTeam() == enemy) {
                             TreeInfo t = (TreeInfo) firstUnitHit;
-                            if (t.getHealth() > 30f) {
-                                if (rc.canFireSingleShot() && turnsLeft > STOP_SPENDING_AT_TIME) {
-                                    rc.fireSingleShot(rc.getLocation().directionTo(tree.location));
-                                    System.out.println("Firing at tree!");
+                            if(treeLifeMap.containsKey(t.getID()) && t.getHealth() < treeLifeMap.get(t.getID())) {
+                                if (t.getHealth() > 30) {
+                                    if (rc.canFireSingleShot() && turnsLeft > STOP_SPENDING_AT_TIME) {
+                                        rc.fireSingleShot(rc.getLocation().directionTo(tree.location));
+                                        System.out.println("Firing at tree!");
+                                    }
+                                    break;
                                 }
-                                break;
                             }
+                            treeLifeMap.put(t.getID(), t.getHealth());
                         }
                     }
                 }
