@@ -162,7 +162,7 @@ class Gardener extends Robot {
             if(turnsLeft > STOP_SPENDING_AT_TIME)
                 buildLumberjackInDenseForests();
 
-            if (rc.hasRobotBuildRequirements(RobotType.TANK) && tankCount < 0) {
+            if (rc.hasRobotBuildRequirements(RobotType.TANK) && saveForTank) {
                 for (int i = 0; i < 6; i++) {
                     Direction dir = new Direction(2 * (int)Math.PI * i / 6f);
                     if (rc.canBuildRobot(RobotType.TANK, dir) && turnsLeft > STOP_SPENDING_AT_TIME) {

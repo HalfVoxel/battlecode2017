@@ -42,7 +42,7 @@ class Scout extends Robot {
     }
 
     float getPositionScore(MapLocation loc, MapLocation[] enemyArchons,
-                         RobotInfo[] units, BulletInfo[] bullets, TreeInfo[] trees, MapLocation target) {
+                         RobotInfo[] units, BulletInfo[] bullets, TreeInfo bestTree, MapLocation target) {
         //var pre = Clock.getBytecodesLeft()
         Team myTeam = rc.getTeam();
         Team opponentTeam = myTeam.opponent();
@@ -80,6 +80,9 @@ class Scout extends Robot {
                     score -= 5f / (loc.distanceSquaredTo(unit.location) + 1);
             }
         }
+
+        if(bestTree != null)
+            score += (bestTree.containedBullets * 0.5) / (loc.distanceTo(bestTree.location) + 1);
 
         /*for (TreeInfo tree : trees){
             if(tree.getTeam() == myTeam){
@@ -154,6 +157,18 @@ class Scout extends Robot {
             }
             System.out.println("Target: " + target.x + ", " + target.y);
 
+            TreeInfo bestTree = null;
+            float bestTreeScore = -1000000f;
+            for (TreeInfo tree : trees){
+                if(tree.getTeam() == Team.NEUTRAL){
+                    float score = tree.containedBullets / (1 + myLocation.distanceTo(tree.location));
+                    if(score > bestTreeScore){
+                        bestTree = tree;
+                        bestTreeScore = score;
+                    }
+                }
+            }
+
             float bestScore = -1000000f;
             MapLocation bestMove = null;
             int iterationsDone = 0;
@@ -170,7 +185,7 @@ class Scout extends Robot {
                     loc = myLocation.add(dir, 0.2f);
 
                 if(rc.canMove(loc)) {
-                    float score = getPositionScore(loc, archons, allRobots, nearbyBullets, trees, target);
+                    float score = getPositionScore(loc, archons, allRobots, nearbyBullets, bestTree, target);
                     //System.out.println("Score = " + score)
                     if (score > bestScore) {
                         bestScore = score;
