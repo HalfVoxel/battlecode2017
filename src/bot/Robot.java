@@ -380,23 +380,33 @@ abstract class Robot {
         return Team.NEUTRAL;
     }
 
+    /** First body on the line segment going from the edge of this robot to the specified location.
+     * Uses sampling so it is not perfectly accurate.
+     */
     BodyInfo linecast (MapLocation b) throws GameActionException {
         MapLocation a = rc.getLocation();
-        float dist = Math.min(a.distanceTo(b), info.sensorRadius * 0.99f);
-        if (dist == 0) {
-            // TODO: Sense current position
+        Direction dir = a.directionTo(b);
+        float dist = a.distanceTo(b);
+        dist = Math.min(dist, info.sensorRadius * 0.99f);
+
+        float offset = Math.min(info.bodyRadius + 0.001f, dist);
+        a = a.add(dir, offset);
+        dist -= offset;
+
+        if (dist <= 0) {
             return null;
         }
 
-        int steps = (int)(dist / 0.7f);
-        Direction dir = a.directionTo(b);
+        int steps = (int)(dist / 0.5f);
         for (int t = 1; t <= steps; t++) {
             MapLocation p = a.add(dir, dist * t / (float)steps);
-            RobotInfo robot = rc.senseRobotAtLocation(p);
-            if (robot != null && robot.ID != rc.getID()) return robot;
+            if (rc.isLocationOccupied(p)) {
+                RobotInfo robot = rc.senseRobotAtLocation(p);
+                if (robot != null && robot.ID != rc.getID()) return robot;
 
-            TreeInfo tree = rc.senseTreeAtLocation(p);
-            if (tree != null) return tree;
+                TreeInfo tree = rc.senseTreeAtLocation(p);
+                if (tree != null) return tree;
+            }
         }
 
         return null;
