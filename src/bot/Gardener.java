@@ -114,7 +114,7 @@ class Gardener extends Robot {
             int gardenerCount = spawnedCount(RobotType.GARDENER);
             int scoutCount = spawnedCount(RobotType.SCOUT);
 
-            if(rc.getTreeCount() > tankCount*4+400 && rc.getTeamBullets() <= RobotType.TANK.bulletCost + 100 && gardenerCount > 1 && scoutCount > 2){
+            if(rc.getTreeCount() > tankCount*4+4 && rc.getTeamBullets() <= RobotType.TANK.bulletCost + 100 && gardenerCount > 1 && scoutCount > 2){
                 saveForTank = true;
             }
 

@@ -212,10 +212,8 @@ class Scout extends Robot {
                         bestRobot = robot;
                     }
                 }
-                System.out.println("bestRobot = " + bestRobot);
 
                 if (bestRobot != null) {
-                    System.out.println("bestRobot.ID = " + bestRobot.ID);
                     if (bestRobot.health < targetHP) {
                         stepsWithTarget = 0;
                     }
@@ -228,22 +226,45 @@ class Scout extends Robot {
                     }
                 }
             }
-            if(!nearbyEnemyGardener) {
-                if (!rc.hasAttacked()) {
-                    for (TreeInfo tree : trees) {
-                        if(Clock.getBytecodesLeft() < 2000)
-                            break;
-                        if (tree.getTeam() == enemy) {
-                            BodyInfo firstUnitHit = linecast(tree.location);
-                            if (firstUnitHit != null && firstUnitHit.isTree()) {
-                                TreeInfo t = (TreeInfo) firstUnitHit;
-                                if (t.getHealth() > 30f) {
-                                    if (rc.canFireSingleShot() && turnsLeft > STOP_SPENDING_AT_TIME) {
-                                        rc.fireSingleShot(rc.getLocation().directionTo(tree.location));
-                                        System.out.println("Firing at tree!");
-                                    }
-                                    break;
+            if(!rc.hasAttacked()){
+                float bestScore3 = -1000000f;
+                RobotInfo bestRobot = null;
+                for (RobotInfo robot : robots) {
+                    if (robot.getType() != RobotType.SCOUT)
+                        continue;
+                    if(myLocation.distanceTo(robot.location) > 5.5f)
+                        continue;
+                    float score = 1;
+                    score /= myLocation.distanceTo(robot.getLocation()) + 1;
+                    if (score > bestScore3) {
+                        bestScore3 = score;
+                        bestRobot = robot;
+                    }
+                }
+                if(bestRobot != null){
+                    targetHP = bestRobot.health;
+
+                    BodyInfo firstUnitHit = linecastIgnoreTrees(bestRobot.location);
+                    if (rc.canFireSingleShot() && rc.getLocation().distanceTo(bestRobot.location) < 2*info.sensorRadius && teamOf(firstUnitHit) == rc.getTeam().opponent() && turnsLeft > STOP_SPENDING_AT_TIME) {
+                        rc.fireSingleShot(rc.getLocation().directionTo(bestRobot.location));
+                        System.out.println("Firing despite trees!");
+                    }
+                }
+            }
+            if(!nearbyEnemyGardener && !rc.hasAttacked()) {
+                for (TreeInfo tree : trees) {
+                    if(Clock.getBytecodesLeft() < 2000)
+                        break;
+                    if (tree.getTeam() == enemy) {
+                        BodyInfo firstUnitHit = linecast(tree.location);
+                        if (firstUnitHit != null && firstUnitHit.isTree()) {
+                            TreeInfo t = (TreeInfo) firstUnitHit;
+                            if (t.getHealth() > 30f) {
+                                if (rc.canFireSingleShot() && turnsLeft > STOP_SPENDING_AT_TIME) {
+                                    rc.fireSingleShot(rc.getLocation().directionTo(tree.location));
+                                    System.out.println("Firing at tree!");
                                 }
+                                break;
                             }
                         }
                     }

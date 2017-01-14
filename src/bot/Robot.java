@@ -411,4 +411,30 @@ abstract class Robot {
 
         return null;
     }
+
+    BodyInfo linecastIgnoreTrees (MapLocation b) throws GameActionException {
+        MapLocation a = rc.getLocation();
+        Direction dir = a.directionTo(b);
+        float dist = a.distanceTo(b);
+        dist = Math.min(dist, info.sensorRadius * 0.99f);
+
+        float offset = Math.min(info.bodyRadius + 0.001f, dist);
+        a = a.add(dir, offset);
+        dist -= offset;
+
+        if (dist <= 0) {
+            return null;
+        }
+
+        int steps = (int)(dist / 0.5f);
+        for (int t = 1; t <= steps; t++) {
+            MapLocation p = a.add(dir, dist * t / (float)steps);
+            if (rc.isLocationOccupiedByRobot(p)) {
+                RobotInfo robot = rc.senseRobotAtLocation(p);
+                if (robot != null && robot.ID != rc.getID()) return robot;
+            }
+        }
+
+        return null;
+    }
 }
