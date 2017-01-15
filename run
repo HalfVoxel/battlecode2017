@@ -120,4 +120,4 @@ if args.tournament:
     print("Team A won " + str(teamAwins / totalCount) + " fraction of the time")
 else:
     actualMap = maps[lowerMaps.index(args.map.lower())]
-    printResult(run(args.teamA, args.teamB, actualMap, args.quiet)[0])
+    printResult(next(run(args.teamA, args.teamB, [actualMap], args.quiet)))
