@@ -69,7 +69,7 @@ def run(teamA, teamB, maps, quiet):
         gradleArgs.append("-Pmaps=" + ",".join(maps))
 
     winRegex = re.compile(r"bot \(([AB])\) wins \(round (\d+)\)")
-    reasonRegex = re.compile(r"Reason: The winning team won by ([^\n\.]+)")
+    reasonRegex = re.compile(r"Reason: The winning team won ([^\n\.]+)")
     gen = execute(gradleArgs, quiet)
     for line in gen:
         win = winRegex.search(line)
@@ -87,7 +87,7 @@ def printResult(result):
     round = result[1]
     reason = result[2]
     teamStr = (greenStr if team == "A" else redStr) + team + reset
-    print(teamStr + " won at round " + str(round) + " by " + reason)
+    print(teamStr + " won at round " + str(round) + " " + reason)
 
 
 if args.tournament:
