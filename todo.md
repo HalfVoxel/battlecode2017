@@ -7,6 +7,7 @@
 - Listen to the opponent's broadcasts.
 - Make units with low health more likely to avoid combat.
 - Prefer shooting at opponents with low health.
+- Remove bullets from nearbyBullets if they don't intersect the circle of radius 3.5f (speed + size) around our current position.
 
 ##Low priority
 - Add bonus to positions from which we can shoot at opponents.
