@@ -9,7 +9,7 @@ import sys
 maps = ["Barrier", "DenseForest", "Enclosure", "Hurdle", "LineOfFire", "MagicWood", "SparseForest", "shrine"]
 lowerMaps = [m.lower() for m in maps]
 
-parser = argparse.ArgumentParser(description='Build the A* Pathfinding Project Packages.')
+parser = argparse.ArgumentParser(description='Run BattleCode Bots')
 parser.add_argument("-m", "--map", help="Which map to use", choices=lowerMaps, default=maps[-1], type=str.lower)
 parser.add_argument("-a", "--teamA", help="Team A")
 parser.add_argument("-b", "--teamB", help="Team B")
