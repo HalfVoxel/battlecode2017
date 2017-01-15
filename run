@@ -14,6 +14,7 @@ parser.add_argument("-m", "--map", help="Which map to use", choices=lowerMaps, d
 parser.add_argument("-a", "--teamA", help="Team A")
 parser.add_argument("-b", "--teamB", help="Team B")
 parser.add_argument("--tournament", help="Play multiple games and rank the teams", action="store_true")
+parser.add_argument("-q", "--quiet", help="Don't print bot logs", action="store_true")
 args = parser.parse_args()
 
 red = (201, 27, 0)
@@ -104,4 +105,4 @@ if args.tournament:
 
     print("Team A won " + str(teamAwins / totalCount) + " fraction of the time")
 else:
-    printResult(run(args.teamA, args.teamB, args.map, False))
+    printResult(run(args.teamA, args.teamB, args.map, args.quiet))
