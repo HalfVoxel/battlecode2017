@@ -183,12 +183,29 @@ abstract class Robot {
 
     /** True if the location is on the map using the information known so far */
     boolean onMap (MapLocation pos) {
-        return !(
-                ((mapEdgesDetermined & 1) == 0 || pos.x < mapEdges[0]) &&
-                        ((mapEdgesDetermined & 2) == 0 || pos.y < mapEdges[1]) &&
-                        ((mapEdgesDetermined & 4) == 0 || pos.x > mapEdges[2]) &&
-                        ((mapEdgesDetermined & 8) == 0 || pos.y > mapEdges[3])
-        );
+        return ((mapEdgesDetermined & 1) == 0 || pos.x <= mapEdges[0]) &&
+                ((mapEdgesDetermined & 2) == 0 || pos.y <= mapEdges[1]) &&
+                ((mapEdgesDetermined & 4) == 0 || pos.x >= mapEdges[2]) &&
+                ((mapEdgesDetermined & 8) == 0 || pos.y >= mapEdges[3]);
+    }
+
+    /** True if the location is at least margin units from the edge of the map using the information known so far */
+    boolean onMap (MapLocation pos, float margin) {
+        return ((mapEdgesDetermined & 1) == 0 || pos.x <= mapEdges[0] - margin) &&
+                ((mapEdgesDetermined & 2) == 0 || pos.y <= mapEdges[1] - margin) &&
+                ((mapEdgesDetermined & 4) == 0 || pos.x >= mapEdges[2] + margin) &&
+                ((mapEdgesDetermined & 8) == 0 || pos.y >= mapEdges[3] + margin);
+    }
+
+    /** Clamp the location so that it lies on the map using the information known so far */
+    MapLocation clampToMap (MapLocation pos) {
+        float x = pos.x;
+        float y = pos.y;
+        if ((mapEdgesDetermined & 1) != 0) x = Math.min(x, mapEdges[0]);
+        if ((mapEdgesDetermined & 2) != 0) y = Math.min(y, mapEdges[1]);
+        if ((mapEdgesDetermined & 4) != 0) x = Math.max(x, mapEdges[2]);
+        if ((mapEdgesDetermined & 8) != 0) y = Math.max(y, mapEdges[3]);
+        return new MapLocation(x, y);
     }
 
     void broadcastEnemyLocations() throws GameActionException {
@@ -244,7 +261,7 @@ abstract class Robot {
     }
 
     void broadcast (int channel, long v) throws GameActionException {
-        rc.broadcast(channel, (int)(v >> 32));
+        rc.broadcast(channel, (int)(v >>> 32));
         rc.broadcast(channel + 1, (int)v);
     }
 
@@ -310,7 +327,7 @@ abstract class Robot {
         int tmpDetermined = mapEdgesDetermined;
         for (int i = 0; i < 4; i++) {
             if ((mapEdgesDetermined & (1 << i)) == 0) {
-                float angle = i * (float)Math.PI / 4f;
+                float angle = i * (float)Math.PI / 2f;
                 if (!rc.onTheMap(rc.getLocation().add(angle, info.sensorRadius * 0.99f))) {
                     // Found map edge
                     float mn = 0f;
@@ -331,6 +348,8 @@ abstract class Robot {
                     tmpDetermined |= (1 << i);
                     rc.broadcast(MAP_EDGE_BROADCAST_OFFSET, tmpDetermined);
                     System.out.println("Found map edge " + i + " at " + result);
+
+                    rc.setIndicatorLine(mapEdge.add(angle + (float)Math.PI*0.5f, 50), mapEdge.add(angle - (float)Math.PI*0.5f, 50), 255, 255, 255);
                 }
             }
         }
