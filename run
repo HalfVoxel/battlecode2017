@@ -2,7 +2,9 @@
 
 import argparse
 import os
-from subprocess import call
+import subprocess
+import re
+import sys
 
 maps = ["Barrier", "DenseForest", "Enclosure", "Hurdle", "LineOfFire", "MagicWood", "SparseForest", "shrine"]
 lowerMaps = [m.lower() for m in maps]
@@ -11,19 +13,95 @@ parser = argparse.ArgumentParser(description='Build the A* Pathfinding Project P
 parser.add_argument("-m", "--map", help="Which map to use", choices=lowerMaps, default=maps[-1], type=str.lower)
 parser.add_argument("-a", "--teamA", help="Team A")
 parser.add_argument("-b", "--teamB", help="Team B")
+parser.add_argument("--tournament", help="Play multiple games and rank the teams", action="store_true")
 args = parser.parse_args()
 
+red = (201, 27, 0)
+green = (0, 194, 0)
+yellow = (199, 196, 0)
 
-gradleArgs = ["./gradlew", "run"]
+colorFormat = "\x1b[38;2;{0[0]};{0[1]};{0[2]}m"
+redStr = colorFormat.format(red)
+greenStr = colorFormat.format(green)
+yellowStr = colorFormat.format(yellow)
+reset = "\033[0m"
+clearScreen = "\033[2J"
 
-if args.teamA is not None:
-    gradleArgs.append("-PteamAclasspath=" + os.path.join(os.getcwd(), "backups/" + args.teamA))
+def execute(cmd, quiet):
+    popen = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, universal_newlines=False)
 
-if args.teamB is not None:
-    gradleArgs.append("-PteamBclasspath=" + os.path.join(os.getcwd(), "backups/" + args.teamB))
+    lines = []
+    while True:
+        b = popen.stdout.readline()
+        if b == b"":
+            break
+        else:
+            s = b.decode('utf-8')
+            lines.append(s)
+            if not quiet:
+                print(s, end="")
 
-if args.map is not None:
-    actualMap = maps[lowerMaps.index(args.map)]
+    popen.stdout.close()
+    return_code = popen.wait()
+    if return_code:
+        raise subprocess.CalledProcessError(return_code, cmd)
+
+    return "\n".join(lines)
+
+
+def run(teamA, teamB, map, quiet):
+    gradleArgs = ["./gradlew", "run"]
+
+    if teamA is not None:
+        gradleArgs.append("-PteamAclasspath=" + os.path.join(os.getcwd(), "backups/" + teamA))
+
+    if teamB is not None:
+        gradleArgs.append("-PteamBclasspath=" + os.path.join(os.getcwd(), "backups/" + teamB))
+
+    if map is not None:
+        actualMap = maps[lowerMaps.index(map.lower())]
     gradleArgs.append("-Pmaps=" + actualMap)
 
-call(gradleArgs)
+    result = execute(gradleArgs, quiet)
+    winRegex = re.search(r"bot \(([AB])\) wins \(round (\d+)\)", result)
+    reasonRegex = re.search(r"Reason: The winning team won by ([^\n\.]+)", result)
+    winningTeam = winRegex.group(1)
+    round = int(winRegex.group(2))
+    reason = reasonRegex.group(1)
+    return (winningTeam, round, reason)
+
+
+def printResult(result):
+    team = result[0]
+    round = result[1]
+    reason = result[2]
+    teamStr = (greenStr if team == "A" else redStr) + team + reset
+    print(teamStr + " won at round " + str(round) + " by " + reason)
+
+
+if args.tournament:
+    teamAwins = 0
+    totalCount = 0
+
+    for map in maps:
+        for switch in [False, True]:
+            teamA = args.teamA
+            teamB = args.teamB
+            if switch:
+                teamA, teamB = teamB, teamA
+
+            print(yellowStr + map.ljust(12) + reset + " " + ("B vs A" if switch else "A vs B") + ": ", end="")
+            sys.stdout.flush()
+            result = run(teamA, teamB, map, True)
+            if switch:
+                result = ("B" if result[0] == "A" else "A", result[1], result[2])
+
+            printResult(result)
+            if result[0] == "A":
+                teamAwins += 1
+
+            totalCount += 1
+
+    print("Team A won " + str(teamAwins / totalCount) + " fraction of the time")
+else:
+    printResult(run(args.teamA, args.teamB, args.map, False))
