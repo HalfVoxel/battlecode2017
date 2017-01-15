@@ -46,7 +46,7 @@ class Scout extends Robot {
     }
 
     private float getPositionScore(MapLocation loc, MapLocation[] enemyArchons,
-                                   RobotInfo[] units, BulletInfo[] bullets, TreeInfo bestTree, MapLocation target) {
+                                   RobotInfo[] units, List<BulletInfo> bullets, TreeInfo bestTree, MapLocation target) {
         Team myTeam = rc.getTeam();
 
         float score = 0f;
@@ -104,9 +104,42 @@ class Scout extends Robot {
     }
 
     /**
+     * Determine whether a bullet can possibly hit us
+     */
+    private boolean bulletCanHitUs(MapLocation loc, BulletInfo bullet) {
+        float dmg = 0f;
+        float radius = info.bodyRadius + info.strideRadius;
+        float sqrRadius = radius * radius;
+        // Current bullet position
+        float prevX = bullet.location.x - loc.x;
+        float prevY = bullet.location.y - loc.y;
+        float dx = bullet.dir.getDeltaX(1);
+        float dy = bullet.dir.getDeltaY(1);
+
+        // Distance the bullet has to travel to get to its closest point to #loc
+        float dot = -(dx * prevX + dy * prevY);
+        // Position of the closest point the bullet will be to #loc
+        float closestX = prevX + dx * dot;
+        float closestY = prevY + dy * dot;
+        float sqrDistanceToLineOfTravel = closestX * closestX + closestY * closestY;
+
+        // The bullet cannot possibly hit us
+        if (sqrDistanceToLineOfTravel > sqrRadius)
+            return false;
+        float intersectionDistDelta = (float) Math.sqrt(sqrRadius - sqrDistanceToLineOfTravel);
+        float intersectionDist2 = dot + intersectionDistDelta;
+        /*if (intersectionDist2 < 0) {
+            // The bullet has already passed us. Everything is ok!
+            return false;
+        }*/
+
+        return true;
+    }
+
+    /**
      * Estimated damage from bullets when moving to the specified position
      */
-    private float getEstimatedDamageAtPosition(MapLocation loc, BulletInfo[] bullets) {
+    private float getEstimatedDamageAtPosition(MapLocation loc, List<BulletInfo> bullets) {
         float dmg = 0f;
         float radius = info.bodyRadius;
         float sqrRadius = radius * radius;
@@ -138,7 +171,6 @@ class Scout extends Robot {
 
             // -1 because the bullet has not moved this frame yet
             float timeToIntersection = (intersectionDist1 / bullet.speed) - 1;
-
             // It will hit us this frame
             if (timeToIntersection <= 0) {
                 dmg += bullet.damage;
@@ -182,7 +214,6 @@ class Scout extends Robot {
                         if (t.getHealth() > 30) {
                             if (rc.canFireSingleShot() && turnsLeft > STOP_SPENDING_AT_TIME) {
                                 rc.fireSingleShot(rc.getLocation().directionTo(tree.location));
-                                System.out.println("Firing at tree!");
                             }
                             break;
                         }
@@ -241,7 +272,6 @@ class Scout extends Robot {
                 BodyInfo firstUnitHit = linecast(bestRobot.location);
                 if (rc.canFireSingleShot() && rc.getLocation().distanceTo(bestRobot.location) < 2 * info.sensorRadius && teamOf(firstUnitHit) == rc.getTeam().opponent() && turnsLeft > STOP_SPENDING_AT_TIME) {
                     rc.fireSingleShot(rc.getLocation().directionTo(bestRobot.location));
-                    System.out.println("Firing!");
                     break;
                 }
             } else {
@@ -274,6 +304,12 @@ class Scout extends Robot {
             BulletInfo[] nearbyBullets = rc.senseNearbyBullets(8f);
             TreeInfo[] trees = rc.senseNearbyTrees();
 
+            List<BulletInfo> dangerousBulletList = new ArrayList<BulletInfo>();
+            for(BulletInfo bullet : nearbyBullets){
+                if(bulletCanHitUs(rc.getLocation(), bullet))
+                    dangerousBulletList.add(bullet);
+            }
+
             // Pick a new target with a small probability or when very close to the target
             if (rand.nextInt(200) < 1 || myLocation.distanceTo(target) < 4f) {
                 target = pickTarget();
@@ -301,8 +337,9 @@ class Scout extends Robot {
                         Math.max(0f, Math.min(myLocation.distanceTo(closestEnemy.location) - 2.01f, 2.5f))));
             }
 
+            //System.out.println("Before moving, " + Clock.getBytecodesLeft() + " bytecodes left");
             int iterationsDone = 0;
-            while (Clock.getBytecodesLeft() > 5000) {
+            while (Clock.getBytecodesLeft() > 5500) {
                 iterationsDone += 1;
                 MapLocation loc;
                 if (movesToConsider.isEmpty()) {
@@ -320,15 +357,15 @@ class Scout extends Robot {
                 }
 
                 if (rc.canMove(loc)) {
-                    float score = getPositionScore(loc, archons, allRobots, nearbyBullets, bestTree, target);
+                    float score = getPositionScore(loc, archons, allRobots, dangerousBulletList, bestTree, target);
                     if (score > bestScore) {
                         bestScore = score;
                         bestMove = loc;
                     }
                 }
             }
-            System.out.println("Completed " + iterationsDone + " iterations");
-            System.out.println("After moving, " + Clock.getBytecodesLeft() + " bytecodes left");
+            //System.out.println("Completed " + iterationsDone + " iterations");
+            //System.out.println("After moving, " + Clock.getBytecodesLeft() + " bytecodes left");
             if (bestMove != null) {
                 rc.move(bestMove);
             }
@@ -339,7 +376,7 @@ class Scout extends Robot {
             if (robots.length > 0) {
                 nearbyEnemyGardener = fireAtNearbyRobot(robots);
             }
-            System.out.println("After trying to fire, " + Clock.getBytecodesLeft() + " bytecodes left");
+            //System.out.println("After trying to fire, " + Clock.getBytecodesLeft() + " bytecodes left");
 
             if (!rc.hasAttacked()) {
                 float bestScore3 = -1000000f;
@@ -361,7 +398,7 @@ class Scout extends Robot {
                     BodyInfo firstUnitHit = linecastIgnoreTrees(bestRobot.location);
                     if (rc.canFireSingleShot() && rc.getLocation().distanceTo(bestRobot.location) < 2 * info.sensorRadius && teamOf(firstUnitHit) == rc.getTeam().opponent() && turnsLeft > STOP_SPENDING_AT_TIME) {
                         rc.fireSingleShot(rc.getLocation().directionTo(bestRobot.location));
-                        System.out.println("Firing despite trees!");
+                        //System.out.println("Firing despite trees!");
                     }
                 }
             }
