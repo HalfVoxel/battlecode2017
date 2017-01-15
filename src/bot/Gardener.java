@@ -9,7 +9,7 @@ class Gardener extends Robot {
 
     void water() throws GameActionException {
         if (rc.canWater()) {
-            TreeInfo[] trees = rc.senseNearbyTrees(2*info.bodyRadius, rc.getTeam());
+            TreeInfo[] trees = rc.senseNearbyTrees(info.bodyRadius + info.strideRadius + 0.01f, rc.getTeam());
             TreeInfo minHealthTree = null;
             for (TreeInfo tree : trees) {
                 if (minHealthTree == null || tree.health < minHealthTree.health && rc.canWater(tree.getID())) {
@@ -89,6 +89,52 @@ class Gardener extends Robot {
                 }
             }
         }
+    }
+
+    MapLocation plantTrees(MapLocation settledLocation) throws GameActionException {
+        boolean tryAgain = true;
+        for (int tries = 0; tries < 2 && tryAgain; tries++) {
+            tryAgain = false;
+
+            for (int i = 0; i < 9; i++) {
+                if (rc.hasMoved()) break;
+
+                Direction dir = new Direction(2 * (float) Math.PI * i / 9f);
+                MapLocation origPos = settledLocation != null ? settledLocation : rc.getLocation();
+                MapLocation plantPos = origPos.add(dir, info.bodyRadius + info.strideRadius + GameConstants.BULLET_TREE_RADIUS);
+                if (rc.isCircleOccupiedExceptByThisRobot(plantPos, GameConstants.BULLET_TREE_RADIUS + 0.01f) && rc.onTheMap(plantPos, GameConstants.BULLET_TREE_RADIUS + 0.01f)) {
+                    rc.setIndicatorDot(plantPos, 255, 0, 0);
+                    continue;
+                } else {
+                    rc.setIndicatorDot(plantPos, 0, 255, 0);
+                }
+
+                MapLocation moveToPos = origPos.add(dir, info.strideRadius - 0.02f);
+
+                if (rc.canMove(moveToPos)) {
+                    rc.move(moveToPos);
+                } else if (tries == 0) {
+                    tryAgain = true;
+                    continue;
+                }
+
+                if (rc.canPlantTree(dir)) {
+                    rc.plantTree(dir);
+                    System.out.println("Planted tree");
+                    settledLocation = origPos;
+                }
+
+                yieldAndDoBackgroundTasks();
+                for (int t = 0; t < 5 && !rc.canMove(origPos); t++) yieldAndDoBackgroundTasks();
+
+                // Move back
+                if (rc.canMove(origPos)) {
+                    rc.move(origPos);
+                }
+            }
+        }
+
+        return settledLocation;
     }
 
     @Override
@@ -176,21 +222,12 @@ class Gardener extends Robot {
                 }
             }
 
-            if (canSeeTarget && ((!invalidTarget && rc.getLocation().distanceSquaredTo(target) < 2f) || unsettledTime > 30)) {
+            if (canSeeTarget && ((!invalidTarget && rc.getLocation().distanceSquaredTo(target) < 2f) || unsettledTime > 30) && !saveForTank && turnsLeft > STOP_SPENDING_AT_TIME && rc.hasTreeBuildRequirements() && rc.isBuildReady()) {
                 // At target
-
-                for (int i = 0; i < 6; i++) {
-                    Direction dir = new Direction(2 * (float)Math.PI * i / 6f);
-
-                    if (rc.canPlantTree(dir) && !saveForTank && turnsLeft > STOP_SPENDING_AT_TIME) {
-                        hasSettled = true;
-                        rc.plantTree(dir);
-                        System.out.println("Planted tree");
-                        target = rc.getLocation();
-                    } else {
-                        //System.out.println("Tree location became blocked in direction " + dir)
-                        // Ignore building a tree there
-                    }
+                MapLocation settledLocation = plantTrees(hasSettled ? target : null);
+                if (settledLocation != null) {
+                    target = settledLocation;
+                    hasSettled = true;
                 }
 
                 //System.out.println("Lost all trees around me, moving again")
