@@ -291,7 +291,7 @@ class Scout extends Robot {
             }
 
             int iterationsDone = 0;
-            while (Clock.getBytecodesLeft() > 5000) {
+            while (Clock.getBytecodesLeft() > 5000 || iterationsDone < 3) {
                 iterationsDone += 1;
                 MapLocation loc;
                 if (movesToConsider.isEmpty()) {
