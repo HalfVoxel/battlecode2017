@@ -102,15 +102,20 @@ abstract class Robot {
         shakeNearbyTrees();
         updateLiveness();
         broadcastEnemyLocations();
+        broadcastExploration();
         Clock.yield();
     }
 
     void broadcastExploration() throws GameActionException {
+        rc.setIndicatorDot(clampToMap(rc.getLocation().add(randomDirection(), 20)), 255, 255, 255);
+
         // Determine chunk
         MapLocation origin = readBroadcastPosition(EXPLORATION_ORIGIN);
         MapLocation relativePos = rc.getLocation().translate(-origin.x, -origin.y);
-        int cx = (int)Math.floor(relativePos.x / EXPLORATION_CHUNK_SIZE + 4);
-        int cy = (int)Math.floor(relativePos.y / EXPLORATION_CHUNK_SIZE + 4);
+        int cx = (int)Math.round(relativePos.x / EXPLORATION_CHUNK_SIZE + 4);
+        int cy = (int)Math.round(relativePos.y / EXPLORATION_CHUNK_SIZE + 4);
+        rc.setIndicatorLine(rc.getLocation(), chunkPosition(origin, cx, cy), 0, 255, 0);
+
         if (cx < 0 || cy < 0 || cx >= 8 || cy >= 8) {
             System.out.println("In chunk that is out of bounds! " + cx + " " + cy);
             return;
@@ -126,6 +131,10 @@ abstract class Robot {
         }
     }
 
+    MapLocation chunkPosition (MapLocation origin, int x, int y) {
+        return new MapLocation(origin.x + (x - 4) * EXPLORATION_CHUNK_SIZE, origin.y + (y - 4) * EXPLORATION_CHUNK_SIZE);
+    }
+
     MapLocation findBestUnexploredChunk() throws GameActionException {
         long exploredChunks = readBroadcastLong(EXPLORATION_EXPLORED);
         long chunksOutsideMap = readBroadcastLong(EXPLORATION_OUTSIDE_MAP);
@@ -133,7 +142,8 @@ abstract class Robot {
 
         while(true) {
             // Consider chunks that have not been explored yet and are not outside the map
-            long chunksToConsider = ~exploredChunks & ~chunksOutsideMap;
+            //long chunksToConsider = (~exploredChunks) & (~chunksOutsideMap);
+            long chunksToConsider = (~chunksOutsideMap);
 
             MapLocation bestChunk = null;
             int bestChunkIndex = -1;
@@ -147,7 +157,8 @@ abstract class Robot {
                     // Ignore chunks that we can never reach or that are already explored
                     if ((chunksToConsider & (1L << index)) != 0) {
                         // Chunk position
-                        MapLocation chunkPosition = new MapLocation(origin.x + (x - 4 + 0.5f) * EXPLORATION_CHUNK_SIZE, origin.y + (y - 4 + 0.5f) * EXPLORATION_CHUNK_SIZE);
+                        MapLocation chunkPosition = chunkPosition(origin, x, y);
+                        rc.setIndicatorLine(rc.getLocation(), chunkPosition, 0, 128, 128);
                         float score = 1f / chunkPosition.distanceTo(rc.getLocation());
 
 						/*try {
@@ -167,18 +178,42 @@ abstract class Robot {
 
             if (bestChunk != null) {
                 // Check if the chunk is on the map using the currently known information
-                if (onMap(bestChunk)) {
-                    return bestChunk;
-                } else {
-                    chunksOutsideMap |= 1L << bestChunkIndex;
-                    broadcast(EXPLORATION_OUTSIDE_MAP, chunksOutsideMap);
-                }
+                // This should always be true as onNewMapSize marks the chunks outside the map
+                assert(onMap(bestChunk, -EXPLORATION_CHUNK_SIZE/2f));
+                return bestChunk;
             } else {
                 // Reset exploration
                 exploredChunks = 0L;
                 broadcast(EXPLORATION_EXPLORED, exploredChunks);
+                System.out.println("All chunks have been explored. Redo");
             }
         }
+    }
+
+    /** Called when a new edge of the map has been found */
+    void onNewMapSize () throws GameActionException {
+        long chunksOutsideMap = readBroadcastLong(EXPLORATION_OUTSIDE_MAP);
+        MapLocation origin = readBroadcastPosition(EXPLORATION_ORIGIN);
+
+        int numOutside = 0;
+        // Loop through all chunks and mark chunks that are outside the map
+        for (int y = 0; y < 8; y++) {
+            for (int x = 0; x < 8; x++) {
+                int index = y*8 + x;
+                // Chunk position
+                MapLocation chunkPosition = chunkPosition(origin, x, y);
+                if (!onMap(chunkPosition, -EXPLORATION_CHUNK_SIZE/2f)) {
+                    chunksOutsideMap |= 1L << index;
+                    numOutside++;
+                    rc.setIndicatorDot(chunkPosition, 255, 0, 0);
+                } else {
+                    rc.setIndicatorDot(chunkPosition, 0, 255, 0);
+                }
+            }
+        }
+
+        broadcast(EXPLORATION_OUTSIDE_MAP, chunksOutsideMap);
+        System.out.println("Prunned " + numOutside + " chunks that were outside the map");
     }
 
     /** True if the location is on the map using the information known so far */
@@ -321,7 +356,9 @@ abstract class Robot {
             mapEdgesDetermined = globalMapEdgesDetermined;
             for (int i = 0; i < 4; i++) {
                 mapEdges[i] = rc.readBroadcast(MAP_EDGE_BROADCAST_OFFSET + i + 1) / 1000f;
+                System.out.println("Edge " + i + " " + mapEdges[i]);
             }
+            onNewMapSize();
         }
 
         int tmpDetermined = mapEdgesDetermined;
