@@ -35,10 +35,7 @@ class Scout extends Robot {
                 MapLocation target = rc.getLocation().add(dir, info.sensorRadius - 1f);
                 if (!rc.onTheMap(target)) {
                     dir = randomDirection();
-                    target = rc.getLocation().add(dir, info.sensorRadius - 1f);
-                }
-                if (!rc.onTheMap(target)) {
-                    target = rc.getLocation();
+                    target = clampToMap(rc.getLocation().add(dir, info.sensorRadius - 1f));
                 }
                 return target;
             }
@@ -81,20 +78,9 @@ class Scout extends Robot {
             }
         }
 
-        if (bestTree != null)
+        if (bestTree != null) {
             score += (bestTree.containedBullets * 0.5) / (loc.distanceTo(bestTree.location) + 1);
-
-        /*for (TreeInfo tree : trees){
-            if(tree.getTeam() == myTeam){
-
-            }
-            else if(tree.getTeam() == opponentTeam){
-                score += 0.05f / (loc.distanceSquaredTo(tree.location) + 5);
-            }
-            else{
-                score += (tree.containedBullets * 0.5) / (loc.distanceSquaredTo(tree.location) + 1);
-            }
-        }*/
+        }
 
         score -= 1000f * getEstimatedDamageAtPosition(loc, bullets);
 
@@ -241,7 +227,6 @@ class Scout extends Robot {
                 BodyInfo firstUnitHit = linecast(bestRobot.location);
                 if (rc.canFireSingleShot() && rc.getLocation().distanceTo(bestRobot.location) < 2 * info.sensorRadius && teamOf(firstUnitHit) == rc.getTeam().opponent() && turnsLeft > STOP_SPENDING_AT_TIME) {
                     rc.fireSingleShot(rc.getLocation().directionTo(bestRobot.location));
-                    System.out.println("Firing!");
                     break;
                 }
             } else {
@@ -287,6 +272,10 @@ class Scout extends Robot {
             RobotInfo closestEnemy = null;
             float disToClosestEnemy = 1000000f;
 
+            if (myLocation.distanceTo(target) > 0) {
+                movesToConsider.add(myLocation.add(myLocation.directionTo(target), info.strideRadius));
+            }
+
             for (RobotInfo robot : robots) {
                 if (myLocation.distanceTo(robot.location) < disToClosestEnemy) {
                     disToClosestEnemy = myLocation.distanceTo(robot.location);
@@ -327,7 +316,7 @@ class Scout extends Robot {
                     }
                 }
             }
-            System.out.println("Completed " + iterationsDone + " iterations");
+            //System.out.println("Completed " + iterationsDone + " iterations");
             System.out.println("After moving, " + Clock.getBytecodesLeft() + " bytecodes left");
             if (bestMove != null) {
                 rc.move(bestMove);
