@@ -7,23 +7,23 @@ abstract class Robot {
     RobotType info = null;
     MapLocation spawnPos = null;
 
-    int MAP_EDGE_BROADCAST_OFFSET = 10;
-    int HIGH_PRIORITY_TARGET_OFFSET = 20;
-    int GARDENER_OFFSET = 25;
+    static final int MAP_EDGE_BROADCAST_OFFSET = 10;
+    static final int HIGH_PRIORITY_TARGET_OFFSET = 20;
+    static final int GARDENER_OFFSET = 25;
 
-    protected int EXPLORATION_OFFSET = 100;
-    protected int EXPLORATION_CHUNK_SIZE = 25;
+    private static final int EXPLORATION_OFFSET = 100;
+    private static final int EXPLORATION_CHUNK_SIZE = 25;
 
-    protected int EXPLORATION_ORIGIN = EXPLORATION_OFFSET + 0;
-    protected int EXPLORATION_EXPLORED = EXPLORATION_OFFSET + 2;
-    protected int EXPLORATION_OUTSIDE_MAP = EXPLORATION_OFFSET + 4;
+    static final int EXPLORATION_ORIGIN = EXPLORATION_OFFSET + 0;
+    private static final int EXPLORATION_EXPLORED = EXPLORATION_OFFSET + 2;
+    private static final int EXPLORATION_OUTSIDE_MAP = EXPLORATION_OFFSET + 4;
 
     int mapEdgesDetermined = 0;
     float[] mapEdges = new float[4];
     boolean countingAsAlive = true;
 
 
-    public void init() {
+    void init() {
         info = rc.getType();
         spawnPos = rc.getLocation();
     }
