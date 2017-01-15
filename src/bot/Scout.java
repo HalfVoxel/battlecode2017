@@ -242,10 +242,13 @@ class Scout extends Robot {
                 if (rc.canFireSingleShot() && rc.getLocation().distanceTo(bestRobot.location) < 2 * info.sensorRadius && teamOf(firstUnitHit) == rc.getTeam().opponent() && turnsLeft > STOP_SPENDING_AT_TIME) {
                     rc.fireSingleShot(rc.getLocation().directionTo(bestRobot.location));
                     System.out.println("Firing!");
+                    break;
                 }
             } else {
                 break;
             }
+            if(Clock.getBytecodesLeft() < 3000)
+                break;
         }
 
         return nearbyEnemyGardener;
@@ -262,6 +265,7 @@ class Scout extends Robot {
 
         // The code you want your robot to perform every round should be in this loop
         while (true) {
+            int roundAtStart = rc.getRoundNum();
             int turnsLeft = rc.getRoundLimit() - rc.getRoundNum();
             MapLocation myLocation = rc.getLocation();
             // See if there are any nearby enemy robots
@@ -324,6 +328,7 @@ class Scout extends Robot {
                 }
             }
             System.out.println("Completed " + iterationsDone + " iterations");
+            System.out.println("After moving, " + Clock.getBytecodesLeft() + " bytecodes left");
             if (bestMove != null) {
                 rc.move(bestMove);
             }
@@ -334,6 +339,7 @@ class Scout extends Robot {
             if (robots.length > 0) {
                 nearbyEnemyGardener = fireAtNearbyRobot(robots);
             }
+            System.out.println("After trying to fire, " + Clock.getBytecodesLeft() + " bytecodes left");
 
             if (!rc.hasAttacked()) {
                 float bestScore3 = -1000000f;
@@ -363,8 +369,11 @@ class Scout extends Robot {
             if (!nearbyEnemyGardener && !rc.hasAttacked()) {
                 fireAtNearbyTree(trees);
             }
-
-            yieldAndDoBackgroundTasks();
+            if(rc.getRoundNum() == roundAtStart){
+                yieldAndDoBackgroundTasks();
+            } else{
+                System.out.println("Error! Did not finish withing bytecode limit");
+            }
         }
     }
 }
