@@ -39,10 +39,21 @@ class Lumberjack extends Robot {
             // See if there are any enemy robots within striking range (distance 1 from lumberjack's radius)
             RobotInfo[] robots = rc.senseNearbyRobots(RobotType.LUMBERJACK.bodyRadius + GameConstants.LUMBERJACK_STRIKE_RADIUS, enemy);
             if (robots.length > 0 && !rc.hasAttacked()) {
+                RobotInfo[] friendlyRobots = rc.senseNearbyRobots(RobotType.LUMBERJACK.bodyRadius + GameConstants.LUMBERJACK_STRIKE_RADIUS, rc.getTeam());
+                float myValue = 0f;
+                for(RobotInfo robot : friendlyRobots){
+                    if(robot.ID != rc.getID())
+                        myValue += robot.getType().bulletCost / robot.getType().maxHealth;
+                }
+                float opponentValue = 0f;
+                for(RobotInfo robot : robots){
+                    opponentValue += robot.getType().bulletCost / robot.getType().maxHealth;
+                }
                 // Use strike() to hit all nearby robots!
-                rc.strike();
-            } else {
-
+                if(opponentValue > myValue)
+                    rc.strike();
+            }
+            if(!rc.hasAttacked()){
                 boolean success = false;
 
                 // No close robots, so search for robots within sight radius
