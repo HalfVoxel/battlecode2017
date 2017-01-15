@@ -108,6 +108,7 @@ class Scout extends Robot {
     float getEstimatedDamageAtPosition (MapLocation loc, BulletInfo[] bullets) {
         float dmg = 0f;
         float radius = info.bodyRadius;
+        float sqrRadius = radius*radius;
         for (BulletInfo bullet : bullets) {
             // Current bullet position
             float prevX = bullet.location.x - loc.x;
@@ -120,12 +121,12 @@ class Scout extends Robot {
             // Position of the closest point the bullet will be to #loc
             float closestX = prevX + dx*dot;
             float closestY = prevY + dy*dot;
-            float distanceToLineOfTravel = (float)Math.sqrt(closestX*closestX + closestY*closestY);
+            float sqrDistanceToLineOfTravel = closestX*closestX + closestY*closestY;
 
             // The bullet cannot possibly hit us
-            if (distanceToLineOfTravel > radius) continue;
+            if (sqrDistanceToLineOfTravel > sqrRadius) continue;
 
-            float intersectionDistDelta = (float)Math.sqrt(radius*radius - distanceToLineOfTravel*distanceToLineOfTravel);
+            float intersectionDistDelta = (float)Math.sqrt(sqrRadius - sqrDistanceToLineOfTravel);
             float intersectionDist2 = dot + intersectionDistDelta;
             if (intersectionDist2 < 0) {
                 // The bullet has already passed us. Everything is ok!
