@@ -117,7 +117,6 @@ class Gardener extends Robot {
             if(rc.getTreeCount() > tankCount*20+10 && rc.getTeamBullets() <= RobotType.TANK.bulletCost + 100 && gardenerCount > 1 && scoutCount > 2){
                 saveForTank = true;
             }
-            System.out.println("saveForTank = " + saveForTank);
 
             if(!hasSettled) {
                 unsettledTime += 1;
