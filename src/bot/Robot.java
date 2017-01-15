@@ -437,4 +437,8 @@ abstract class Robot {
 
         return null;
     }
+
+    static <T> T randomChoice(T[] values) {
+        return values.length > 0 ? values[(int)(Math.random()*values.length)] : null;
+    }
 }

@@ -45,13 +45,9 @@ class Scout extends Robot {
 
     float getPositionScore(MapLocation loc, MapLocation[] enemyArchons,
                          RobotInfo[] units, BulletInfo[] bullets, TreeInfo bestTree, MapLocation target) {
-        //var pre = Clock.getBytecodesLeft()
         Team myTeam = rc.getTeam();
-        Team opponentTeam = myTeam.opponent();
+
         float score = 0f;
-        /*for (MapLocation archon : enemyArchons) {
-            score += 1f/(loc.distanceSquaredTo(archon)+1);
-        }*/
         score += 3f/(loc.distanceSquaredTo(target)+10);
 
         for (RobotInfo unit : units) {
@@ -101,33 +97,56 @@ class Scout extends Robot {
             }
         }*/
 
-        float x3 = loc.x;
-        float y3 = loc.y;
-        for (BulletInfo bullet : bullets) {
-            float x1 = bullet.location.x - x3;
-            float y1 = bullet.location.y - y3;
-            float x2 = x1 + bullet.dir.getDeltaX(bullet.speed);
-            float y2 = y1 + bullet.dir.getDeltaY(bullet.speed);
-            float dx = x2-x1;
-            float dy = y2-y1;
-            double dis = (x1*dy-dx*y1)/Math.sqrt(dx*dx+dy*dy);
-            if(dis < 0)
-                dis = -dis;
-            float dis1 = x1*x1+y1*y1;
-            float dis2 = x2*x2+y2*y2;
-            score -= bullet.damage * 2f / (dis2*dis2+1);
-            if(dis1 > dis2)
-                dis1 = dis2;
-            if(dis1 > dis*dis)
-                dis = Math.sqrt(dis1);
-            if(dis < 1f){
-                score -= 1000f*bullet.damage;
-            }
-        }
+        score -= 1000f*getEstimatedDamageAtPosition(loc, bullets);
 
         //var after = Clock.getBytecodesLeft()
         //System.out.println(units.size + " units took " + (after-pre))
         return score;
+    }
+
+    /** Estimated damage from bullets when moving to the specified position */
+    float getEstimatedDamageAtPosition (MapLocation loc, BulletInfo[] bullets) {
+        float dmg = 0f;
+        float radius = info.bodyRadius;
+        for (BulletInfo bullet : bullets) {
+            // Current bullet position
+            float prevX = bullet.location.x - loc.x;
+            float prevY = bullet.location.y - loc.y;
+            float dx = bullet.dir.getDeltaX(1);
+            float dy = bullet.dir.getDeltaY(1);
+
+            // Distance the bullet has to travel to get to its closest point to #loc
+            float dot = -(dx*prevX + dy*prevY);
+            // Position of the closest point the bullet will be to #loc
+            float closestX = prevX + dx*dot;
+            float closestY = prevY + dy*dot;
+            float distanceToLineOfTravel = (float)Math.sqrt(closestX*closestX + closestY*closestY);
+
+            // The bullet cannot possibly hit us
+            if (distanceToLineOfTravel > radius) continue;
+
+            float intersectionDistDelta = (float)Math.sqrt(radius*radius - distanceToLineOfTravel*distanceToLineOfTravel);
+            float intersectionDist2 = dot + intersectionDistDelta;
+            if (intersectionDist2 < 0) {
+                // The bullet has already passed us. Everything is ok!
+                continue;
+            }
+
+            float intersectionDist1 = dot - intersectionDistDelta;
+
+            // -1 because the bullet has not moved this frame yet
+            float timeToIntersection = (intersectionDist1 / bullet.speed) - 1;
+
+            // It will hit us this frame
+            if (timeToIntersection <= 0) {
+                dmg += bullet.damage;
+            } else {
+                // Decrease the damage further away
+                dmg += 0.5f*bullet.damage / (timeToIntersection + 1);
+            }
+        }
+
+        return dmg;
     }
 
     public void run() throws GameActionException {
@@ -141,10 +160,8 @@ class Scout extends Robot {
         float fallbackRotation = 1;
         final int STOP_SPENDING_AT_TIME = 50;
         Random rand = new Random(1);
-        if (archons.length > 0) {
-            int ind = rand.nextInt(archons.length);
-            target = archons[ind];
-        }
+        target = randomChoice(archons);
+        if (target == null) target = rc.getLocation();
         Map<Integer, Float> treeLifeMap = new HashMap<Integer, Float>();
 
         // The code you want your robot to perform every round should be in this loop
@@ -158,10 +175,10 @@ class Scout extends Robot {
             TreeInfo[] trees = rc.senseNearbyTrees();
             boolean hasMoved = false;
 
+            // Pick a new target with a small probability or when very close to the target
             if(rand.nextInt(200) < 1 || myLocation.distanceTo(target) < 4f){
                 target = pickTarget();
             }
-            System.out.println("Target: " + target.x + ", " + target.y);
 
             TreeInfo bestTree = null;
             float bestTreeScore = -1000000f;
