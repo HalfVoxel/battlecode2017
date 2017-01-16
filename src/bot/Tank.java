@@ -70,10 +70,16 @@ class Tank extends Robot {
 
             // If there are some...
             if (robots.length > 0 && turnsLeft > STOP_SPENDING_AT_TIME) {
-                if (rc.canFirePentadShot() && friendlyRobots.length < robots.length) {
+                if (rc.canFirePentadShot() && rc.getTeamBullets() > 300 && friendlyRobots.length < robots.length && (friendlyRobots.length == 0 || robots.length >= 2)) {
                     // ...Then fire a bullet in the direction of the enemy.
                     rc.firePentadShot(rc.getLocation().directionTo(robots[0].location));
                 }
+
+                if (rc.canFireTriadShot() && friendlyRobots.length < robots.length && (friendlyRobots.length == 0 || robots.length >= 2)) {
+                    // ...Then fire a bullet in the direction of the enemy.
+                    rc.fireTriadShot(rc.getLocation().directionTo(robots[0].location));
+                }
+
                 // And we have enough bullets, and haven't attacked yet this turn...
                 if (rc.canFireSingleShot()) {
                     // ...Then fire a bullet in the direction of the enemy.
