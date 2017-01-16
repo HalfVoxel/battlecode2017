@@ -47,6 +47,16 @@ class Archon extends Robot {
             RobotInfo[] units = rc.senseNearbyRobots();
             moveToAvoidBullets(rc.getLocation(), bullets, units);
             yieldAndDoBackgroundTasks();
+
+            debug_resign();
+        }
+    }
+
+    void debug_resign() {
+        // Give up if the odds do not seem to be in our favor
+        if (rc.getRoundNum() > 1800 && rc.getRobotCount() <= 2 && rc.senseNearbyRobots(-1, rc.getTeam().opponent()).length >= 4 && rc.getTeamBullets() < 200 && rc.getTreeCount() <= 1) {
+            System.out.println("RESIGNING");
+            rc.resign();
         }
     }
 }
