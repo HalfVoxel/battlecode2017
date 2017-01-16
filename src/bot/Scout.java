@@ -336,7 +336,7 @@ class Scout extends Robot {
                 if (bestRobot != null) {
                     lastAttackedEnemyID = bestRobot.getID();
                     BodyInfo firstUnitHit = linecast(bestRobot.location);
-                    if (firstUnitHit.isTree()) {
+                    if (firstUnitHit != null && firstUnitHit.isTree()) {
                         TreeInfo tree = (TreeInfo)firstUnitHit;
 
                         if ((tree.health < 10 || tree.health > 25) && tree.getTeam() == rc.getTeam().opponent()) {
