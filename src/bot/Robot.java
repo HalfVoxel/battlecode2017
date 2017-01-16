@@ -105,7 +105,7 @@ abstract class Robot {
     void yieldAndDoBackgroundTasks() throws GameActionException {
         updateLiveness();
         if (Clock.getBytecodesLeft() > 1000) determineMapSize();
-        if (Clock.getBytecodesLeft() > 1000) shakeNearbyTrees();
+        if (Clock.getBytecodesLeft() > 1000 || rc.getType() == RobotType.GARDENER) shakeNearbyTrees();
         if (Clock.getBytecodesLeft() > 1000) broadcastEnemyLocations(null);
         Clock.yield();
     }
