@@ -2,16 +2,15 @@ package bot;
 
 import battlecode.common.*;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 abstract class Robot {
     RobotController rc = null;
     RobotType info = null;
     MapLocation spawnPos = null;
+    Random rnd = new Random(SEED);
 
+    static final int SEED = 0;
     static final int MAP_EDGE_BROADCAST_OFFSET = 10;
     static final int HIGH_PRIORITY_TARGET_OFFSET = 20;
     static final int GARDENER_OFFSET = 25;
@@ -41,7 +40,7 @@ abstract class Robot {
      * @return a random Direction
      */
     protected Direction randomDirection () {
-        return new Direction((float)Math.random()* 2 * (float)Math.PI);
+        return new Direction(rnd.nextFloat() * 2 * (float)Math.PI);
     }
 
     protected int spawnedCount (RobotType tp) throws GameActionException {
@@ -580,10 +579,10 @@ abstract class Robot {
             MapLocation loc;
             if (movesToConsider.isEmpty()) {
                 Direction dir = randomDirection();
-                double r = Math.random();
-                if (r < 0.5)
+                float r = rnd.nextFloat();
+                if (r < 0.5f)
                     loc = myLocation.add(dir, info.strideRadius);
-                else if (r < 0.7)
+                else if (r < 0.7f)
                     loc = myLocation.add(dir, info.strideRadius * 0.5f);
                 else
                     loc = myLocation.add(dir, 0.2f);
@@ -747,7 +746,7 @@ abstract class Robot {
         }
     }
 
-    static <T> T randomChoice(T[] values) {
-        return values.length > 0 ? values[(int)(Math.random()*values.length)] : null;
+    <T> T randomChoice(T[] values) {
+        return values.length > 0 ? values[(int)(rnd.nextFloat()*values.length)] : null;
     }
 }

@@ -5,6 +5,8 @@ import os
 import subprocess
 import re
 import sys
+import random
+import signal
 
 maps = ["Barrier", "DenseForest", "Enclosure", "Hurdle", "LineOfFire", "MagicWood", "SparseForest", "shrine"]
 lowerMaps = [m.lower() for m in maps]
@@ -15,6 +17,7 @@ parser.add_argument("-a", "--teamA", help="Team A")
 parser.add_argument("-b", "--teamB", help="Team B")
 parser.add_argument("--tournament", help="Play multiple games and rank the teams", action="store_true")
 parser.add_argument("-q", "--quiet", help="Don't print bot logs", action="store_true")
+parser.add_argument("--seed", help="Seed for the game or tournament", type=int)
 args = parser.parse_args()
 
 red = (201, 27, 0)
@@ -56,7 +59,14 @@ def execute(cmd, quiet):
     # return "\n".join(lines)
 
 
-def run(teamA, teamB, maps, quiet):
+def updateSeed(seed):
+    s = open("src/bot/Robot.java").read()
+    s = re.sub("SEED = [\d]+", "SEED = " + str(seed), s)
+    open("src/bot/Robot.java", "w").write(s)
+
+
+def run(teamA, teamB, maps, quiet, seed):
+    updateSeed(seed)
     gradleArgs = ["./gradlew", "run"]
 
     if teamA is not None:
@@ -90,34 +100,48 @@ def printResult(result):
     print(teamStr + " won at round " + str(round) + " " + reason)
 
 
+# Make sure the seed is reset to 0 even if the user terminates the program
+def sigint(signal, frame):
+    updateSeed(0)
+    sys.exit(0)
+
+
+signal.signal(signal.SIGINT, sigint)
+
+startSeed = args.seed if args.seed is not None else 0
 if args.tournament:
     teamAwins = 0
     totalCount = 0
 
-    for switch in [False, True]:
-        teamA = args.teamA
-        teamB = args.teamB
-        if switch:
-            teamA, teamB = teamB, teamA
-
-        gen = run(teamA, teamB, maps, True)
-        for map in maps:
-            mapStr = yellowStr + map.ljust(12) + reset + " " + ("B vs A" if switch else "A vs B") + ": "
-            print(mapStr + grayStr + "..." + reset, end="")
-            sys.stdout.flush()
-            result = next(gen)
-
+    for seed in range(startSeed, startSeed + 5):
+        for switch in [False, True]:
+            teamA = args.teamA
+            teamB = args.teamB
             if switch:
-                result = ("B" if result[0] == "A" else "A", result[1], result[2])
+                teamA, teamB = teamB, teamA
 
-            print("\r" + mapStr, end="")
-            printResult(result)
+            gen = run(teamA, teamB, maps, True, seed)
+            for map in maps:
+                mapStr = yellowStr + map.ljust(12) + reset + " " + ("B vs A" if switch else "A vs B") + ": "
+                print(mapStr + grayStr + "..." + reset, end="")
+                sys.stdout.flush()
+                result = next(gen)
 
-            if result[0] == "A":
-                teamAwins += 1
-            totalCount += 1
+                if switch:
+                    result = ("B" if result[0] == "A" else "A", result[1], result[2])
 
-    print("Team A won " + str(teamAwins / totalCount) + " fraction of the time")
+                print("\r" + mapStr, end="")
+                printResult(result)
+
+                if result[0] == "A":
+                    teamAwins += 1
+                totalCount += 1
+
+        print("Team A has won " + str((teamAwins / totalCount) * 100) + "% of the time (" +
+              str(teamAwins) + " of " + str(totalCount) + ")")
+        print("Continuing with new seed...")
+        updateSeed(0)
+
 else:
     actualMap = maps[lowerMaps.index(args.map.lower())]
-    printResult(next(run(args.teamA, args.teamB, [actualMap], args.quiet)))
+    printResult(next(run(args.teamA, args.teamB, [actualMap], args.quiet, startSeed)))

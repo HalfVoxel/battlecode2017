@@ -6,8 +6,6 @@ import java.util.Random;
 
 class Tank extends Robot {
 
-    Random rnd = new Random(1);
-
     MapLocation pickTarget (MapLocation[] fallBackPositions) {
         if (rnd.nextFloat() < 0.2) {
             return fallBackPositions[rnd.nextInt(fallBackPositions.length)];
@@ -33,8 +31,7 @@ class Tank extends Robot {
         float speedToTarget = 0f;
 
         if(archons.length > 0) {
-            Random rand = new Random(1);
-            int ind = rand.nextInt(archons.length);
+            int ind = rnd.nextInt(archons.length);
             target = archons[ind];
         }
 
