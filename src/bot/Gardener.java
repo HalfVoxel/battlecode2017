@@ -94,48 +94,41 @@ class Gardener extends Robot {
     }
 
     MapLocation plantTrees(MapLocation settledLocation) throws GameActionException {
-        boolean tryAgain = true;
-        for (int tries = 0; tries < 2 && tryAgain; tries++) {
-            tryAgain = false;
-
-            for (int i = 0; i < 9; i++) {
-                if (rc.hasMoved()) break;
-
-                Direction dir = new Direction(2 * (float) Math.PI * i / 9f);
-                MapLocation origPos = settledLocation != null ? settledLocation : rc.getLocation();
-                MapLocation plantPos = origPos.add(dir, info.bodyRadius + info.strideRadius + GameConstants.BULLET_TREE_RADIUS);
-                if (rc.isCircleOccupiedExceptByThisRobot(plantPos, GameConstants.BULLET_TREE_RADIUS + 0.01f) || !onMap(plantPos, GameConstants.BULLET_TREE_RADIUS + 0.01f)) {
-                    rc.setIndicatorDot(plantPos, 255, 0, 0);
-                    continue;
-                } else {
-                    rc.setIndicatorDot(plantPos, 0, 255, 0);
+        MapLocation myLocation = rc.getLocation();
+        TreeInfo[] nearbyTrees = rc.senseNearbyTrees(5f);
+        RobotInfo[] nearbyRobots = rc.senseNearbyRobots(5f);
+        Direction bestDir = null;
+        float bestScore = -1000000f;
+        while (Clock.getBytecodesLeft() > 3000) {
+            Direction dir = randomDirection();
+            if(rc.canPlantTree(dir)){
+                MapLocation loc = myLocation.add(dir, 2f);
+                float score = 0;
+                for(TreeInfo tree : nearbyTrees){
+                    if(tree.getTeam() == rc.getTeam()) {
+                        if (tree.location.distanceTo(loc) < 4f)
+                            score -= 5;
+                        score -= 2 / (tree.location.distanceTo(loc) + 1);
+                    }
+                    else{
+                        score -= 1 / (tree.location.distanceTo(loc) + 1);
+                    }
                 }
-
-                MapLocation moveToPos = origPos.add(dir, info.strideRadius - 0.02f);
-
-                if (rc.canMove(moveToPos)) {
-                    rc.move(moveToPos);
-                } else if (tries == 0) {
-                    tryAgain = true;
-                    continue;
+                for(RobotInfo robot : nearbyRobots){
+                    if(robot.getType() == RobotType.ARCHON || robot.getType() == RobotType.TANK)
+                        score -= 8/(robot.location.distanceTo(loc) + 1);
+                    else
+                        score -= 1/(robot.location.distanceTo(loc) + 1);
                 }
-
-                if (rc.canPlantTree(dir)) {
-                    rc.plantTree(dir);
-                    System.out.println("Planted tree");
-                    settledLocation = origPos;
-                }
-
-                yieldAndDoBackgroundTasks();
-                for (int t = 0; t < 5 && !rc.canMove(origPos); t++) yieldAndDoBackgroundTasks();
-
-                // Move back
-                if (rc.canMove(origPos)) {
-                    rc.move(origPos);
+                if(score > bestScore){
+                    bestScore = score;
+                    bestDir = dir;
                 }
             }
         }
-
+        if(bestDir != null && bestScore > -5){
+            rc.plantTree(bestDir);
+        }
         return settledLocation;
     }
 
