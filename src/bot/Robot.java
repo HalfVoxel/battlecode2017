@@ -211,7 +211,6 @@ abstract class Robot {
             ret = Math.min(ret, pos.x-mapEdges[2]);
         if((mapEdgesDetermined & 8) != 0)
             ret = Math.min(ret, pos.y-mapEdges[3]);
-        System.out.println("getDistanceToMapEdge returned " + ret);
         return ret;
     }
 
@@ -608,6 +607,9 @@ abstract class Robot {
             if (rc.canMove(loc)) {
                 float score = getDefensiveBulletAvoidanceScore(loc, bulletX, bulletY, bulletDx, bulletDy,
                         bulletDamage, bulletSpeed, units, secondaryTarget);
+                if(rc.getType() == RobotType.ARCHON){
+                    System.out.println("score = " + score);
+                }
                 if (score > bestScore) {
                     bestScore = score;
                     bestMove = loc;
@@ -629,7 +631,7 @@ abstract class Robot {
         float score = 0f;
         float disToEdge = getDistanceToMapEdge(loc);
         if(disToEdge < 10)
-            score -= (disToEdge-10)*(disToEdge-10);
+            score -= 0.05*(disToEdge-10)*(disToEdge-10);
 
         if(rc.getType() == RobotType.GARDENER) {
             TreeInfo[] trees = rc.senseNearbyTrees(info.sensorRadius, rc.getTeam());
@@ -650,14 +652,22 @@ abstract class Robot {
                 }
             }
         }
+        else if(rc.getType() == RobotType.ARCHON){
+            TreeInfo[] trees = rc.senseNearbyTrees(info.sensorRadius);
+            for (TreeInfo tree : trees) {
+                score -= 10*Math.exp(-loc.distanceSquaredTo(tree.location)*0.5);
+            }
+        }
         else{
-            score -= 1.15f*loc.distanceTo(target);
+            score -= 0.1f/(loc.distanceTo(target)+1);
         }
 
         for (RobotInfo unit : units) {
             if (unit.team == myTeam) {
+                if(unit.ID == rc.getID())
+                    continue;
                 if(unit.getType() == RobotType.ARCHON || unit.getType() == RobotType.TANK)
-                    score -= 1.5/(unit.location.distanceTo(loc) + 1);
+                    score -= 1/(unit.location.distanceTo(loc) + 1);
                 else
                     score -= 0.5/(unit.location.distanceTo(loc) + 1);
             }
