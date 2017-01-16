@@ -7,9 +7,15 @@ import java.util.Random;
 
 class Gardener extends Robot {
 
-    void water() throws GameActionException {
+    boolean blockedByNeutralTrees = false;
+    int lastBuildLumberjackTime = -1000;
+
+    void water(TreeInfo[] trees) throws GameActionException {
         if (rc.canWater()) {
-            TreeInfo[] trees = rc.senseNearbyTrees(info.bodyRadius + info.strideRadius + 0.01f, rc.getTeam());
+            if (trees == null) {
+                trees = rc.senseNearbyTrees(info.bodyRadius + info.strideRadius + 0.01f, rc.getTeam());
+            }
+
             TreeInfo minHealthTree = null;
             for (TreeInfo tree : trees) {
                 if ((minHealthTree == null || tree.health < minHealthTree.health) && rc.canWater(tree.getID())) {
@@ -63,11 +69,20 @@ class Gardener extends Robot {
         if (!rc.hasRobotBuildRequirements(RobotType.LUMBERJACK)) return;
         //if (spawnedCount(RobotType.LUMBERJACK) >= 2) return
 
+        // Don't create lumberjacks too often (the previous one might not have had much time to chop down trees yet)
+        if (rc.getRoundNum() < lastBuildLumberjackTime + 50) {
+            return;
+        }
+
         TreeInfo[] trees = rc.senseNearbyTrees(info.sensorRadius, Team.NEUTRAL);
         float totalScore = 0f;
         for (TreeInfo tree : trees) {
             // Add a small constant to make it favorable to just chop down trees for space
             totalScore += treeScore(tree, null) + 0.1f;
+        }
+
+        if (blockedByNeutralTrees) {
+            totalScore += 1f;
         }
 
         // Very approximate
@@ -85,14 +100,18 @@ class Gardener extends Robot {
                 if (rc.canBuildRobot(RobotType.LUMBERJACK, dir)) {
                     rc.buildRobot(RobotType.LUMBERJACK, dir);
                     rc.broadcast(RobotType.LUMBERJACK.ordinal(), spawnedCount(RobotType.LUMBERJACK) + 1);
+                    lastBuildLumberjackTime = rc.getRoundNum();
                     return;
                 }
             }
         }
     }
-
+    
     MapLocation plantTrees(MapLocation settledLocation) throws GameActionException {
+        MapLocation myLocation = rc.getLocation();
+        blockedByNeutralTrees = false;
         boolean tryAgain = true;
+
         for (int tries = 0; tries < 2 && tryAgain; tries++) {
             tryAgain = false;
 
@@ -103,11 +122,18 @@ class Gardener extends Robot {
                 MapLocation origPos = settledLocation != null ? settledLocation : rc.getLocation();
                 MapLocation plantPos = origPos.add(dir, info.bodyRadius + info.strideRadius + GameConstants.BULLET_TREE_RADIUS);
                 if (rc.isCircleOccupiedExceptByThisRobot(plantPos, GameConstants.BULLET_TREE_RADIUS + 0.01f) || !onMap(plantPos, GameConstants.BULLET_TREE_RADIUS + 0.01f)) {
-                    rc.setIndicatorDot(plantPos, 255, 0, 0);
+                    TreeInfo tree = rc.senseTreeAtLocation(plantPos);
+                    if (tries > 0 && ((tree != null && tree.team != rc.getTeam()) || (tree == null && rc.senseNearbyTrees(plantPos, GameConstants.BULLET_TREE_RADIUS + 0.01f, Team.NEUTRAL).length > 0))) {
+                        blockedByNeutralTrees = true;
+                        rc.setIndicatorDot(plantPos, 255, 0, 255);
+                    } else {
+                        rc.setIndicatorDot(plantPos, 255, 0, 0);
+                    }
                     continue;
                 } else {
                     rc.setIndicatorDot(plantPos, 0, 255, 0);
                 }
+
 
                 MapLocation moveToPos = origPos.add(dir, info.strideRadius - 0.02f);
 
@@ -270,7 +296,7 @@ class Gardener extends Robot {
 			tryMove(randomDirection)
 			*/
             // Clock.yield() makes the robot wait until the next turn, then it will perform this loop again
-            water();
+            water(null);
             yieldAndDoBackgroundTasks();
         }
     }
