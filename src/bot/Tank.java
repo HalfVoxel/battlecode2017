@@ -6,7 +6,14 @@ import java.util.Random;
 
 class Tank extends Robot {
 
-    MapLocation pickTarget (MapLocation[] fallBackPositions) {
+    MapLocation pickTarget (MapLocation[] fallBackPositions) throws GameActionException {
+        int lastAttackingEnemySpotted = rc.readBroadcast(HIGH_PRIORITY_TARGET_OFFSET);
+        MapLocation highPriorityTargetPos = readBroadcastPosition(HIGH_PRIORITY_TARGET_OFFSET + 1);
+        if (rc.getRoundNum() < lastAttackingEnemySpotted + 50 && rc.getLocation().distanceTo(highPriorityTargetPos) < info.strideRadius * 8) {
+            // Defend!
+            return highPriorityTargetPos;
+        }
+
         if (rnd.nextFloat() < 0.2) {
             return fallBackPositions[rnd.nextInt(fallBackPositions.length)];
         } else {
