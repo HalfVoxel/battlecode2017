@@ -32,7 +32,7 @@ class Gardener extends Robot {
 
         boolean canSeeTarget = target.distanceSquaredTo(rc.getLocation()) < 0.01f || rc.canSenseAllOfCircle(target, freeRadius);
 
-        if (canSeeTarget && (!rc.onTheMap(target.add(0, 0.001f), info.bodyRadius + GameConstants.BULLET_TREE_RADIUS) || rc.isCircleOccupiedExceptByThisRobot(target.add(0, 0.001f), freeRadius))) {
+        if (canSeeTarget && (!onMap(target.add(0, 0.001f), freeRadius) || rc.isCircleOccupiedExceptByThisRobot(target.add(0, 0.001f), freeRadius))) {
             return false;
         }
 
@@ -46,11 +46,13 @@ class Gardener extends Robot {
             // Pick a new target
             // Generate a random direction
             Direction dir = randomDirection();
-            target = rc.getLocation().add(dir, info.strideRadius * 3);
+            target = clampToMap(rc.getLocation().add(dir, info.strideRadius * 5), freeRadius);
 
             if (Math.random() < 0.5) {
                 // Ensure it is far away from the spawn pos
-                target = spawnPos.add(spawnPos.directionTo(target), Math.max(spawnPos.distanceTo(target), info.bodyRadius * 8));
+                for (int i = 0; i < 4; i++) {
+                    target = clampToMap(spawnPos.add(spawnPos.directionTo(target), Math.max(spawnPos.distanceTo(target), info.bodyRadius * 8)), freeRadius);
+                }
             }
 
             tests += 1;
@@ -102,7 +104,7 @@ class Gardener extends Robot {
                 Direction dir = new Direction(2 * (float) Math.PI * i / 9f);
                 MapLocation origPos = settledLocation != null ? settledLocation : rc.getLocation();
                 MapLocation plantPos = origPos.add(dir, info.bodyRadius + info.strideRadius + GameConstants.BULLET_TREE_RADIUS);
-                if (rc.isCircleOccupiedExceptByThisRobot(plantPos, GameConstants.BULLET_TREE_RADIUS + 0.01f) && rc.onTheMap(plantPos, GameConstants.BULLET_TREE_RADIUS + 0.01f)) {
+                if (rc.isCircleOccupiedExceptByThisRobot(plantPos, GameConstants.BULLET_TREE_RADIUS + 0.01f) || !onMap(plantPos, GameConstants.BULLET_TREE_RADIUS + 0.01f)) {
                     rc.setIndicatorDot(plantPos, 255, 0, 0);
                     continue;
                 } else {
@@ -150,6 +152,8 @@ class Gardener extends Robot {
         boolean hasSettled = false;
         int unsettledTime = 0;
         int STOP_SPENDING_AT_TIME = 100;
+        int movesWithTarget = 0;
+        float speedToTarget = 0f;
 
         buildLumberjackInDenseForests();
 
@@ -183,7 +187,7 @@ class Gardener extends Robot {
                 }
             }
 
-            boolean invalidTarget = (moveFailCounter > 5 || !likelyValidTarget(target, desiredRadius)) && !hasSettled;
+            boolean invalidTarget = (moveFailCounter > 5 || speedToTarget < info.strideRadius*0.2f || !likelyValidTarget(target, desiredRadius)) && !hasSettled;
             boolean canSeeTarget = target.distanceSquaredTo(rc.getLocation()) < 0.01f || rc.canSenseAllOfCircle(target, desiredRadius);
 
             if ((!hasBuiltScout || Math.pow(rc.getTreeCount()+2, 0.9) > scoutCount) && !saveForTank){
@@ -198,15 +202,16 @@ class Gardener extends Robot {
                 }
             }
 
-            if (invalidTarget) {
+            if (invalidTarget && movesWithTarget > 3) {
                 target = pickTarget(desiredRadius);
                 //System.out.println("Picked new target " + target)
                 moveFailCounter = 0;
-                try {
-                    rc.setIndicatorDot(target, 255, 0, 0);
-                } catch (Exception e) {
-                }
+                movesWithTarget = 0;
+                rc.setIndicatorDot(target, 255, 0, 0);
             }
+
+            movesWithTarget++;
+            rc.setIndicatorLine(rc.getLocation(), target, 255, 0, 0);
 
             if(turnsLeft > STOP_SPENDING_AT_TIME)
                 buildLumberjackInDenseForests();
@@ -234,13 +239,23 @@ class Gardener extends Robot {
             }
 
             if(!hasSettled) {
-                if (!rc.hasMoved() && tryMove(target)) {
+                BulletInfo[] bullets = rc.senseNearbyBullets(info.strideRadius + info.bodyRadius + 3f);
+                RobotInfo[] units = rc.senseNearbyRobots();
+
+                if (!rc.hasMoved()) {
+                    float d1 = rc.getLocation().distanceTo(target);
+                    moveToAvoidBullets(target, bullets, units);
+                    float d2 = rc.getLocation().distanceTo(target);
+                    speedToTarget *= 0.5f;
+                    speedToTarget += 0.5f*(d1 - d2);
+                }
+                /*if (!rc.hasMoved() && moveToAvoidBullets(target, )) {
                     moveFailCounter = 0;
                 } else {
                     // Couldn't move there? huh
                     moveFailCounter += 1;
                     //System.out.println("Move failed")
-                }
+                }*/
             }
 
 			/*
