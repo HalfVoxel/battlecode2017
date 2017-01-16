@@ -107,7 +107,46 @@ class Gardener extends Robot {
         }
     }
     
-    MapLocation plantTrees(MapLocation settledLocation) throws GameActionException {
+	MapLocation plantTrees(MapLocation settledLocation) throws GameActionException {
+        MapLocation myLocation = rc.getLocation();
+        TreeInfo[] nearbyTrees = rc.senseNearbyTrees(5f);
+        RobotInfo[] nearbyRobots = rc.senseNearbyRobots(5f);
+        Direction bestDir = null;
+        float bestScore = -1000000f;
+        while (Clock.getBytecodesLeft() > 3000) {
+            Direction dir = randomDirection();
+            if(rc.canPlantTree(dir)){
+                MapLocation loc = myLocation.add(dir, 2f);
+                float score = 0;
+                for(TreeInfo tree : nearbyTrees){
+                    if(tree.getTeam() == rc.getTeam()) {
+                        if (tree.location.distanceTo(loc) < 4f)
+                            score -= 5;
+                        score -= 2 / (tree.location.distanceTo(loc) + 1);
+                    }
+                    else{
+                        score -= 1 / (tree.location.distanceTo(loc) + 1);
+                    }
+                }
+                for(RobotInfo robot : nearbyRobots){
+                    if(robot.getType() == RobotType.ARCHON || robot.getType() == RobotType.TANK)
+                        score -= 8/(robot.location.distanceTo(loc) + 1);
+                    else
+                        score -= 1/(robot.location.distanceTo(loc) + 1);
+                }
+                if(score > bestScore){
+                    bestScore = score;
+                    bestDir = dir;
+                }
+            }
+        }
+        if(bestDir != null && bestScore > -5){
+            rc.plantTree(bestDir);
+        }
+        return settledLocation;
+    }
+    
+	MapLocation plantTreesOld(MapLocation settledLocation) throws GameActionException {
         MapLocation myLocation = rc.getLocation();
         blockedByNeutralTrees = false;
         boolean tryAgain = true;
@@ -162,7 +201,7 @@ class Gardener extends Robot {
 
         return settledLocation;
     }
-
+    
     @Override
     public void run() throws GameActionException {
         System.out.println("I'm a gardener!");
