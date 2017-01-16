@@ -168,7 +168,7 @@ class Scout extends Robot {
                     score += 50;
                 }
                 score /= 4 + robot.getHealth() / robot.getType().maxHealth;
-                score /= myLocation.distanceSquaredTo(robot.getLocation()) + 1;
+                score /= myLocation.distanceTo(robot.getLocation()) + 1;
                 if (score > bestScore2) {
                     bestScore2 = score;
                     bestRobot = robot;
