@@ -14,6 +14,7 @@ abstract class Robot {
     static final int MAP_EDGE_BROADCAST_OFFSET = 10;
     static final int HIGH_PRIORITY_TARGET_OFFSET = 20;
     static final int GARDENER_OFFSET = 25;
+    static final int TREE_OFFSET = 30;
 
     private static final int EXPLORATION_OFFSET = 100;
     private static final int EXPLORATION_CHUNK_SIZE = 25;
@@ -102,10 +103,10 @@ abstract class Robot {
     }
 
     void yieldAndDoBackgroundTasks() throws GameActionException {
-        determineMapSize();
-        shakeNearbyTrees();
         updateLiveness();
-        broadcastEnemyLocations();
+        if (Clock.getBytecodesLeft() > 1000) determineMapSize();
+        if (Clock.getBytecodesLeft() > 1000) shakeNearbyTrees();
+        if (Clock.getBytecodesLeft() > 1000) broadcastEnemyLocations(null);
         Clock.yield();
     }
 
@@ -217,16 +218,20 @@ abstract class Robot {
         return new MapLocation(x, y);
     }
 
-    void broadcastEnemyLocations() throws GameActionException {
-        RobotInfo[] robots = rc.senseNearbyRobots(info.sensorRadius, rc.getTeam().opponent());
+    void broadcastEnemyLocations(RobotInfo[] nearbyEnemies) throws GameActionException {
+        Team enemy = rc.getTeam().opponent();
+
+        if (nearbyEnemies == null) {
+            nearbyEnemies = rc.senseNearbyRobots(info.sensorRadius, enemy);
+        }
 
         int lastAttackingEnemySpotted = rc.readBroadcast(HIGH_PRIORITY_TARGET_OFFSET);
         int lastGardenerSpotted = rc.readBroadcast(GARDENER_OFFSET);
 
         boolean anyHostiles = false;
         boolean anyGardeners = false;
-        for (RobotInfo robot : robots) {
-            if (robot.getType() != RobotType.ARCHON) {
+        for (RobotInfo robot : nearbyEnemies) {
+            if (robot.getType() != RobotType.ARCHON && robot.team == enemy) {
                 anyHostiles = true;
                 anyGardeners |= robot.getType() == RobotType.GARDENER;
 
