@@ -32,6 +32,7 @@ yellowStr = colorFormat.format(yellow)
 grayStr = colorFormat.format(gray)
 reset = "\033[0m"
 clearScreen = "\033[2J"
+active_commands = []
 
 
 def execute(cmd, quiet):
@@ -41,6 +42,7 @@ def execute(cmd, quiet):
                              universal_newlines=False
                              )
 
+    active_commands.append(popen)
     while True:
         b = popen.stdout.readline()
         if b == b"":
@@ -53,6 +55,8 @@ def execute(cmd, quiet):
 
     popen.stdout.close()
     return_code = popen.wait()
+    active_commands.remove(popen)
+
     if return_code:
         raise subprocess.CalledProcessError(return_code, cmd)
 
@@ -103,7 +107,31 @@ def printResult(result):
 # Make sure the seed is reset to 0 even if the user terminates the program
 def sigint(signal, frame):
     updateSeed(0)
+    for p in active_commands:
+        p.terminate()
+
     sys.exit(0)
+
+
+def run_tournament_part(teamA, teamB, switch, seed):
+    if switch:
+        teamA, teamB = teamB, teamA
+
+    gen = run(teamA, teamB, maps, True, seed)
+
+    for map in maps:
+        mapStr = yellowStr + map.ljust(12) + reset + " " + ("B vs A" if switch else "A vs B") + ": "
+        print(mapStr + grayStr + "..." + reset, end="")
+        sys.stdout.flush()
+        result = next(gen)
+
+        if switch:
+            result = ("B" if result[0] == "A" else "A", result[1], result[2])
+
+        print("\r" + mapStr, end="")
+        printResult(result)
+
+        yield result[0] == "A"
 
 
 signal.signal(signal.SIGINT, sigint)
@@ -114,26 +142,12 @@ if args.tournament:
     totalCount = 0
 
     for seed in range(startSeed, startSeed + 5):
-        for switch in [False, True]:
-            teamA = args.teamA
-            teamB = args.teamB
-            if switch:
-                teamA, teamB = teamB, teamA
-
-            gen = run(teamA, teamB, maps, True, seed)
-            for map in maps:
-                mapStr = yellowStr + map.ljust(12) + reset + " " + ("B vs A" if switch else "A vs B") + ": "
-                print(mapStr + grayStr + "..." + reset, end="")
-                sys.stdout.flush()
-                result = next(gen)
-
-                if switch:
-                    result = ("B" if result[0] == "A" else "A", result[1], result[2])
-
-                print("\r" + mapStr, end="")
-                printResult(result)
-
-                if result[0] == "A":
+        # Run AvsB and BvsA in parallel
+        g1 = run_tournament_part(args.teamA, args.teamB, False, seed)
+        g2 = run_tournament_part(args.teamA, args.teamB, True, seed)
+        for v in zip(g1, g2):
+            for teamAwon in v:
+                if teamAwon:
                     teamAwins += 1
                 totalCount += 1
 
