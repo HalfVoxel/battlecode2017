@@ -12,7 +12,7 @@ class Gardener extends Robot {
             TreeInfo[] trees = rc.senseNearbyTrees(info.bodyRadius + info.strideRadius + 0.01f, rc.getTeam());
             TreeInfo minHealthTree = null;
             for (TreeInfo tree : trees) {
-                if (minHealthTree == null || tree.health < minHealthTree.health && rc.canWater(tree.getID())) {
+                if ((minHealthTree == null || tree.health < minHealthTree.health) && rc.canWater(tree.getID())) {
                     minHealthTree = tree;
                 }
             }
