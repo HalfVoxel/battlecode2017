@@ -67,7 +67,7 @@ class Scout extends Robot {
                 } else if (unit.getType() == RobotType.LUMBERJACK) {
                     float dis = loc.distanceTo(unit.location);
                     score -= 10f / (dis * dis + 1);
-                    score += 0.8f / (dis + 1);
+                    score += 2f / (dis + 1);
                     if (dis < GameConstants.LUMBERJACK_STRIKE_RADIUS + 3f) {
                         score -= 1000;
                     }
@@ -76,7 +76,7 @@ class Scout extends Robot {
                 } else {
                     float dis = loc.distanceTo(unit.location);
                     score -= 5f / (dis * dis + 1);
-                    score += 0.2f / (dis + 1);
+                    score += 1f / (dis + 1);
                 }
             }
         }
