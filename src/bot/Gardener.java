@@ -48,7 +48,7 @@ class Gardener extends Robot {
             Direction dir = randomDirection();
             target = clampToMap(rc.getLocation().add(dir, info.strideRadius * 5), freeRadius);
 
-            if (Math.random() < 0.5) {
+            if (rnd.nextFloat() < 0.5) {
                 // Ensure it is far away from the spawn pos
                 for (int i = 0; i < 4; i++) {
                     target = clampToMap(spawnPos.add(spawnPos.directionTo(target), Math.max(spawnPos.distanceTo(target), info.bodyRadius * 8)), freeRadius);

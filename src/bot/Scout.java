@@ -198,7 +198,6 @@ class Scout extends Robot {
 
         Team enemy = rc.getTeam().opponent();
         MapLocation[] archons = rc.getInitialArchonLocations(enemy);
-        Random rand = new Random(1);
         MapLocation target = randomChoice(archons);
 
         if (target == null) target = rc.getLocation();
@@ -246,7 +245,7 @@ class Scout extends Robot {
             }
 
             // Pick a new target with a small probability or when very close to the target
-            if (rand.nextInt(200) < 1 || myLocation.distanceTo(target) < 4f) {
+            if (rnd.nextInt(200) < 1 || myLocation.distanceTo(target) < 4f) {
                 target = pickTarget();
             }
 
@@ -285,7 +284,7 @@ class Scout extends Robot {
                 MapLocation loc;
                 if (movesToConsider.isEmpty()) {
                     Direction dir = randomDirection();
-                    int r = rand.nextInt(10);
+                    int r = rnd.nextInt(10);
                     if (r < 5)
                         loc = myLocation.add(dir, info.strideRadius);
                     else if (r < 7)
