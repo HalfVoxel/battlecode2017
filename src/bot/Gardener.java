@@ -21,8 +21,6 @@ class Gardener extends Robot {
                 rc.water(minHealthTree.getID());
             }
         }
-
-        shakeNearbyTrees();
     }
 
     boolean likelyValidTarget (MapLocation target, float freeRadius) throws GameActionException {
