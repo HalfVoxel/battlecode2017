@@ -163,6 +163,7 @@ class Gardener extends Robot {
             int tankCount = spawnedCount(RobotType.TANK);
             int gardenerCount = spawnedCount(RobotType.GARDENER);
             int scoutCount = spawnedCount(RobotType.SCOUT);
+            int soldierCount = spawnedCount(RobotType.SOLDIER);
 
             if(rc.getTreeCount() > tankCount*20+10 && rc.getTeamBullets() <= RobotType.TANK.bulletCost + 100 && gardenerCount > 1 && scoutCount > 2){
                 saveForTank = true;
@@ -190,13 +191,15 @@ class Gardener extends Robot {
             boolean invalidTarget = (moveFailCounter > 5 || speedToTarget < info.strideRadius*0.2f || !likelyValidTarget(target, desiredRadius)) && !hasSettled;
             boolean canSeeTarget = target.distanceSquaredTo(rc.getLocation()) < 0.01f || rc.canSenseAllOfCircle(target, desiredRadius);
 
-            if ((!hasBuiltScout || Math.pow(rc.getTreeCount()+2, 0.9) > scoutCount) && !saveForTank){
+            RobotType buildTarget = scoutCount*2 > soldierCount ? RobotType.SOLDIER : RobotType.SCOUT;
+            int buildTargetCount = buildTarget == RobotType.SCOUT ? scoutCount : soldierCount;
+            if ((!hasBuiltScout || Math.pow(rc.getTreeCount()+2, 0.9) > buildTargetCount) && !saveForTank) {
                 saveForTank = true;
-                for (int i = 0; i < 6; i++) {
-                    Direction dir = new Direction(2 * (float)Math.PI * i / 6f);
-                    if (rc.canBuildRobot(RobotType.SCOUT, dir) && turnsLeft > STOP_SPENDING_AT_TIME) {
-                        rc.buildRobot(RobotType.SCOUT, dir);
-                        rc.broadcast(RobotType.SCOUT.ordinal(), scoutCount + 1);
+                for (int i = 0; i < 9; i++) {
+                    Direction dir = new Direction(2 * (float)Math.PI * i / 9f);
+                    if (rc.canBuildRobot(buildTarget, dir) && turnsLeft > STOP_SPENDING_AT_TIME) {
+                        rc.buildRobot(buildTarget, dir);
+                        rc.broadcast(buildTarget.ordinal(), buildTargetCount + 1);
                         hasBuiltScout = true;
                     }
                 }
