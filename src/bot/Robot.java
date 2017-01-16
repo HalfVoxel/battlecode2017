@@ -240,7 +240,9 @@ abstract class Robot {
                     int previousTick = rc.readBroadcast(HIGH_PRIORITY_TARGET_OFFSET);
 
                     // Keep the same target for at least 5 ticks
-                    if (rc.getRoundNum() > previousTick + 5) {
+                    if (
+                            (rc.getRoundNum() > previousTick + 5 && (rc.getType() == RobotType.GARDENER || (rc.getType() == RobotType.ARCHON && rc.getHealth() < rc.getType().maxHealth*0.5f)) ||
+                                    (rc.getRoundNum() > previousTick + 8))) {
                         rc.broadcast(HIGH_PRIORITY_TARGET_OFFSET, rc.getRoundNum());
                         broadcast(HIGH_PRIORITY_TARGET_OFFSET + 1, robot.location);
                     }
