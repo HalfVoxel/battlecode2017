@@ -18,7 +18,7 @@ class Tank extends Robot {
             return fallBackPositions[rnd.nextInt(fallBackPositions.length)];
         } else {
             Direction dir = randomDirection();
-            return rc.getLocation().add(dir, info.strideRadius * 10);
+            return clampToMap(rc.getLocation().add(dir, info.strideRadius * 10), info.sensorRadius * 0.8f);
         }
     }
 
