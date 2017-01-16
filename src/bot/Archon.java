@@ -11,7 +11,7 @@ class Archon extends Robot {
         int STOP_SPENDING_AT_TIME = 100;
 
         // Set the exploration origin if it has not been set already
-        if (readBroadcastPosition(EXPLORATION_ORIGIN) == new MapLocation(0, 0)) {
+        if (readBroadcastPosition(EXPLORATION_ORIGIN).equals(new MapLocation(0, 0))) {
             System.out.println("Set exploration origin");
             broadcast(EXPLORATION_ORIGIN, rc.getLocation());
         }
@@ -43,6 +43,9 @@ class Archon extends Robot {
                 }
             }
 
+            BulletInfo[] bullets = rc.senseNearbyBullets(info.strideRadius + info.bodyRadius + 3f);
+            RobotInfo[] units = rc.senseNearbyRobots();
+            moveToAvoidBullets(rc.getLocation(), bullets, units);
             yieldAndDoBackgroundTasks();
         }
     }
