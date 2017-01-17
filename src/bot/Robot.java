@@ -508,7 +508,7 @@ abstract class Robot {
         turnsToChopDown += (tree.health / GameConstants.LUMBERJACK_CHOP_DAMAGE);
         if (fromPos != null) turnsToChopDown += Math.sqrt(fromPos.distanceTo(tree.location) / info.strideRadius);
 
-        float score = ((tree.containedRobot != null ? tree.containedRobot.bulletCost * 1.5f : 0) + tree.containedBullets + 1) / turnsToChopDown;
+        float score = ((tree.containedRobot != null ? tree.containedRobot.bulletCost * 1.5f : 0) + 1) / turnsToChopDown;
         return score;
     }
 
