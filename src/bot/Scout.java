@@ -41,7 +41,7 @@ class Scout extends Robot {
         }
     }
 
-    private float getPositionScore(MapLocation loc, MapLocation[] enemyArchons, RobotInfo[] units,
+    private float getPositionScore(MapLocation loc, MapLocation[] enemyArchons, RobotInfo[] units, int numBullets,
                                    float[] bulletX, float[] bulletY, float[] bulletDx, float[] bulletDy,
                                    float[] bulletDamage, float[] bulletSpeed, float[] bulletImpactDistances,
                                    TreeInfo bestTree, MapLocation target) throws GameActionException {
@@ -87,7 +87,7 @@ class Scout extends Robot {
             score += (bestTree.containedBullets * 0.5) / (loc.distanceTo(bestTree.location) + 1);
         }
 
-        score -= 1000f * getEstimatedDamageAtPosition(loc.x, loc.y, bulletX, bulletY, bulletDx, bulletDy, bulletDamage, bulletSpeed, bulletImpactDistances);
+        score -= 1000f * getEstimatedDamageAtPosition(loc.x, loc.y, numBullets, bulletX, bulletY, bulletDx, bulletDy, bulletDamage, bulletSpeed, bulletImpactDistances);;
 
         return score;
     }
@@ -134,6 +134,14 @@ class Scout extends Robot {
         }
     }
 
+    float[] bulletX = new float[100];
+    float[] bulletY = new float[100];
+    float[] bulletDx = new float[100];
+    float[] bulletDy = new float[100];
+    float[] bulletDamage = new float[100];
+    float[] bulletSpeed = new float[100];
+    boolean[] isDangerous = new boolean[100];
+
     public void run() throws GameActionException {
         System.out.println("I'm a scout!");
 
@@ -156,32 +164,27 @@ class Scout extends Robot {
             float[] bulletImpactDistances = updateBulletHitDistances(nearbyBullets);
             TreeInfo[] trees = rc.senseNearbyTrees();
 
-            boolean[] isDangerous = new boolean[nearbyBullets.length];
             int numDangerous = 0;
-            for (int i = 0; i < nearbyBullets.length; i += 1) {
+            int bulletsToConsider = Math.min(nearbyBullets.length, bulletX.length);
+            for (int i = 0; i < bulletsToConsider; i += 1) {
                 if (bulletCanHitUs(rc.getLocation(), nearbyBullets[i])) {
                     isDangerous[i] = true;
                     numDangerous += 1;
                 } else
                     isDangerous[i] = false;
             }
-            float[] bulletX = new float[numDangerous];
-            float[] bulletY = new float[numDangerous];
-            float[] bulletDx = new float[numDangerous];
-            float[] bulletDy = new float[numDangerous];
-            float[] bulletDamage = new float[numDangerous];
-            float[] bulletSpeed = new float[numDangerous];
+
             int j = 0;
-            for (int i = 0; i < nearbyBullets.length; i += 1) {
+            for (int i = 0; i < bulletsToConsider; i += 1) {
                 if (!isDangerous[i])
                     continue;
                 BulletInfo bullet = nearbyBullets[i];
                 bulletX[j] = bullet.location.x;
                 bulletY[j] = bullet.location.y;
-                bulletDx[j] = bullet.getDir().getDeltaX(1);
-                bulletDy[j] = bullet.getDir().getDeltaY(1);
-                bulletDamage[j] = bullet.getDamage();
-                bulletSpeed[j] = bullet.getSpeed();
+                bulletDx[j] = bullet.dir.getDeltaX(1);
+                bulletDy[j] = bullet.dir.getDeltaY(1);
+                bulletDamage[j] = bullet.damage;
+                bulletSpeed[j] = bullet.speed;
                 j += 1;
             }
 
@@ -239,7 +242,7 @@ class Scout extends Robot {
 
                 if (rc.canMove(loc)) {
                     float score = getPositionScore(loc, archons, allRobots,
-                            bulletX, bulletY, bulletDx, bulletDy, bulletDamage, bulletSpeed, bulletImpactDistances, bestTree, target);
+                            numDangerous, bulletX, bulletY, bulletDx, bulletDy, bulletDamage, bulletSpeed, bulletImpactDistances, bestTree, target);
                     if (score > bestScore) {
                         bestScore = score;
                         bestMove = loc;

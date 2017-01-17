@@ -789,7 +789,7 @@ abstract class Robot {
             }
         }
 
-        score -= 1000f * getEstimatedDamageAtPosition(loc.x, loc.y, bulletX, bulletY, bulletDx, bulletDy, bulletDamage, bulletSpeed, null);
+        score -= 1000f * getEstimatedDamageAtPosition(loc.x, loc.y, bulletX.length, bulletX, bulletY, bulletDx, bulletDy, bulletDamage, bulletSpeed, null);
 
         return score;
     }
@@ -828,13 +828,13 @@ abstract class Robot {
     /**
      * Estimated damage from bullets when moving to the specified position
      */
-    float getEstimatedDamageAtPosition(float locx, float locy, float[] bulletX, float[] bulletY
+    float getEstimatedDamageAtPosition(float locx, float locy, int numBullets, float[] bulletX, float[] bulletY
             , float[] bulletDx, float[] bulletDy, float[] bulletDamage, float[] bulletSpeed, float[] bulletImpactDistances) {
         float dmg = 0f;
         float radius = info.bodyRadius;
         float sqrRadius = radius * radius;
 
-        for (int i = 0; i < bulletX.length; i += 1) {
+        for (int i = 0; i < numBullets; i += 1) {
 
             // Current bullet position
             float prevX = bulletX[i] - locx;
