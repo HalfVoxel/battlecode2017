@@ -56,24 +56,24 @@ class Scout extends Robot {
 
         for (RobotInfo unit : units) {
             if (unit.team == myTeam) {
-                if (unit.getType() == RobotType.SCOUT)
+                if (unit.type == RobotType.SCOUT)
                     score -= 1f / (loc.distanceSquaredTo(unit.location) + 1);
             } else {
-                if (unit.getType() == RobotType.GARDENER) {
+                if (unit.type == RobotType.GARDENER) {
                     score += 10f / (loc.distanceSquaredTo(unit.location) + 1);
-                } else if (unit.getType() == RobotType.SCOUT) {
-                    if (rc.getHealth() >= unit.getHealth())
+                } else if (unit.type == RobotType.SCOUT) {
+                    if (rc.getHealth() >= unit.health)
                         score += 2f / (loc.distanceSquaredTo(unit.location) + 1);
                     else
                         score -= 2f / (loc.distanceSquaredTo(unit.location) + 1);
-                } else if (unit.getType() == RobotType.LUMBERJACK) {
+                } else if (unit.type == RobotType.LUMBERJACK) {
                     float dis = loc.distanceTo(unit.location);
                     score -= 10f / (dis * dis + 1);
                     score += 2f / (dis + 1);
                     if (dis < GameConstants.LUMBERJACK_STRIKE_RADIUS + 3f) {
                         score -= 1000;
                     }
-                } else if (unit.getType() == RobotType.ARCHON) {
+                } else if (unit.type == RobotType.ARCHON) {
                     // Do nothing
                 } else {
                     float dis = loc.distanceTo(unit.location);
