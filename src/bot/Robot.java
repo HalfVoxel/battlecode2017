@@ -218,6 +218,20 @@ abstract class Robot {
         return new MapLocation(x, y);
     }
 
+    float getDistanceToMapEdge(MapLocation pos){
+        float ret = 10f;
+        if((mapEdgesDetermined & 1) != 0)
+            ret = Math.min(ret, mapEdges[0]-pos.x);
+        if((mapEdgesDetermined & 2) != 0)
+            ret = Math.min(ret, mapEdges[1]-pos.y);
+        if((mapEdgesDetermined & 4) != 0)
+            ret = Math.min(ret, pos.x-mapEdges[2]);
+        if((mapEdgesDetermined & 8) != 0)
+            ret = Math.min(ret, pos.y-mapEdges[3]);
+        System.out.println("getDistanceToMapEdge returned " + ret);
+        return ret;
+    }
+
     void broadcastEnemyLocations(RobotInfo[] nearbyEnemies) throws GameActionException {
         Team enemy = rc.getTeam().opponent();
 
