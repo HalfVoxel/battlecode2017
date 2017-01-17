@@ -40,11 +40,11 @@ abstract class Robot {
      *
      * @return a random Direction
      */
-    protected Direction randomDirection () {
-        return new Direction(rnd.nextFloat() * 2 * (float)Math.PI);
+    protected Direction randomDirection() {
+        return new Direction(rnd.nextFloat() * 2 * (float) Math.PI);
     }
 
-    protected int spawnedCount (RobotType tp) throws GameActionException {
+    protected int spawnedCount(RobotType tp) throws GameActionException {
         return rc.readBroadcast(tp.ordinal());
     }
 
@@ -114,8 +114,8 @@ abstract class Robot {
         // Determine chunk
         MapLocation origin = readBroadcastPosition(EXPLORATION_ORIGIN);
         MapLocation relativePos = rc.getLocation().translate(-origin.x, -origin.y);
-        int cx = (int)Math.floor(relativePos.x / EXPLORATION_CHUNK_SIZE + 4);
-        int cy = (int)Math.floor(relativePos.y / EXPLORATION_CHUNK_SIZE + 4);
+        int cx = (int) Math.floor(relativePos.x / EXPLORATION_CHUNK_SIZE + 4);
+        int cy = (int) Math.floor(relativePos.y / EXPLORATION_CHUNK_SIZE + 4);
         if (cx < 0 || cy < 0 || cx >= 8 || cy >= 8) {
             System.out.println("In chunk that is out of bounds! " + cx + " " + cy);
             return;
@@ -136,7 +136,7 @@ abstract class Robot {
         long chunksOutsideMap = readBroadcastLong(EXPLORATION_OUTSIDE_MAP);
         MapLocation origin = readBroadcastPosition(EXPLORATION_ORIGIN);
 
-        while(true) {
+        while (true) {
             // Consider chunks that have not been explored yet and are not outside the map
             long chunksToConsider = ~exploredChunks & ~chunksOutsideMap;
 
@@ -156,7 +156,7 @@ abstract class Robot {
                         float score = 1f / chunkPosition.distanceTo(rc.getLocation());
 
 						/*try {
-							setIndicatorDot(chunkPosition, 10 * score)
+                            setIndicatorDot(chunkPosition, 10 * score)
 						} catch {
 							case e:Exception =>
 						}*/
@@ -186,29 +186,37 @@ abstract class Robot {
         }
     }
 
-    /** True if the location is on the map using the information known so far */
-    boolean onMap (MapLocation pos) {
+    /**
+     * True if the location is on the map using the information known so far
+     */
+    boolean onMap(MapLocation pos) {
         return ((mapEdgesDetermined & 1) == 0 || pos.x <= mapEdges[0]) &&
                 ((mapEdgesDetermined & 2) == 0 || pos.y <= mapEdges[1]) &&
                 ((mapEdgesDetermined & 4) == 0 || pos.x >= mapEdges[2]) &&
                 ((mapEdgesDetermined & 8) == 0 || pos.y >= mapEdges[3]);
     }
 
-    /** True if the location is at least margin units from the edge of the map using the information known so far */
-    boolean onMap (MapLocation pos, float margin) {
+    /**
+     * True if the location is at least margin units from the edge of the map using the information known so far
+     */
+    boolean onMap(MapLocation pos, float margin) {
         return ((mapEdgesDetermined & 1) == 0 || pos.x <= mapEdges[0] - margin) &&
                 ((mapEdgesDetermined & 2) == 0 || pos.y <= mapEdges[1] - margin) &&
                 ((mapEdgesDetermined & 4) == 0 || pos.x >= mapEdges[2] + margin) &&
                 ((mapEdgesDetermined & 8) == 0 || pos.y >= mapEdges[3] + margin);
     }
 
-    /** Clamp the location so that it lies on the map using the information known so far */
-    MapLocation clampToMap (MapLocation pos) {
+    /**
+     * Clamp the location so that it lies on the map using the information known so far
+     */
+    MapLocation clampToMap(MapLocation pos) {
         return clampToMap(pos, 0);
     }
 
-    /** Clamp the location so that it lies on the map using the information known so far */
-    MapLocation clampToMap (MapLocation pos, float margin) {
+    /**
+     * Clamp the location so that it lies on the map using the information known so far
+     */
+    MapLocation clampToMap(MapLocation pos, float margin) {
         float x = pos.x;
         float y = pos.y;
         if ((mapEdgesDetermined & 1) != 0) x = Math.min(x, mapEdges[0] - margin);
@@ -218,16 +226,16 @@ abstract class Robot {
         return new MapLocation(x, y);
     }
 
-    float getDistanceToMapEdge(MapLocation pos){
+    float getDistanceToMapEdge(MapLocation pos) {
         float ret = 10f;
-        if((mapEdgesDetermined & 1) != 0)
-            ret = Math.min(ret, mapEdges[0]-pos.x);
-        if((mapEdgesDetermined & 2) != 0)
-            ret = Math.min(ret, mapEdges[1]-pos.y);
-        if((mapEdgesDetermined & 4) != 0)
-            ret = Math.min(ret, pos.x-mapEdges[2]);
-        if((mapEdgesDetermined & 8) != 0)
-            ret = Math.min(ret, pos.y-mapEdges[3]);
+        if ((mapEdgesDetermined & 1) != 0)
+            ret = Math.min(ret, mapEdges[0] - pos.x);
+        if ((mapEdgesDetermined & 2) != 0)
+            ret = Math.min(ret, mapEdges[1] - pos.y);
+        if ((mapEdgesDetermined & 4) != 0)
+            ret = Math.min(ret, pos.x - mapEdges[2]);
+        if ((mapEdgesDetermined & 8) != 0)
+            ret = Math.min(ret, pos.y - mapEdges[3]);
         return ret;
     }
 
@@ -254,7 +262,7 @@ abstract class Robot {
 
                     // Keep the same target for at least 5 ticks
                     if (
-                            (rc.getRoundNum() > previousTick + 5 && (rc.getType() == RobotType.GARDENER || (rc.getType() == RobotType.ARCHON && rc.getHealth() < rc.getType().maxHealth*0.5f)) ||
+                            (rc.getRoundNum() > previousTick + 5 && (rc.getType() == RobotType.GARDENER || (rc.getType() == RobotType.ARCHON && rc.getHealth() < rc.getType().maxHealth * 0.5f)) ||
                                     (rc.getRoundNum() > previousTick + 8))) {
                         rc.broadcast(HIGH_PRIORITY_TARGET_OFFSET, rc.getRoundNum());
                         broadcast(HIGH_PRIORITY_TARGET_OFFSET + 1, robot.location);
@@ -275,34 +283,34 @@ abstract class Robot {
         }
 
         // Clear gardener and high priority target if we can see those positions but we cannot see any hostile units
-        if (!anyHostiles && lastAttackingEnemySpotted != -1000 && rc.getLocation().isWithinDistance(readBroadcastPosition(HIGH_PRIORITY_TARGET_OFFSET+1), info.sensorRadius*0.7f)) {
+        if (!anyHostiles && lastAttackingEnemySpotted != -1000 && rc.getLocation().isWithinDistance(readBroadcastPosition(HIGH_PRIORITY_TARGET_OFFSET + 1), info.sensorRadius * 0.7f)) {
             rc.broadcast(HIGH_PRIORITY_TARGET_OFFSET, -1000);
         }
 
-        if (!anyGardeners && lastGardenerSpotted != -1000 && rc.getLocation().isWithinDistance(readBroadcastPosition(GARDENER_OFFSET+1), info.sensorRadius*0.7f)) {
+        if (!anyGardeners && lastGardenerSpotted != -1000 && rc.getLocation().isWithinDistance(readBroadcastPosition(GARDENER_OFFSET + 1), info.sensorRadius * 0.7f)) {
             rc.broadcast(GARDENER_OFFSET, -1000);
         }
     }
 
-    void broadcast (int channel, MapLocation pos) throws GameActionException {
-        rc.broadcast(channel, (int)(pos.x * 1000));
-        rc.broadcast(channel + 1, (int)(pos.y * 1000));
+    void broadcast(int channel, MapLocation pos) throws GameActionException {
+        rc.broadcast(channel, (int) (pos.x * 1000));
+        rc.broadcast(channel + 1, (int) (pos.y * 1000));
     }
 
-    void broadcast (int channel, long v) throws GameActionException {
-        rc.broadcast(channel, (int)(v >>> 32));
-        rc.broadcast(channel + 1, (int)v);
+    void broadcast(int channel, long v) throws GameActionException {
+        rc.broadcast(channel, (int) (v >>> 32));
+        rc.broadcast(channel + 1, (int) v);
     }
 
-    long readBroadcastLong (int channel) throws GameActionException {
-        return ((long)rc.readBroadcast(channel) << 32) | (long)rc.readBroadcast(channel+1);
+    long readBroadcastLong(int channel) throws GameActionException {
+        return ((long) rc.readBroadcast(channel) << 32) | (long) rc.readBroadcast(channel + 1);
     }
 
-    MapLocation readBroadcastPosition (int channel) throws GameActionException {
-        return new MapLocation(rc.readBroadcast(channel) / 1000f, rc.readBroadcast(channel+1) / 1000f);
+    MapLocation readBroadcastPosition(int channel) throws GameActionException {
+        return new MapLocation(rc.readBroadcast(channel) / 1000f, rc.readBroadcast(channel + 1) / 1000f);
     }
 
-    void updateLiveness () throws GameActionException {
+    void updateLiveness() throws GameActionException {
         float countAsDeadLimit = 10;
         if (countingAsAlive && rc.getHealth() <= countAsDeadLimit) {
             rc.broadcast(info.ordinal(), spawnedCount(info) - 1);
@@ -313,15 +321,15 @@ abstract class Robot {
         }
     }
 
-    void setIndicatorDot (MapLocation pos, float value) throws GameActionException {
+    void setIndicatorDot(MapLocation pos, float value) throws GameActionException {
         float r = Math.max(Math.min(value * 3f, 1f), 0f);
-        float g = Math.max(Math.min((value - 1/3f) * 3f, 1f), 0f);
-        float b = Math.max(Math.min((value - 2/3f) * 3f, 1f), 0f);
+        float g = Math.max(Math.min((value - 1 / 3f) * 3f, 1f), 0f);
+        float b = Math.max(Math.min((value - 2 / 3f) * 3f, 1f), 0f);
 
-        rc.setIndicatorDot(pos, (int)(r * 255f), (int)(g * 255f), (int)(b * 255f));
+        rc.setIndicatorDot(pos, (int) (r * 255f), (int) (g * 255f), (int) (b * 255f));
     }
 
-    void shakeNearbyTrees () throws GameActionException {
+    void shakeNearbyTrees() throws GameActionException {
         if (rc.canShake()) {
             TreeInfo[] trees = rc.senseNearbyTrees(info.bodyRadius + info.strideRadius);
             TreeInfo bestTree = null;
@@ -341,7 +349,7 @@ abstract class Robot {
         }
     }
 
-    void determineMapSize () throws GameActionException {
+    void determineMapSize() throws GameActionException {
         // Abort if all map edges have already been determined
         if (mapEdgesDetermined == 0xF) return;
 
@@ -356,7 +364,7 @@ abstract class Robot {
         int tmpDetermined = mapEdgesDetermined;
         for (int i = 0; i < 4; i++) {
             if ((mapEdgesDetermined & (1 << i)) == 0) {
-                float angle = i * (float)Math.PI / 2f;
+                float angle = i * (float) Math.PI / 2f;
                 if (!rc.onTheMap(rc.getLocation().add(angle, info.sensorRadius * 0.99f))) {
                     // Found map edge
                     float mn = 0f;
@@ -372,13 +380,13 @@ abstract class Robot {
 
                     MapLocation mapEdge = rc.getLocation().add(angle, mn);
                     float result = i % 2 == 0 ? mapEdge.x : mapEdge.y;
-                    rc.broadcast(MAP_EDGE_BROADCAST_OFFSET + i + 1, (int)(result * 1000));
+                    rc.broadcast(MAP_EDGE_BROADCAST_OFFSET + i + 1, (int) (result * 1000));
                     // This robot will pick up the change for real the next time determineMapSize is called
                     tmpDetermined |= (1 << i);
                     rc.broadcast(MAP_EDGE_BROADCAST_OFFSET, tmpDetermined);
                     System.out.println("Found map edge " + i + " at " + result);
 
-                    rc.setIndicatorLine(mapEdge.add(angle + (float)Math.PI*0.5f, 50), mapEdge.add(angle - (float)Math.PI*0.5f, 50), 255, 255, 255);
+                    rc.setIndicatorLine(mapEdge.add(angle + (float) Math.PI * 0.5f, 50), mapEdge.add(angle - (float) Math.PI * 0.5f, 50), 255, 255, 255);
                 }
             }
         }
@@ -408,37 +416,40 @@ abstract class Robot {
         // This is the distance of a line that goes from myLocation and intersects perpendicularly with propagationDirection.
         // This corresponds to the smallest radius circle centered at our location that would intersect with the
         // line that is the path of the bullet.
-        float perpendicularDist = (float)Math.abs(distToRobot * Math.sin(theta)); // soh cah toa :)
+        float perpendicularDist = (float) Math.abs(distToRobot * Math.sin(theta)); // soh cah toa :)
         return (perpendicularDist <= rc.getType().bodyRadius);
     }
 
-    /** Return value in [bullets/tick] */
-    float treeScore (TreeInfo tree, MapLocation fromPos) {
+    /**
+     * Return value in [bullets/tick]
+     */
+    float treeScore(TreeInfo tree, MapLocation fromPos) {
         float turnsToChopDown = 1f;
-        turnsToChopDown += (tree.health/GameConstants.LUMBERJACK_CHOP_DAMAGE);
-        if (fromPos != null) turnsToChopDown += Math.sqrt(fromPos.distanceTo(tree.location)/info.strideRadius);
+        turnsToChopDown += (tree.health / GameConstants.LUMBERJACK_CHOP_DAMAGE);
+        if (fromPos != null) turnsToChopDown += Math.sqrt(fromPos.distanceTo(tree.location) / info.strideRadius);
 
         float score = ((tree.containedRobot != null ? tree.containedRobot.bulletCost * 1.5f : 0) + tree.containedBullets + 1) / turnsToChopDown;
         return score;
     }
 
-    Team teamOf (BodyInfo b) {
-        if (b != null && b.isRobot()) return ((RobotInfo)b).team;
-        if (b != null && b.isTree()) return ((TreeInfo)b).team;
+    Team teamOf(BodyInfo b) {
+        if (b != null && b.isRobot()) return ((RobotInfo) b).team;
+        if (b != null && b.isTree()) return ((TreeInfo) b).team;
         return Team.NEUTRAL;
     }
 
-    /** First body on the line segment.
+    /**
+     * First body on the line segment.
      * Uses sampling so it is not perfectly accurate.
      * \warning Assumes both the start point and the end point are within the sensor radius
      */
-    BodyInfo linecastUnsafe (MapLocation a, MapLocation b) throws GameActionException {
+    BodyInfo linecastUnsafe(MapLocation a, MapLocation b) throws GameActionException {
         Direction dir = a.directionTo(b);
         float dist = a.distanceTo(b);
 
-        int steps = (int)(dist / 0.5f);
+        int steps = (int) (dist / 0.5f);
         for (int t = 1; t <= steps; t++) {
-            MapLocation p = a.add(dir, dist * t / (float)steps);
+            MapLocation p = a.add(dir, dist * t / (float) steps);
             if (rc.canSenseLocation(p) && rc.isLocationOccupied(p)) {
                 RobotInfo robot = rc.senseRobotAtLocation(p);
                 if (robot != null && robot.ID != rc.getID()) return robot;
@@ -451,15 +462,16 @@ abstract class Robot {
         return null;
     }
 
-    /** Distance to first tree.
+    /**
+     * Distance to first tree.
      * Uses sampling so it is not perfectly accurate.
-     *
+     * <p>
      * Returns a very large number if no tree was hit.
      */
-    float raycastForTree (MapLocation a, Direction dir) throws GameActionException {
+    float raycastForTree(MapLocation a, Direction dir) throws GameActionException {
         int t = 1;
         boolean hasBeenInside = false;
-        while(true) {
+        while (true) {
             float dist = t * 2f;
             MapLocation p = a.add(dir, dist);
             if (rc.canSenseLocation(p)) {
@@ -477,10 +489,11 @@ abstract class Robot {
         }
     }
 
-    /** First body on the line segment going from the edge of this robot to the specified location.
+    /**
+     * First body on the line segment going from the edge of this robot to the specified location.
      * Uses sampling so it is not perfectly accurate.
      */
-    BodyInfo linecast (MapLocation b) throws GameActionException {
+    BodyInfo linecast(MapLocation b) throws GameActionException {
         MapLocation a = rc.getLocation();
         Direction dir = a.directionTo(b);
         float dist = a.distanceTo(b);
@@ -494,9 +507,9 @@ abstract class Robot {
             return null;
         }
 
-        int steps = (int)(dist / 0.5f);
+        int steps = (int) (dist / 0.5f);
         for (int t = 1; t <= steps; t++) {
-            MapLocation p = a.add(dir, dist * t / (float)steps);
+            MapLocation p = a.add(dir, dist * t / (float) steps);
             if (rc.isLocationOccupied(p)) {
                 RobotInfo robot = rc.senseRobotAtLocation(p);
                 if (robot != null && robot.ID != rc.getID()) return robot;
@@ -509,7 +522,7 @@ abstract class Robot {
         return null;
     }
 
-    BodyInfo linecastIgnoreTrees (MapLocation b) throws GameActionException {
+    BodyInfo linecastIgnoreTrees(MapLocation b) throws GameActionException {
         MapLocation a = rc.getLocation();
         Direction dir = a.directionTo(b);
         float dist = a.distanceTo(b);
@@ -523,9 +536,9 @@ abstract class Robot {
             return null;
         }
 
-        int steps = (int)(dist / 0.5f);
+        int steps = (int) (dist / 0.5f);
         for (int t = 1; t <= steps; t++) {
-            MapLocation p = a.add(dir, dist * t / (float)steps);
+            MapLocation p = a.add(dir, dist * t / (float) steps);
             if (rc.isLocationOccupiedByRobot(p)) {
                 RobotInfo robot = rc.senseRobotAtLocation(p);
                 if (robot != null && robot.ID != rc.getID()) return robot;
@@ -535,7 +548,7 @@ abstract class Robot {
         return null;
     }
 
-    void moveToAvoidBullets (MapLocation secondaryTarget, BulletInfo[] bullets, RobotInfo[] units) throws GameActionException {
+    void moveToAvoidBullets(MapLocation secondaryTarget, BulletInfo[] bullets, RobotInfo[] units) throws GameActionException {
         MapLocation myLocation = rc.getLocation();
 
         List<MapLocation> movesToConsider = new ArrayList<>();
@@ -563,12 +576,11 @@ abstract class Robot {
 
         boolean[] isDangerous = new boolean[bullets.length];
         int numDangerous = 0;
-        for(int i=0; i < bullets.length; i += 1){
-            if(bulletCanHitUs(rc.getLocation(), bullets[i])) {
+        for (int i = 0; i < bullets.length; i += 1) {
+            if (bulletCanHitUs(rc.getLocation(), bullets[i])) {
                 isDangerous[i] = true;
                 numDangerous += 1;
-            }
-            else
+            } else
                 isDangerous[i] = false;
         }
         float[] bulletX = new float[numDangerous];
@@ -578,8 +590,8 @@ abstract class Robot {
         float[] bulletDamage = new float[numDangerous];
         float[] bulletSpeed = new float[numDangerous];
         int j = 0;
-        for(int i=0; i < bullets.length; i += 1){
-            if(!isDangerous[i])
+        for (int i = 0; i < bullets.length; i += 1) {
+            if (!isDangerous[i])
                 continue;
             BulletInfo bullet = bullets[i];
             bulletX[j] = bullet.location.x;
@@ -626,73 +638,70 @@ abstract class Robot {
         }
     }
 
-    float getDefensiveBulletAvoidanceScore (MapLocation loc,
-                                            float[] bulletX, float[] bulletY, float[] bulletDx, float[] bulletDy,
-                                            float[] bulletDamage, float[] bulletSpeed,
-                                            RobotInfo[] units, MapLocation target) {
+    float getDefensiveBulletAvoidanceScore(MapLocation loc,
+                                           float[] bulletX, float[] bulletY, float[] bulletDx, float[] bulletDy,
+                                           float[] bulletDamage, float[] bulletSpeed,
+                                           RobotInfo[] units, MapLocation target) {
         Team myTeam = rc.getTeam();
 
         float score = 0f;
-        if(rc.getType() == RobotType.ARCHON){
+        if (rc.getType() == RobotType.ARCHON) {
             TreeInfo[] trees = rc.senseNearbyTrees(info.sensorRadius);
             for (TreeInfo tree : trees) {
-		if(tree.getTeam() == Team.NEUTRAL){
-			if(tree.containedBullets > 0)
-				score += Math.sqrt(tree.containedBullets)*Math.exp(-loc.distanceTo(tree.location)*0.5);
-			else
-                		score -= 2*Math.exp(-loc.distanceTo(tree.location)*0.5);
-		}
-		else if(tree.getTeam() == myTeam){
-                	score -= 10*Math.exp(-loc.distanceTo(tree.location)*0.5);
-		}
+                if (tree.getTeam() == Team.NEUTRAL) {
+                    if (tree.containedBullets > 0)
+                        score += Math.sqrt(tree.containedBullets) * Math.exp(-loc.distanceTo(tree.location) * 0.5);
+                    else
+                        score -= 2 * Math.exp(-loc.distanceTo(tree.location) * 0.5);
+                } else if (tree.getTeam() == myTeam) {
+                    score -= 10 * Math.exp(-loc.distanceTo(tree.location) * 0.5);
+                }
             }
         }
-        score -= 1.15f*loc.distanceTo(target);
+        score -= 1.15f * loc.distanceTo(target);
 
-	if(rc.getType() == RobotType.LUMBERJACK){
-		for (RobotInfo unit : units) {
-		    if (unit.team == myTeam) {
-			    if(unit.ID == rc.getID())
-			        continue;
-			    score -= 2f/(unit.location.distanceTo(loc) + 1);
-			    if (dis < GameConstants.LUMBERJACK_STRIKE_RADIUS + 1f + unit.getType().bodyRadius) {
-				    score -= 100;
-			    }
-		    } else {
-			    if (unit.getType() == RobotType.LUMBERJACK) {
-			    }
-			    else{
-			        score += 6f/(unit.location.distanceTo(loc) + 1);
-			        if (dis < GameConstants.LUMBERJACK_STRIKE_RADIUS + 1f + unit.getType().bodyRadius) {
-				        score += 100;
-			    	}
-			    }
-		    }
-		}
-	}
-	else{
-		for (RobotInfo unit : units) {
-		    if (unit.team == myTeam) {
-			if(unit.ID == rc.getID())
-			    continue;
-			if(unit.getType() == RobotType.ARCHON || unit.getType() == RobotType.TANK)
-			    score -= 1/(unit.location.distanceTo(loc) + 1);
-			else
-			    score -= 0.5/(unit.location.distanceTo(loc) + 1);
-		     } else {
-			if (unit.getType() == RobotType.SCOUT || unit.getType() == RobotType.SOLDIER || unit.getType() == RobotType.TANK) {
-			    score -= 2f / (loc.distanceSquaredTo(unit.location) + 1);
-			} else if (unit.getType() == RobotType.LUMBERJACK) {
-			    float dis = loc.distanceTo(unit.location);
-			    score -= 10f / (dis * dis + 1);
-			    score += 0.8f / (dis + 1);
-			    if (dis < GameConstants.LUMBERJACK_STRIKE_RADIUS + 3f) {
-				score -= 1000;
-			    }
-			}
-		    }
-		}
-	}
+        if (rc.getType() == RobotType.LUMBERJACK) {
+            for (RobotInfo unit : units) {
+                if (unit.team == myTeam) {
+                    if (unit.ID == rc.getID())
+                        continue;
+                    score -= 2f / (unit.location.distanceTo(loc) + 1);
+                    if (dis < GameConstants.LUMBERJACK_STRIKE_RADIUS + 1f + unit.getType().bodyRadius) {
+                        score -= 100;
+                    }
+                } else {
+                    if (unit.getType() == RobotType.LUMBERJACK) {
+                    } else {
+                        score += 6f / (unit.location.distanceTo(loc) + 1);
+                        if (dis < GameConstants.LUMBERJACK_STRIKE_RADIUS + 1f + unit.getType().bodyRadius) {
+                            score += 100;
+                        }
+                    }
+                }
+            }
+        } else {
+            for (RobotInfo unit : units) {
+                if (unit.team == myTeam) {
+                    if (unit.ID == rc.getID())
+                        continue;
+                    if (unit.getType() == RobotType.ARCHON || unit.getType() == RobotType.TANK)
+                        score -= 1 / (unit.location.distanceTo(loc) + 1);
+                    else
+                        score -= 0.5 / (unit.location.distanceTo(loc) + 1);
+                } else {
+                    if (unit.getType() == RobotType.SCOUT || unit.getType() == RobotType.SOLDIER || unit.getType() == RobotType.TANK) {
+                        score -= 2f / (loc.distanceSquaredTo(unit.location) + 1);
+                    } else if (unit.getType() == RobotType.LUMBERJACK) {
+                        float dis = loc.distanceTo(unit.location);
+                        score -= 10f / (dis * dis + 1);
+                        score += 0.8f / (dis + 1);
+                        if (dis < GameConstants.LUMBERJACK_STRIKE_RADIUS + 3f) {
+                            score -= 1000;
+                        }
+                    }
+                }
+            }
+        }
 
         score -= 1000f * getEstimatedDamageAtPosition(loc.x, loc.y, bulletX, bulletY, bulletDx, bulletDy, bulletDamage, bulletSpeed, null);
 
@@ -722,7 +731,7 @@ abstract class Robot {
         // The bullet cannot possibly hit us
         if (sqrDistanceToLineOfTravel > sqrRadius)
             return false;
-        if(dot < 0 && sqrRadius - sqrDistanceToLineOfTravel < dot*dot){
+        if (dot < 0 && sqrRadius - sqrDistanceToLineOfTravel < dot * dot) {
             // The bullet has already passed us. Everything is ok!
             return false;
         }
@@ -783,7 +792,7 @@ abstract class Robot {
         return dmg;
     }
 
-    float[] updateBulletHitDistances (BulletInfo[] nearbyBullets) throws GameActionException {
+    float[] updateBulletHitDistances(BulletInfo[] nearbyBullets) throws GameActionException {
         float[] bulletImpactDistances = new float[nearbyBullets.length];
         int w1 = Clock.getBytecodeNum();
         for (int i = 0; i < nearbyBullets.length; i++) {
@@ -800,7 +809,7 @@ abstract class Robot {
         return bulletImpactDistances;
     }
 
-    float bulletImpactDistance (BulletInfo bullet) throws GameActionException {
+    float bulletImpactDistance(BulletInfo bullet) throws GameActionException {
         if (!bulletHitDistance.containsKey(bullet.getID())) {
             float v = raycastForTree(bullet.location, bullet.dir);
             bulletHitDistance.put(bullet.getID(), v);
@@ -811,6 +820,6 @@ abstract class Robot {
     }
 
     <T> T randomChoice(T[] values) {
-        return values.length > 0 ? values[(int)(rnd.nextFloat()*values.length)] : null;
+        return values.length > 0 ? values[(int) (rnd.nextFloat() * values.length)] : null;
     }
 }

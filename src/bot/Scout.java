@@ -53,8 +53,8 @@ class Scout extends Robot {
         score += 3f / (loc.distanceSquaredTo(target) + 10);
 
         float disToEdge = getDistanceToMapEdge(loc);
-        if(disToEdge < 10)
-            score -= 0.05*(disToEdge-10)*(disToEdge-10);
+        if (disToEdge < 10)
+            score -= 0.05 * (disToEdge - 10) * (disToEdge - 10);
 
         for (RobotInfo unit : units) {
             if (unit.team == myTeam) {
@@ -191,7 +191,7 @@ class Scout extends Robot {
             } else {
                 break;
             }
-            if(Clock.getBytecodesLeft() < 3000)
+            if (Clock.getBytecodesLeft() < 3000)
                 break;
         }
 
@@ -221,12 +221,11 @@ class Scout extends Robot {
 
             boolean[] isDangerous = new boolean[nearbyBullets.length];
             int numDangerous = 0;
-            for(int i=0; i < nearbyBullets.length; i += 1){
-                if(bulletCanHitUs(rc.getLocation(), nearbyBullets[i])) {
+            for (int i = 0; i < nearbyBullets.length; i += 1) {
+                if (bulletCanHitUs(rc.getLocation(), nearbyBullets[i])) {
                     isDangerous[i] = true;
                     numDangerous += 1;
-                }
-                else
+                } else
                     isDangerous[i] = false;
             }
             float[] bulletX = new float[numDangerous];
@@ -236,8 +235,8 @@ class Scout extends Robot {
             float[] bulletDamage = new float[numDangerous];
             float[] bulletSpeed = new float[numDangerous];
             int j = 0;
-            for(int i=0; i < nearbyBullets.length; i += 1){
-                if(!isDangerous[i])
+            for (int i = 0; i < nearbyBullets.length; i += 1) {
+                if (!isDangerous[i])
                     continue;
                 BulletInfo bullet = nearbyBullets[i];
                 bulletX[j] = bullet.location.x;
@@ -293,7 +292,7 @@ class Scout extends Robot {
                     if (r < 5)
                         loc = myLocation.add(dir, info.strideRadius);
                     else if (r < 7)
-                        loc = myLocation.add(dir, info.strideRadius*0.5f);
+                        loc = myLocation.add(dir, info.strideRadius * 0.5f);
                     else
                         loc = myLocation.add(dir, 0.2f);
                 } else {
@@ -341,7 +340,7 @@ class Scout extends Robot {
                     lastAttackedEnemyID = bestRobot.getID();
                     BodyInfo firstUnitHit = linecast(bestRobot.location);
                     if (firstUnitHit != null && firstUnitHit.isTree()) {
-                        TreeInfo tree = (TreeInfo)firstUnitHit;
+                        TreeInfo tree = (TreeInfo) firstUnitHit;
 
                         if ((tree.health < 10 || tree.health > 25) && tree.getTeam() == rc.getTeam().opponent()) {
                             rc.fireSingleShot(rc.getLocation().directionTo(bestRobot.location));
@@ -355,7 +354,7 @@ class Scout extends Robot {
                 fireAtNearbyTree(trees);
             }
 
-            if(rc.getRoundNum() != roundAtStart) {
+            if (rc.getRoundNum() != roundAtStart) {
                 System.out.println("Error! Did not finish within the bytecode limit");
             }
 

@@ -29,8 +29,8 @@ class Gardener extends Robot {
         }
     }
 
-    boolean likelyValidTarget (MapLocation target, float freeRadius) throws GameActionException {
-        if (spawnPos.isWithinDistance(target, info.bodyRadius*8)) {
+    boolean likelyValidTarget(MapLocation target, float freeRadius) throws GameActionException {
+        if (spawnPos.isWithinDistance(target, info.bodyRadius * 8)) {
             return false;
         }
 
@@ -43,7 +43,7 @@ class Gardener extends Robot {
         return true;
     }
 
-    MapLocation pickTarget (float freeRadius) throws GameActionException {
+    MapLocation pickTarget(float freeRadius) throws GameActionException {
         MapLocation target = null;
         int tests = 0;
         do {
@@ -89,9 +89,9 @@ class Gardener extends Robot {
         float turnsToBreakEven = RobotType.LUMBERJACK.bulletCost / (totalScore + 0.001f);
 
         //System.out.println("Score " + totalScore + " turns to break even " + turnsToBreakEven)
-        float modifier = (1 + rc.getTeamBullets()*0.001f) / (1f + spawnedCount(RobotType.LUMBERJACK));
+        float modifier = (1 + rc.getTeamBullets() * 0.001f) / (1f + spawnedCount(RobotType.LUMBERJACK));
         boolean createLumberjack = false;
-        if(spawnedCount(RobotType.LUMBERJACK) == 0 && rc.getTeamBullets() > 200 && rc.getTreeCount() > 0)
+        if (spawnedCount(RobotType.LUMBERJACK) == 0 && rc.getTeamBullets() > 200 && rc.getTreeCount() > 0)
             createLumberjack = true;
         if (createLumberjack || turnsToBreakEven < 100 * modifier) {
             // Create a woodcutter
@@ -106,7 +106,7 @@ class Gardener extends Robot {
             }
         }
     }
-    
+
     MapLocation plantTrees(MapLocation settledLocation) throws GameActionException {
         MapLocation myLocation = rc.getLocation();
         blockedByNeutralTrees = false;
@@ -170,7 +170,7 @@ class Gardener extends Robot {
         // The code you want your robot to perform every round should be in this loop
 
         MapLocation target = rc.getLocation();
-        float desiredRadius = info.bodyRadius + 2.01f*GameConstants.BULLET_TREE_RADIUS;
+        float desiredRadius = info.bodyRadius + 2.01f * GameConstants.BULLET_TREE_RADIUS;
         int moveFailCounter = 0;
         boolean hasBuiltScout = false;
         boolean hasSettled = false;
@@ -189,17 +189,17 @@ class Gardener extends Robot {
             int scoutCount = spawnedCount(RobotType.SCOUT);
             int soldierCount = spawnedCount(RobotType.SOLDIER);
 
-            if(rc.getTreeCount() > tankCount*20+10 && rc.getTeamBullets() <= RobotType.TANK.bulletCost + 100 && gardenerCount > 1 && scoutCount > 2){
+            if (rc.getTreeCount() > tankCount * 20 + 10 && rc.getTeamBullets() <= RobotType.TANK.bulletCost + 100 && gardenerCount > 1 && scoutCount > 2) {
                 saveForTank = true;
             }
 
-            if(!hasSettled) {
+            if (!hasSettled) {
                 unsettledTime += 1;
                 TreeInfo[] trees = rc.senseNearbyTrees(info.sensorRadius, rc.getTeam());
                 TreeInfo minHealthTree = null;
                 float bestScore = -1000000;
                 for (TreeInfo tree : trees) {
-                    float score = (50f-tree.health)/tree.location.distanceTo(rc.getLocation());
+                    float score = (50f - tree.health) / tree.location.distanceTo(rc.getLocation());
                     if (minHealthTree == null || score > bestScore) {
                         // This probably means the tree isn't tended to by anyone else
                         minHealthTree = tree;
@@ -212,15 +212,15 @@ class Gardener extends Robot {
                 }
             }
 
-            boolean invalidTarget = (moveFailCounter > 5 || speedToTarget < info.strideRadius*0.2f || !likelyValidTarget(target, desiredRadius)) && !hasSettled;
+            boolean invalidTarget = (moveFailCounter > 5 || speedToTarget < info.strideRadius * 0.2f || !likelyValidTarget(target, desiredRadius)) && !hasSettled;
             boolean canSeeTarget = target.distanceSquaredTo(rc.getLocation()) < 0.01f || rc.canSenseAllOfCircle(target, desiredRadius);
 
-            RobotType buildTarget = scoutCount*2 > soldierCount ? RobotType.SOLDIER : RobotType.SCOUT;
+            RobotType buildTarget = scoutCount * 2 > soldierCount ? RobotType.SOLDIER : RobotType.SCOUT;
             int buildTargetCount = buildTarget == RobotType.SCOUT ? scoutCount : soldierCount;
-            if ((!hasBuiltScout || Math.pow(rc.getTreeCount()+2, 0.9) > buildTargetCount) && !saveForTank) {
+            if ((!hasBuiltScout || Math.pow(rc.getTreeCount() + 2, 0.9) > buildTargetCount) && !saveForTank) {
                 saveForTank = true;
                 for (int i = 0; i < 9; i++) {
-                    Direction dir = new Direction(2 * (float)Math.PI * i / 9f);
+                    Direction dir = new Direction(2 * (float) Math.PI * i / 9f);
                     if (rc.canBuildRobot(buildTarget, dir) && turnsLeft > STOP_SPENDING_AT_TIME) {
                         rc.buildRobot(buildTarget, dir);
                         rc.broadcast(buildTarget.ordinal(), buildTargetCount + 1);
@@ -240,12 +240,12 @@ class Gardener extends Robot {
             movesWithTarget++;
             rc.setIndicatorLine(rc.getLocation(), target, 255, 0, 0);
 
-            if(turnsLeft > STOP_SPENDING_AT_TIME)
+            if (turnsLeft > STOP_SPENDING_AT_TIME)
                 buildLumberjackInDenseForests();
 
             if (rc.hasRobotBuildRequirements(RobotType.TANK) && saveForTank) {
                 for (int i = 0; i < 6; i++) {
-                    Direction dir = new Direction(2 * (int)Math.PI * i / 6f);
+                    Direction dir = new Direction(2 * (int) Math.PI * i / 6f);
                     if (rc.canBuildRobot(RobotType.TANK, dir) && turnsLeft > STOP_SPENDING_AT_TIME) {
                         rc.buildRobot(RobotType.TANK, dir);
                         tankCount += 1;
@@ -265,7 +265,7 @@ class Gardener extends Robot {
                 //System.out.println("Lost all trees around me, moving again")
             }
 
-            if(!hasSettled) {
+            if (!hasSettled) {
                 BulletInfo[] bullets = rc.senseNearbyBullets(info.strideRadius + info.bodyRadius + 3f);
                 RobotInfo[] units = rc.senseNearbyRobots();
 
@@ -274,7 +274,7 @@ class Gardener extends Robot {
                     moveToAvoidBullets(target, bullets, units);
                     float d2 = rc.getLocation().distanceTo(target);
                     speedToTarget *= 0.5f;
-                    speedToTarget += 0.5f*(d1 - d2);
+                    speedToTarget += 0.5f * (d1 - d2);
                 }
                 /*if (!rc.hasMoved() && moveToAvoidBullets(target, )) {
                     moveFailCounter = 0;
@@ -286,7 +286,7 @@ class Gardener extends Robot {
             }
 
 			/*
-			// Randomly attempt to build a soldier or lumberjack in this direction
+            // Randomly attempt to build a soldier or lumberjack in this direction
 			if (rc.canBuildRobot(RobotType.SOLDIER, dir) && Math.random < .01) {
 				rc.buildRobot(RobotType.SOLDIER, dir)
 			} else if (rc.canBuildRobot(RobotType.LUMBERJACK, dir) && Math.random < .01 && rc.isBuildReady) {

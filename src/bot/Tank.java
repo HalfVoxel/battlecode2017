@@ -6,7 +6,7 @@ import java.util.Random;
 
 class Tank extends Robot {
 
-    MapLocation pickTarget (MapLocation[] fallBackPositions) throws GameActionException {
+    MapLocation pickTarget(MapLocation[] fallBackPositions) throws GameActionException {
         int lastAttackingEnemySpotted = rc.readBroadcast(HIGH_PRIORITY_TARGET_OFFSET);
         MapLocation highPriorityTargetPos = readBroadcastPosition(HIGH_PRIORITY_TARGET_OFFSET + 1);
         if (rc.getRoundNum() < lastAttackingEnemySpotted + 50 && rc.getLocation().distanceTo(highPriorityTargetPos) < info.strideRadius * 8) {
@@ -37,7 +37,7 @@ class Tank extends Robot {
         // is not making much progress and maybe a different target should be chosen
         float speedToTarget = 0f;
 
-        if(archons.length > 0) {
+        if (archons.length > 0) {
             int ind = rnd.nextInt(archons.length);
             target = archons[ind];
         }
@@ -50,12 +50,12 @@ class Tank extends Robot {
             RobotInfo[] friendlyRobots = rc.senseNearbyRobots(-1, rc.getTeam());
             BulletInfo[] bullets = rc.senseNearbyBullets(info.strideRadius + info.bodyRadius + 3f);
 
-            if(robots.length > 0){
-               MapLocation enemyLocation = robots[0].getLocation();
-               moveToAvoidBullets(enemyLocation, bullets, robots);
+            if (robots.length > 0) {
+                MapLocation enemyLocation = robots[0].getLocation();
+                moveToAvoidBullets(enemyLocation, bullets, robots);
             }
 
-            if(!rc.hasMoved()) {
+            if (!rc.hasMoved()) {
                 rc.setIndicatorDot(target, 255, 0, 0);
 
                 boolean canSeeTarget = target.distanceSquaredTo(rc.getLocation()) < 10f;
@@ -68,9 +68,9 @@ class Tank extends Robot {
                 moveToAvoidBullets(target, bullets, robots);
                 float d2 = rc.getLocation().distanceTo(target);
                 speedToTarget *= 0.5f;
-                speedToTarget += 0.5f*(d1 - d2);
+                speedToTarget += 0.5f * (d1 - d2);
 
-                if (speedToTarget < info.strideRadius*0.2f) {
+                if (speedToTarget < info.strideRadius * 0.2f) {
                     target = pickTarget(archons);
                 }
             }

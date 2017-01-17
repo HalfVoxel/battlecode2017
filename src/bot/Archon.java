@@ -19,10 +19,10 @@ class Archon extends Robot {
         System.out.println("I'm an archon! ");
         // The code you want your robot to perform every round should be in this loop
         while (true) {
-            double maxPoints = rc.getTeamVictoryPoints() + Math.floor(rc.getTeamBullets()/GameConstants.BULLET_EXCHANGE_RATE);
-            if(maxPoints >= GameConstants.VICTORY_POINTS_TO_WIN || rc.getRoundNum() == rc.getRoundLimit()-1){
-                double donate = Math.floor(rc.getTeamBullets()/GameConstants.BULLET_EXCHANGE_RATE)*GameConstants.BULLET_EXCHANGE_RATE;
-                rc.donate((float)donate);
+            double maxPoints = rc.getTeamVictoryPoints() + Math.floor(rc.getTeamBullets() / GameConstants.BULLET_EXCHANGE_RATE);
+            if (maxPoints >= GameConstants.VICTORY_POINTS_TO_WIN || rc.getRoundNum() == rc.getRoundLimit() - 1) {
+                double donate = Math.floor(rc.getTeamBullets() / GameConstants.BULLET_EXCHANGE_RATE) * GameConstants.BULLET_EXCHANGE_RATE;
+                rc.donate((float) donate);
             }
 
             int gardenerCount = spawnedCount(RobotType.GARDENER);
@@ -30,11 +30,11 @@ class Archon extends Robot {
             int tankCount = spawnedCount(RobotType.TANK);
             int turnsLeft = rc.getRoundLimit() - rc.getRoundNum();
 
-            if(rc.getTreeCount() > tankCount*4+400 && rc.getTeamBullets() <= RobotType.TANK.bulletCost + 100 && gardenerCount > 1) {
+            if (rc.getTreeCount() > tankCount * 4 + 400 && rc.getTeamBullets() <= RobotType.TANK.bulletCost + 100 && gardenerCount > 1) {
                 saveForTank = true;
             }
 
-            if ((gardenerCount < 1 || rc.getTreeCount() > 3*gardenerCount || rc.getTeamBullets() > RobotType.TANK.bulletCost + 100) && !saveForTank) {
+            if ((gardenerCount < 1 || rc.getTreeCount() > 3 * gardenerCount || rc.getTeamBullets() > RobotType.TANK.bulletCost + 100) && !saveForTank) {
                 // Generate a random direction
                 Direction dir = randomDirection();
                 if (rc.canHireGardener(dir) && turnsLeft > STOP_SPENDING_AT_TIME) {
