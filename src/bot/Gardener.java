@@ -217,7 +217,7 @@ class Gardener extends Robot {
 
             RobotType buildTarget = scoutCount * 2 > soldierCount ? RobotType.SOLDIER : RobotType.SCOUT;
             int buildTargetCount = buildTarget == RobotType.SCOUT ? scoutCount : soldierCount;
-            if ((!hasBuiltScout || Math.pow(rc.getTreeCount() + 2, 0.9) > buildTargetCount) && !saveForTank) {
+            if ((!hasBuiltScout || Math.pow(rc.getTreeCount() + 1, 0.9) > buildTargetCount) && !saveForTank) {
                 saveForTank = true;
                 for (int i = 0; i < 9; i++) {
                     Direction dir = new Direction(2 * (float) Math.PI * i / 9f);
