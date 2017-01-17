@@ -645,20 +645,26 @@ abstract class Robot {
         Team myTeam = rc.getTeam();
 
         float score = 0f;
+        boolean ignoreTarget = false;
         if (rc.getType() == RobotType.ARCHON) {
             TreeInfo[] trees = rc.senseNearbyTrees(info.sensorRadius);
             for (TreeInfo tree : trees) {
                 if (tree.getTeam() == Team.NEUTRAL) {
-                    if (tree.containedBullets > 0)
+                    if (tree.containedBullets > 0) {
+                        ignoreTarget = true;
                         score += Math.sqrt(tree.containedBullets) * Math.exp(-loc.distanceTo(tree.location) * 0.5);
-                    else
+                    } else {
                         score -= 2 * Math.exp(-loc.distanceTo(tree.location) * 0.5);
+                    }
                 } else if (tree.getTeam() == myTeam) {
                     score -= 10 * Math.exp(-loc.distanceTo(tree.location) * 0.5);
                 }
             }
         }
-        score -= 1.15f * loc.distanceTo(target);
+
+        if (!ignoreTarget) {
+            score -= 1.15f * loc.distanceTo(target);
+        }
 
         if (rc.getType() == RobotType.LUMBERJACK) {
             for (RobotInfo unit : units) {
