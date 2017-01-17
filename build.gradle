@@ -8,7 +8,7 @@ apply plugin: 'java'
 
 // The Scala plugin expands upon the Java plugin, allowing us to compile
 // Scala source files.
-apply plugin: 'scala'
+//apply plugin: 'scala'
 
 // These plugins allow for this build script to be compatible with IDEs.
 apply plugin: 'idea'
@@ -24,12 +24,12 @@ targetCompatibility = 1.8
 // We override Gradle's defaults for project directory layout.
 sourceSets {
     main {
-        scala.srcDirs = ["src"]
+        //scala.srcDirs = ["src"]
         output.classesDir = "$buildDir/classes"
     }
 
     test {
-        scala.srcDirs = ["test"]
+        //scala.srcDirs = ["test"]
         output.classesDir = "$buildDir/tests"
     }
 }
@@ -64,9 +64,9 @@ dependencies {
     client group: 'org.battlecode', name: clientName, version: '2017.+'
 
     // Scala!
-    compile group: 'org.scala-lang', name: 'scala-library', version: '2.11.7'
-    compile group: 'org.scala-lang', name: 'scala-compiler', version: '2.11.7'
-    compile group: 'org.scala-lang', name: 'scala-reflect', version: '2.11.7'
+    //compile group: 'org.scala-lang', name: 'scala-library', version: '2.11.7'
+    //compile group: 'org.scala-lang', name: 'scala-compiler', version: '2.11.7'
+    //compile group: 'org.scala-lang', name: 'scala-reflect', version: '2.11.7'
 }
 
 // Eclipse specific setup to enable docs and sources, and configure layout.
@@ -202,7 +202,7 @@ task jarForUpload(type: Jar) {
     description 'Assembles source code into an archive, ready to be uploaded to the Battlecode site.'
     group 'battlecode'
 
-    from sourceSets.main.scala.srcDirs
+    //from sourceSets.main.scala.srcDirs
     destinationDir = project.projectDir
     archiveName = 'battlecode-player-upload.jar'
 }
