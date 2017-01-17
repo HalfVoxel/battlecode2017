@@ -618,10 +618,23 @@ abstract class Robot {
         Team myTeam = rc.getTeam();
 
         float score = 0f;
+        if(rc.getType() == RobotType.ARCHON){
+            TreeInfo[] trees = rc.senseNearbyTrees(info.sensorRadius);
+            for (TreeInfo tree : trees) {
+                score -= 10*Math.exp(-loc.distanceSquaredTo(tree.location)*0.5);
+            }
+        }
         score -= 1.15f*loc.distanceTo(target);
 
         for (RobotInfo unit : units) {
-            if (unit.team != myTeam) {
+            if (unit.team == myTeam) {
+                if(unit.ID == rc.getID())
+                    continue;
+                if(unit.getType() == RobotType.ARCHON || unit.getType() == RobotType.TANK)
+                    score -= 1/(unit.location.distanceTo(loc) + 1);
+                else
+                    score -= 0.5/(unit.location.distanceTo(loc) + 1);
+             } else {
                 if (unit.getType() == RobotType.SCOUT || unit.getType() == RobotType.SOLDIER || unit.getType() == RobotType.TANK) {
                     score -= 2f / (loc.distanceSquaredTo(unit.location) + 1);
                 } else if (unit.getType() == RobotType.LUMBERJACK) {
