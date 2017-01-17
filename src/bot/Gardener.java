@@ -217,16 +217,28 @@ class Gardener extends Robot {
 
             RobotType buildTarget = scoutCount * 2 > soldierCount ? RobotType.SOLDIER : RobotType.SCOUT;
             int buildTargetCount = buildTarget == RobotType.SCOUT ? scoutCount : soldierCount;
-            if ((!hasBuiltScout || Math.pow(rc.getTreeCount() + 1, 0.9) > buildTargetCount) && !saveForTank) {
+            if ((!hasBuiltScout || Math.pow(rc.getTreeCount() + 1, 0.9) > buildTargetCount) && !saveForTank && rc.isBuildReady() && rc.hasRobotBuildRequirements(buildTarget)) {
                 saveForTank = true;
+                boolean built = false;
                 for (int i = 0; i < 9; i++) {
                     Direction dir = new Direction(2 * (float) Math.PI * i / 9f);
                     if (rc.canBuildRobot(buildTarget, dir) && turnsLeft > STOP_SPENDING_AT_TIME) {
                         rc.buildRobot(buildTarget, dir);
                         rc.broadcast(buildTarget.ordinal(), buildTargetCount + 1);
+                        rc.broadcast(GARDENER_CAN_PROBABLY_BUILD, 0);
                         hasBuiltScout = true;
+                        built = true;
+                        break;
                     }
                 }
+
+                if (!built) {
+                    // Noes! Could not build ANYWHERE!
+                    rc.setIndicatorDot(rc.getLocation(), 255, 192, 203);
+                    rc.broadcast(GARDENER_CAN_PROBABLY_BUILD, rc.readBroadcast(GARDENER_CAN_PROBABLY_BUILD) + 1);
+                }
+            } else {
+                rc.broadcast(GARDENER_CAN_PROBABLY_BUILD, 0);
             }
 
             if (invalidTarget && movesWithTarget > 3) {

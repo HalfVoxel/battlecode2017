@@ -37,12 +37,18 @@ class Archon extends Robot {
                 saveForTank = true;
             }
 
-            if ((gardenerCount < 1 || rc.getTreeCount() > 3 * gardenerCount || rc.getTeamBullets() > RobotType.TANK.bulletCost + 100) && !saveForTank) {
+            boolean gardenersSeemToBeBlocked = rc.readBroadcast(GARDENER_CAN_PROBABLY_BUILD) > gardenerCount * 20 + 10;
+            if ((gardenersSeemToBeBlocked || gardenerCount < 1 || rc.getTreeCount() > 6 * gardenerCount || rc.getTeamBullets() > RobotType.TANK.bulletCost + 100) && !saveForTank) {
                 // Generate a random direction
                 Direction dir = randomDirection();
                 if (rc.canHireGardener(dir) && turnsLeft > STOP_SPENDING_AT_TIME) {
                     rc.hireGardener(dir);
                     rc.broadcast(RobotType.GARDENER.ordinal(), gardenerCount + 1);
+                    if (gardenersSeemToBeBlocked) {
+                        System.out.println("Hired gardener because all the existing ones seem to be blocked");
+                    }
+
+                    rc.broadcast(GARDENER_CAN_PROBABLY_BUILD, 0);
                 }
             }
 

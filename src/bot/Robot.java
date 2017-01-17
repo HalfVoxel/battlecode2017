@@ -15,6 +15,7 @@ abstract class Robot {
     static final int HIGH_PRIORITY_TARGET_OFFSET = 20;
     static final int GARDENER_OFFSET = 25;
     static final int TREE_OFFSET = 30;
+    static final int GARDENER_CAN_PROBABLY_BUILD = 40;
 
     private static final int EXPLORATION_OFFSET = 100;
     private static final int EXPLORATION_CHUNK_SIZE = 25;
