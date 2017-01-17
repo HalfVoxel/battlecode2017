@@ -634,27 +634,50 @@ abstract class Robot {
         }
         score -= 1.15f*loc.distanceTo(target);
 
-        for (RobotInfo unit : units) {
-            if (unit.team == myTeam) {
-                if(unit.ID == rc.getID())
-                    continue;
-                if(unit.getType() == RobotType.ARCHON || unit.getType() == RobotType.TANK)
-                    score -= 1/(unit.location.distanceTo(loc) + 1);
-                else
-                    score -= 0.5/(unit.location.distanceTo(loc) + 1);
-             } else {
-                if (unit.getType() == RobotType.SCOUT || unit.getType() == RobotType.SOLDIER || unit.getType() == RobotType.TANK) {
-                    score -= 2f / (loc.distanceSquaredTo(unit.location) + 1);
-                } else if (unit.getType() == RobotType.LUMBERJACK) {
-                    float dis = loc.distanceTo(unit.location);
-                    score -= 10f / (dis * dis + 1);
-                    score += 0.8f / (dis + 1);
-                    if (dis < GameConstants.LUMBERJACK_STRIKE_RADIUS + 3f) {
-                        score -= 1000;
-                    }
-                }
-            }
-        }
+	if(rc.getType() == RobotType.LUMBERJACK){
+		for (RobotInfo unit : units) {
+		    if (unit.team == myTeam) {
+			    if(unit.ID == rc.getID())
+			        continue;
+			    score -= 2f/(unit.location.distanceTo(loc) + 1);
+			    if (dis < GameConstants.LUMBERJACK_STRIKE_RADIUS + 1f + unit.getType().bodyRadius) {
+				    score -= 100;
+			    }
+		    } else {
+			    if (unit.getType() == RobotType.LUMBERJACK) {
+			    }
+			    else{
+			        score += 6f/(unit.location.distanceTo(loc) + 1);
+			        if (dis < GameConstants.LUMBERJACK_STRIKE_RADIUS + 1f + unit.getType().bodyRadius) {
+				        score += 100;
+			    	}
+			    }
+		    }
+		}
+	}
+	else{
+		for (RobotInfo unit : units) {
+		    if (unit.team == myTeam) {
+			if(unit.ID == rc.getID())
+			    continue;
+			if(unit.getType() == RobotType.ARCHON || unit.getType() == RobotType.TANK)
+			    score -= 1/(unit.location.distanceTo(loc) + 1);
+			else
+			    score -= 0.5/(unit.location.distanceTo(loc) + 1);
+		     } else {
+			if (unit.getType() == RobotType.SCOUT || unit.getType() == RobotType.SOLDIER || unit.getType() == RobotType.TANK) {
+			    score -= 2f / (loc.distanceSquaredTo(unit.location) + 1);
+			} else if (unit.getType() == RobotType.LUMBERJACK) {
+			    float dis = loc.distanceTo(unit.location);
+			    score -= 10f / (dis * dis + 1);
+			    score += 0.8f / (dis + 1);
+			    if (dis < GameConstants.LUMBERJACK_STRIKE_RADIUS + 3f) {
+				score -= 1000;
+			    }
+			}
+		    }
+		}
+	}
 
         score -= 1000f * getEstimatedDamageAtPosition(loc.x, loc.y, bulletX, bulletY, bulletDx, bulletDy, bulletDamage, bulletSpeed, null);
 
