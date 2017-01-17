@@ -662,17 +662,17 @@ abstract class Robot {
 
         if (rc.getType() == RobotType.LUMBERJACK) {
             for (RobotInfo unit : units) {
+                float dis = loc.distanceTo(unit.location);
                 if (unit.team == myTeam) {
                     if (unit.ID == rc.getID())
                         continue;
-                    score -= 2f / (unit.location.distanceTo(loc) + 1);
+                    score -= 2f / (dis + 1);
                     if (dis < GameConstants.LUMBERJACK_STRIKE_RADIUS + 1f + unit.getType().bodyRadius) {
                         score -= 100;
                     }
                 } else {
-                    if (unit.getType() == RobotType.LUMBERJACK) {
-                    } else {
-                        score += 6f / (unit.location.distanceTo(loc) + 1);
+                    if (unit.getType() != RobotType.LUMBERJACK) {
+                        score += 6f / (dis + 1);
                         if (dis < GameConstants.LUMBERJACK_STRIKE_RADIUS + 1f + unit.getType().bodyRadius) {
                             score += 100;
                         }
