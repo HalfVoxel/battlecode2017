@@ -9,6 +9,7 @@ abstract class Robot {
     RobotType info = null;
     MapLocation spawnPos = null;
     Random rnd = new Random(SEED);
+    int lastAttackedEnemyID = -1;
 
     static final int SEED = 0;
     static final int MAP_EDGE_BROADCAST_OFFSET = 10;
@@ -23,6 +24,8 @@ abstract class Robot {
     static final int EXPLORATION_ORIGIN = EXPLORATION_OFFSET + 0;
     private static final int EXPLORATION_EXPLORED = EXPLORATION_OFFSET + 2;
     private static final int EXPLORATION_OUTSIDE_MAP = EXPLORATION_OFFSET + 4;
+
+    static final int STOP_SPENDING_AT_TIME = 50;
 
     int mapEdgesDetermined = 0;
     float[] mapEdges = new float[4];
@@ -390,6 +393,82 @@ abstract class Robot {
                     rc.setIndicatorLine(mapEdge.add(angle + (float) Math.PI * 0.5f, 50), mapEdge.add(angle - (float) Math.PI * 0.5f, 50), 255, 255, 255);
                 }
             }
+        }
+    }
+
+    /**
+     * Fire at any nearby robots if possible.
+     *
+     * @param hostileRobots
+     * @return If there are any nearby gardeners (maybe move to different method?)
+     * @throws GameActionException
+     */
+    void fireAtNearbyRobot(RobotInfo[] friendlyRobots, RobotInfo[] hostileRobots, boolean targetArchons) throws GameActionException {
+        if (hostileRobots.length == 0) return;
+
+        MapLocation myLocation = rc.getLocation();
+        int turnsLeft = rc.getRoundLimit() - rc.getRoundNum();
+
+        List<Integer> bestRobotsTried = new ArrayList<>();
+        for (int attemptN = 0; attemptN < 1; ++attemptN) {
+            RobotInfo bestRobot = null;
+            float bestScore2 = 0;
+            MapLocation closestThreat = null;
+
+            for (RobotInfo robot : hostileRobots) {
+                if (bestRobotsTried.contains(robot.ID))
+                    continue;
+                float score = 0;
+                if (robot.getType() == RobotType.GARDENER) {
+                    score += 100;
+                } else if (robot.getType() == RobotType.ARCHON)
+                    score += targetArchons ? 1f : 0f;
+                else if (robot.getType() == RobotType.SCOUT)
+                    score += 150;
+                if (robot.getType() == RobotType.LUMBERJACK || robot.getType() == RobotType.SOLDIER || robot.getType() == RobotType.TANK) {
+                    if (closestThreat == null || robot.location.distanceTo(myLocation) < closestThreat.distanceTo(myLocation)) {
+                        closestThreat = robot.location;
+                    }
+                    score += 50;
+                }
+                score /= 4 + robot.getHealth() / robot.getType().maxHealth;
+                score /= myLocation.distanceTo(robot.getLocation()) + 1;
+                if (score > bestScore2) {
+                    bestScore2 = score;
+                    bestRobot = robot;
+                }
+            }
+
+            if (bestRobot != null) {
+                lastAttackedEnemyID = bestRobot.getID();
+                bestRobotsTried.add(bestRobot.ID);
+
+                BodyInfo firstUnitHit = linecast(bestRobot.location);
+                if (rc.getLocation().distanceTo(bestRobot.location) < 2 * info.sensorRadius && teamOf(firstUnitHit) == rc.getTeam().opponent() && turnsLeft > STOP_SPENDING_AT_TIME) {
+                    Direction dir = rc.getLocation().directionTo(bestRobot.location);
+                    if (rc.canFirePentadShot() && rc.getTeamBullets() > 300 && friendlyRobots.length < hostileRobots.length && (friendlyRobots.length == 0 || hostileRobots.length >= 2)) {
+                        // ...Then fire a bullet in the direction of the enemy.
+                        rc.firePentadShot(dir);
+                    }
+
+                    if (rc.canFireTriadShot() && friendlyRobots.length < hostileRobots.length && (friendlyRobots.length == 0 || hostileRobots.length >= 2)) {
+                        // ...Then fire a bullet in the direction of the enemy.
+                        rc.fireTriadShot(dir);
+                    }
+
+                    // And we have enough bullets, and haven't attacked yet this turn...
+                    if (rc.canFireSingleShot()) {
+                        // ...Then fire a bullet in the direction of the enemy.
+                        rc.fireSingleShot(dir);
+                    }
+
+                    break;
+                }
+            } else {
+                break;
+            }
+            if (Clock.getBytecodesLeft() < 3000)
+                break;
         }
     }
 

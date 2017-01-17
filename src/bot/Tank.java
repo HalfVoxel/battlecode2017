@@ -29,9 +29,6 @@ class Tank extends Robot {
         Team enemy = rc.getTeam().opponent();
         MapLocation target = rc.getLocation();
         MapLocation[] archons = rc.getInitialArchonLocations(enemy);
-        int stepsWithTarget = 0;
-        int STOP_SPENDING_AT_TIME = 50;
-
         // Exponentially decaying weighted average of the speed the unit has
         // toward the target. If this is very low (or negative) then the unit
         // is not making much progress and maybe a different target should be chosen
@@ -61,7 +58,6 @@ class Tank extends Robot {
                 boolean canSeeTarget = target.distanceSquaredTo(rc.getLocation()) < 10f;
                 if (canSeeTarget) {
                     target = pickTarget(archons);
-                    stepsWithTarget = 0;
                 }
 
                 float d1 = rc.getLocation().distanceTo(target);
@@ -75,24 +71,8 @@ class Tank extends Robot {
                 }
             }
 
-            // If there are some...
-            if (robots.length > 0 && turnsLeft > STOP_SPENDING_AT_TIME) {
-                if (rc.canFirePentadShot() && rc.getTeamBullets() > 300 && friendlyRobots.length < robots.length && (friendlyRobots.length == 0 || robots.length >= 2)) {
-                    // ...Then fire a bullet in the direction of the enemy.
-                    rc.firePentadShot(rc.getLocation().directionTo(robots[0].location));
-                }
-
-                if (rc.canFireTriadShot() && friendlyRobots.length < robots.length && (friendlyRobots.length == 0 || robots.length >= 2)) {
-                    // ...Then fire a bullet in the direction of the enemy.
-                    rc.fireTriadShot(rc.getLocation().directionTo(robots[0].location));
-                }
-
-                // And we have enough bullets, and haven't attacked yet this turn...
-                if (rc.canFireSingleShot()) {
-                    // ...Then fire a bullet in the direction of the enemy.
-                    rc.fireSingleShot(rc.getLocation().directionTo(robots[0].location));
-                }
-            }
+            boolean targetArchons = rc.getTeamBullets() > 1000 || rc.getRoundNum() > 1000;
+            fireAtNearbyRobot(friendlyRobots, robots, targetArchons);
 
             yieldAndDoBackgroundTasks();
         }

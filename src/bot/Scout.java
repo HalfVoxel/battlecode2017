@@ -11,8 +11,6 @@ import java.util.Map;
 class Scout extends Robot {
 
     private Map<Integer, Float> treeLifeMap = new HashMap<>();
-    private final int STOP_SPENDING_AT_TIME = 50;
-    int lastAttackedEnemyID = -1;
 
     private boolean highPriorityTargetExists() throws GameActionException {
         int lastAttackingEnemySpotted = rc.readBroadcast(HIGH_PRIORITY_TARGET_OFFSET);
@@ -136,68 +134,6 @@ class Scout extends Robot {
         }
     }
 
-    /**
-     * Fire at any nearby robots if possible.
-     *
-     * @param robots
-     * @return If there are any nearby gardeners (maybe move to different method?)
-     * @throws GameActionException
-     */
-    private boolean fireAtNearbyRobot(RobotInfo[] robots) throws GameActionException {
-        MapLocation myLocation = rc.getLocation();
-        int turnsLeft = rc.getRoundLimit() - rc.getRoundNum();
-
-        boolean nearbyEnemyGardener = false;
-        List<Integer> bestRobotsTried = new ArrayList<>();
-        for (int attemptN = 0; attemptN < 1; ++attemptN) {
-            RobotInfo bestRobot = null;
-            float bestScore2 = 0;
-            MapLocation closestThreat = null;
-
-            for (RobotInfo robot : robots) {
-                if (bestRobotsTried.contains(robot.ID))
-                    continue;
-                float score = 0;
-                if (robot.getType() == RobotType.GARDENER) {
-                    score += 100;
-                    nearbyEnemyGardener = true;
-                } else if (robot.getType() == RobotType.ARCHON)
-                    score += (highPriorityTargetExists() || rc.getRoundNum() < 2000 ? 0f : 1f);
-                else if (robot.getType() == RobotType.SCOUT)
-                    score += 150;
-                if (robot.getType() == RobotType.LUMBERJACK || robot.getType() == RobotType.SOLDIER || robot.getType() == RobotType.TANK) {
-                    if (closestThreat == null || robot.location.distanceTo(myLocation) < closestThreat.distanceTo(myLocation)) {
-                        closestThreat = robot.location;
-                    }
-                    score += 50;
-                }
-                score /= 4 + robot.getHealth() / robot.getType().maxHealth;
-                score /= myLocation.distanceTo(robot.getLocation()) + 1;
-                if (score > bestScore2) {
-                    bestScore2 = score;
-                    bestRobot = robot;
-                }
-            }
-
-            if (bestRobot != null) {
-                lastAttackedEnemyID = bestRobot.getID();
-                bestRobotsTried.add(bestRobot.ID);
-
-                BodyInfo firstUnitHit = linecast(bestRobot.location);
-                if (rc.canFireSingleShot() && rc.getLocation().distanceTo(bestRobot.location) < 2 * info.sensorRadius && teamOf(firstUnitHit) == rc.getTeam().opponent() && turnsLeft > STOP_SPENDING_AT_TIME) {
-                    rc.fireSingleShot(rc.getLocation().directionTo(bestRobot.location));
-                    break;
-                }
-            } else {
-                break;
-            }
-            if (Clock.getBytecodesLeft() < 3000)
-                break;
-        }
-
-        return nearbyEnemyGardener;
-    }
-
     public void run() throws GameActionException {
         System.out.println("I'm a scout!");
 
@@ -214,6 +150,7 @@ class Scout extends Robot {
             MapLocation myLocation = rc.getLocation();
             // See if there are any nearby enemy robots
             RobotInfo[] robots = rc.senseNearbyRobots(-1, enemy);
+            RobotInfo[] friendlyRobots = rc.senseNearbyRobots(-1, rc.getTeam());
             RobotInfo[] allRobots = rc.senseNearbyRobots();
             BulletInfo[] nearbyBullets = rc.senseNearbyBullets(8f);
             float[] bulletImpactDistances = updateBulletHitDistances(nearbyBullets);
@@ -314,11 +251,15 @@ class Scout extends Robot {
             }
 
             boolean nearbyEnemyGardener = false;
-
-            // If there are some enemy robots around
-            if (robots.length > 0) {
-                nearbyEnemyGardener = fireAtNearbyRobot(robots);
+            for (RobotInfo robot : robots) {
+                if (robot.getType() == RobotType.GARDENER) {
+                    nearbyEnemyGardener = true;
+                    break;
+                }
             }
+
+            boolean targetArchons = !highPriorityTargetExists() && rc.getRoundNum() > 2000;
+            fireAtNearbyRobot(friendlyRobots, robots, targetArchons);
 
             if (!rc.hasAttacked() && rc.canFireSingleShot() && turnsLeft > STOP_SPENDING_AT_TIME) {
                 float bestScore3 = -1000000f;
