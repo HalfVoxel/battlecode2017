@@ -59,26 +59,31 @@ class Scout extends Robot {
                 if (unit.type == RobotType.SCOUT)
                     score -= 1f / (loc.distanceSquaredTo(unit.location) + 1);
             } else {
-                if (unit.type == RobotType.GARDENER) {
-                    score += 10f / (loc.distanceSquaredTo(unit.location) + 1);
-                } else if (unit.type == RobotType.SCOUT) {
-                    if (rc.getHealth() >= unit.health)
-                        score += 2f / (loc.distanceSquaredTo(unit.location) + 1);
-                    else
-                        score -= 2f / (loc.distanceSquaredTo(unit.location) + 1);
-                } else if (unit.type == RobotType.LUMBERJACK) {
-                    float dis = loc.distanceTo(unit.location);
-                    score -= 10f / (dis * dis + 1);
-                    score += 2f / (dis + 1);
-                    if (dis < GameConstants.LUMBERJACK_STRIKE_RADIUS + 3f) {
-                        score -= 1000;
-                    }
-                } else if (unit.type == RobotType.ARCHON) {
-                    // Do nothing
-                } else {
-                    float dis = loc.distanceTo(unit.location);
-                    score -= 5f / (dis * dis + 1);
-                    score += 1f / (dis + 1);
+                switch(unit.type) {
+                    case GARDENER:
+                        score += 10f / (loc.distanceSquaredTo(unit.location) + 1);
+                        break;
+                    case SCOUT:
+                        if (rc.getHealth() >= unit.health)
+                            score += 2f / (loc.distanceSquaredTo(unit.location) + 1);
+                        else
+                            score -= 2f / (loc.distanceSquaredTo(unit.location) + 1);
+                        break;
+                    case LUMBERJACK:
+                        float dis = loc.distanceTo(unit.location);
+                        score -= 10f / (dis * dis + 1);
+                        score += 2f / (dis + 1);
+                        if (dis < GameConstants.LUMBERJACK_STRIKE_RADIUS + 3f) {
+                            score -= 1000;
+                        }
+                        break;
+                    case ARCHON:
+                        break;
+                    default:
+                        float dis2 = loc.distanceTo(unit.location);
+                        score -= 5f / (dis2 * dis2 + 1);
+                        score += 1f / (dis2 + 1);
+                        break;
                 }
             }
         }
