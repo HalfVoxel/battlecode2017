@@ -52,9 +52,9 @@ class Scout extends Robot {
         float score = 0f;
         score += 3f / (loc.distanceSquaredTo(target) + 10);
 
-        float disToEdge = getDistanceToMapEdge(loc);
-        if (disToEdge < 10)
-            score -= 0.05 * (disToEdge - 10) * (disToEdge - 10);
+//        float disToEdge = getDistanceToMapEdge(loc);
+//        if (disToEdge < 10)
+//            score -= 0.05 * (disToEdge - 10) * (disToEdge - 10);
 
         for (RobotInfo unit : units) {
             if (unit.team == myTeam) {
