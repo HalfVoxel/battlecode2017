@@ -228,7 +228,6 @@ abstract class Robot {
             ret = Math.min(ret, pos.x-mapEdges[2]);
         if((mapEdgesDetermined & 8) != 0)
             ret = Math.min(ret, pos.y-mapEdges[3]);
-        System.out.println("getDistanceToMapEdge returned " + ret);
         return ret;
     }
 
