@@ -516,7 +516,7 @@ abstract class Robot {
         }
 
         // Go through the objects in sorted order
-        float distanceToNextTree = numTrees > 0 ? myLocation.distanceTo(trees[0].location) : 10000;
+        float distanceToNextTree = numTrees > 0 ? myLocation.distanceTo(trees[0].location) - trees[0].radius*0.2f: 10000;
         float distanceToNextRobot = numRobots > 0 ? myLocation.distanceTo(robots[0].location) : 10000;
         int ri = 0;
         int ti = 0;
@@ -539,7 +539,7 @@ abstract class Robot {
                 pointsForHitting = -0.001f;
 
                 ti++;
-                distanceToNextTree = ti < numTrees ? myLocation.distanceTo(trees[ti].location) : 10000;
+                distanceToNextTree = ti < numTrees ? myLocation.distanceTo(trees[ti].location) - trees[0].radius*0.2f : 10000;
             } else {
                 // Closest thing is a robot
                 RobotInfo robot = robots[ri];
@@ -554,7 +554,21 @@ abstract class Robot {
                 end = dir.radians + radiansDelta + (float) Math.PI;
 
                 probabilityToHit = robot.type.bodyRadius / halfwidth;
-                pointsForHitting = robot.team == rc.getTeam() ? -1f : 1f;
+                if (robot.team == rc.getTeam()) {
+                    pointsForHitting = -0.5f;
+                } else {
+                    switch(robot.type) {
+                        case ARCHON:
+                            pointsForHitting = rc.getRoundNum() > 2000 ? 0.8f : 0f;
+                            break;
+                        case GARDENER:
+                            pointsForHitting = 0.5f;
+                            break;
+                        default:
+                            pointsForHitting = 1f;
+                            break;
+                    }
+                }
 
                 ri++;
                 distanceToNextRobot = ri < numRobots ? myLocation.distanceTo(robots[ri].location) : 10000;
