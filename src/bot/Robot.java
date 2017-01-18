@@ -419,20 +419,25 @@ abstract class Robot {
                 if (bestRobotsTried.contains(robot.ID))
                     continue;
                 float score = 0;
-                if (robot.getType() == RobotType.GARDENER) {
-                    score += 100;
-                } else if (robot.getType() == RobotType.ARCHON)
-                    score += targetArchons ? 1f : 0f;
-                else if (robot.getType() == RobotType.SCOUT)
-                    score += 150;
-                if (robot.getType() == RobotType.LUMBERJACK || robot.getType() == RobotType.SOLDIER || robot.getType() == RobotType.TANK) {
-                    if (closestThreat == null || robot.location.distanceTo(myLocation) < closestThreat.distanceTo(myLocation)) {
-                        closestThreat = robot.location;
-                    }
-                    score += 50;
+                switch(robot.type) {
+                    case GARDENER:
+                        score += 100;
+                        break;
+                    case ARCHON:
+                        score += targetArchons ? 1f : 0f;
+                        break;
+                    case SCOUT:
+                        score += 150;
+                        break;
+                    default:
+                        if (closestThreat == null || robot.location.distanceTo(myLocation) < closestThreat.distanceTo(myLocation)) {
+                            closestThreat = robot.location;
+                        }
+                        score += 50;
+                        break;
                 }
-                score /= 4 + robot.getHealth() / robot.getType().maxHealth;
-                score /= myLocation.distanceTo(robot.getLocation()) + 1;
+                score /= 4 + robot.health / robot.type.maxHealth;
+                score /= myLocation.distanceTo(robot.location) + 1;
                 if (score > bestScore2) {
                     bestScore2 = score;
                     bestRobot = robot;
@@ -775,15 +780,20 @@ abstract class Robot {
                     else
                         score -= 0.5 / (unit.location.distanceTo(loc) + 1);
                 } else {
-                    if (unit.getType() == RobotType.SCOUT || unit.getType() == RobotType.SOLDIER || unit.getType() == RobotType.TANK) {
-                        score -= 2f / (loc.distanceSquaredTo(unit.location) + 1);
-                    } else if (unit.getType() == RobotType.LUMBERJACK) {
-                        float dis = loc.distanceTo(unit.location);
-                        score -= 10f / (dis * dis + 1);
-                        score += 0.8f / (dis + 1);
-                        if (dis < GameConstants.LUMBERJACK_STRIKE_RADIUS + 3f) {
-                            score -= 1000;
-                        }
+                    switch(unit.type) {
+                        case SCOUT:
+                        case SOLDIER:
+                        case TANK:
+                            score -= 2f / (loc.distanceSquaredTo(unit.location) + 1);
+                            break;
+                        case LUMBERJACK:
+                            float dis = loc.distanceTo(unit.location);
+                            score -= 10f / (dis * dis + 1);
+                            score += 0.8f / (dis + 1);
+                            if (dis < GameConstants.LUMBERJACK_STRIKE_RADIUS + 3f) {
+                                score -= 1000;
+                            }
+                            break;
                     }
                 }
             }
@@ -834,7 +844,7 @@ abstract class Robot {
         float radius = info.bodyRadius;
         float sqrRadius = radius * radius;
 
-        for (int i = 0; i < numBullets; i += 1) {
+        for (int i = 0; i < numBullets; i++) {
 
             // Current bullet position
             float prevX = bulletX[i] - locx;
