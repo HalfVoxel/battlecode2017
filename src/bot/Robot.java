@@ -465,6 +465,7 @@ abstract class Robot {
                     if (rc.canFireSingleShot()) {
                         // ...Then fire a bullet in the direction of the enemy.
                         rc.fireSingleShot(dir);
+                        //fireAtNearbyRobotSweep(friendlyRobots, hostileRobots, trees);
                     }
 
                     break;
@@ -474,6 +475,145 @@ abstract class Robot {
             }
             if (Clock.getBytecodesLeft() < 3000)
                 break;
+        }
+    }
+
+    static final int SWEEP_DIRECTIONS = 30;
+    float[] directionScores = new float[SWEEP_DIRECTIONS];
+    float[] transparencies = new float[SWEEP_DIRECTIONS];
+
+    void debug_directions() {
+        for (int i = 0; i < SWEEP_DIRECTIONS; i++) {
+            Direction d1 = new Direction(2*(float)Math.PI * i / (float)SWEEP_DIRECTIONS - (float)Math.PI);
+            Direction d2 = new Direction(2*(float)Math.PI * (i+1) / (float)SWEEP_DIRECTIONS - (float)Math.PI);
+            float radius = rc.getType().bodyRadius*1.5f;
+            MapLocation p1 = rc.getLocation().add(d1, radius);
+            MapLocation p2 = rc.getLocation().add(d2, radius);
+
+            float value = directionScores[i];
+            float r = Math.max(Math.min(value * 3f, 1f), 0f);
+            float g = Math.max(Math.min((value - 1 / 3f) * 3f, 1f), 0f);
+            float b = Math.max(Math.min((value - 2 / 3f) * 3f, 1f), 0f);
+
+            rc.setIndicatorLine(p1, p2, (int) (r * 255f), (int) (g * 255f), (int) (b * 255f));
+        }
+    }
+
+    void fireAtNearbyRobotSweep2 (RobotInfo[] robots, TreeInfo[] trees) throws GameActionException {
+        if (!rc.canFireSingleShot()) return;
+
+        int numTrees = Math.min(trees.length, 4);
+        int numRobots = Math.min(robots.length, 6);
+        MapLocation myLocation = rc.getLocation();
+        float bulletSpeed = rc.getType().bulletSpeed;
+        Team enemy = rc.getTeam().opponent();
+
+        int w1 = Clock.getBytecodeNum();
+
+        for (int i = 0; i < directionScores.length; i++) {
+            directionScores[i] = 0f;
+            transparencies[i] = 1f;
+        }
+
+        // Go through the objects in sorted order
+        float distanceToNextTree = numTrees > 0 ? myLocation.distanceTo(trees[0].location) : 10000;
+        float distanceToNextRobot = numRobots > 0 ? myLocation.distanceTo(robots[0].location) : 10000;
+        int ri = 0;
+        int ti = 0;
+        while(ri < numRobots || ti < numTrees) {
+            float start;
+            float end;
+            float probabilityToHit;
+            float pointsForHitting;
+
+            if (distanceToNextTree < distanceToNextRobot) {
+                // Closest thing is a tree
+                TreeInfo tree = trees[ti];
+                Direction dir = myLocation.directionTo(tree.location);
+                float dist = distanceToNextTree;
+                float halfwidth = tree.radius;
+                float radiansDelta = Math.min(halfwidth / dist, (float)Math.PI);
+                start = dir.radians - radiansDelta + (float) Math.PI;
+                end = dir.radians + radiansDelta + (float) Math.PI;
+                probabilityToHit = 1f;
+                pointsForHitting = -0.001f;
+
+                ti++;
+                distanceToNextTree = ti < numTrees ? myLocation.distanceTo(trees[ti].location) : 10000;
+            } else {
+                // Closest thing is a robot
+                RobotInfo robot = robots[ri];
+
+                Direction dir = myLocation.directionTo(robot.location);
+                float stride = 0.5f * robot.type.strideRadius;
+                float dist = distanceToNextRobot;
+                float halfwidth = robot.type.bodyRadius + stride * (dist / bulletSpeed);
+                float radiansDelta = halfwidth / dist;
+
+                start = dir.radians - radiansDelta + (float) Math.PI;
+                end = dir.radians + radiansDelta + (float) Math.PI;
+
+                probabilityToHit = robot.type.bodyRadius / halfwidth;
+                pointsForHitting = robot.team == rc.getTeam() ? -1f : 1f;
+
+                ri++;
+                distanceToNextRobot = ri < numRobots ? myLocation.distanceTo(robots[ri].location) : 10000;
+            }
+
+            int startIndex = (int) Math.floor(start * (SWEEP_DIRECTIONS / (2*Math.PI)));
+            int endIndex = (int) Math.floor(end * (SWEEP_DIRECTIONS / (2*Math.PI)));
+
+            pointsForHitting *= probabilityToHit;
+            float probabilityOfNotHitting = 1f - probabilityToHit;
+
+            if (startIndex < 0) {
+                for (int i = startIndex + SWEEP_DIRECTIONS; i < SWEEP_DIRECTIONS; i++) {
+                    directionScores[i] += pointsForHitting * transparencies[i];
+                    transparencies[i] *= probabilityOfNotHitting;
+                }
+
+                startIndex = 0;
+            }
+
+            if (endIndex >= SWEEP_DIRECTIONS) {
+                for (int i = endIndex - SWEEP_DIRECTIONS; i >= 0; i--) {
+                    directionScores[i] += pointsForHitting * transparencies[i];
+                    transparencies[i] *= probabilityOfNotHitting;
+                }
+
+                endIndex = SWEEP_DIRECTIONS - 1;
+            }
+
+            while (startIndex <= endIndex) {
+                directionScores[startIndex] += pointsForHitting * transparencies[startIndex];
+                transparencies[startIndex] *= probabilityOfNotHitting;
+                startIndex++;
+            }
+        }
+
+        Direction bestDirection = null;
+        float bestScore = 0f;
+        for (RobotInfo robot : robots) {
+            if (robot.team == enemy) {
+                Direction dir = myLocation.directionTo(robot.location);
+                int index = (int)Math.floor((dir.radians + Math.PI) * (SWEEP_DIRECTIONS /(2*Math.PI)));
+                float score = directionScores[index];
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestDirection = dir;
+                }
+            }
+        }
+
+        if (bestDirection != null) {
+            rc.fireSingleShot(bestDirection);
+        }
+
+        int w2 = Clock.getBytecodeNum();
+        debug_directions();
+
+        if (robots.length > 1) {
+            System.out.println("SWEEP2: " + (w2 - w1) + " " + numRobots + " " + numTrees);
         }
     }
 
