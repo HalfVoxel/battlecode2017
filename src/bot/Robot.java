@@ -335,13 +335,13 @@ abstract class Robot {
 
     void shakeNearbyTrees() throws GameActionException {
         if (rc.canShake()) {
-            TreeInfo[] trees = rc.senseNearbyTrees(info.bodyRadius + info.strideRadius);
+            TreeInfo[] trees = rc.senseNearbyTrees(info.bodyRadius + info.strideRadius - 0.001f);
             TreeInfo bestTree = null;
             for (TreeInfo tree : trees) {
                 // Make sure it is not the tree of an opponent
-                if (!tree.team.isPlayer() || tree.team == rc.getTeam()) {
+                if (tree.team == Team.NEUTRAL || tree.team == rc.getTeam()) {
                     // Make sure the tree has bullets and pick the tree with the most bullets in it
-                    if (tree.containedBullets > 1 && (bestTree == null || tree.containedBullets > bestTree.containedBullets) && rc.canShake(tree.getID())) {
+                    if (tree.containedBullets > 0 && (bestTree == null || tree.containedBullets > bestTree.containedBullets)) {
                         bestTree = tree;
                     }
                 }
