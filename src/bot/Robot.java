@@ -565,7 +565,7 @@ abstract class Robot {
             eventCount += 2;
         }
 
-        int numHostile = Math.min(friendlyRobots.length, 4);
+        int numHostile = Math.min(hostileRobots.length, 4);
         for (int i = 0; i < numHostile; i++) {
             RobotInfo robot = hostileRobots[i];
 
@@ -716,7 +716,7 @@ abstract class Robot {
         }
 
         if (bestAngle != -1) {
-            float angle = bestAngle / 1000f;
+            float angle = (bestAngle / 1000f) - (float)Math.PI;
             rc.fireSingleShot(new Direction(angle));
         }
     }

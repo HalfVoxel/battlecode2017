@@ -228,7 +228,7 @@ class Scout extends Robot {
             float bestScore = -1000000f;
             MapLocation bestMove = null;
             int iterationsDone = 0;
-            while (Clock.getBytecodesLeft() > 4000 || iterationsDone < 2) {
+            while (Clock.getBytecodesLeft() > 5500 || iterationsDone < 2) {
                 iterationsDone += 1;
                 MapLocation loc;
                 if (movesToConsider.isEmpty()) {
@@ -267,7 +267,8 @@ class Scout extends Robot {
             }
 
             boolean targetArchons = !highPriorityTargetExists() && rc.getRoundNum() > 2000;
-            fireAtNearbyRobot(friendlyRobots, robots, targetArchons);
+            //fireAtNearbyRobot(friendlyRobots, robots, targetArchons);
+            fireAtNearbyRobotSweep(friendlyRobots, robots, trees);
 
             if (!rc.hasAttacked() && rc.canFireSingleShot() && turnsLeft > STOP_SPENDING_AT_TIME) {
                 float bestScore3 = -1000000f;
