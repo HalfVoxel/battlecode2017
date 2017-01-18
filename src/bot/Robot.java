@@ -477,6 +477,250 @@ abstract class Robot {
         }
     }
 
+    final static int[] next = new int[100];
+    final static float[] distances = new float[100];
+    final static float[] probabilityOfNotHitting = new float[100];
+    // Note: premultiplied with (1 - probabilityOfNotHitting)
+    final static float[] pointsForHitting = new float[100];
+    final static long[] events = new long[100];
+    final static long[] potentialFiringDirections = new long[100];
+    final static int[] initialEvents = new int[100];
+
+    void fireAtNearbyRobotSweep (RobotInfo[] friendlyRobots, RobotInfo[] hostileRobots, TreeInfo[] trees) throws GameActionException {
+        if (!rc.canFireSingleShot()) return;
+
+        //String IDENT = "[" + rnd.nextInt(1000) + "]: ";
+
+        int w1 = Clock.getBytecodeNum();
+        // First 2 event indices are not used
+        int eventCount = 2;
+        MapLocation myLocation = rc.getLocation();
+        float bulletSpeed = rc.getType().bulletSpeed;
+
+        int initialEventCount = 0;
+        int firingDirections = 0;
+
+        int numTrees = Math.min(trees.length, 5);
+        for (int i = 0; i < numTrees; i++) {
+            TreeInfo tree = trees[i];
+
+            Direction dir = myLocation.directionTo(tree.location);
+            float dist = myLocation.distanceTo(tree.location);
+            float halfwidth = tree.radius;
+            float radiansDelta = halfwidth / dist;
+            probabilityOfNotHitting[eventCount] = 1f;
+            float start = dir.radians - radiansDelta + (float)Math.PI;
+            float end = dir.radians + radiansDelta + (float)Math.PI;
+
+            if (start < 0) {
+                start += Math.PI*2;
+                initialEvents[initialEventCount] = eventCount;
+                initialEventCount++;
+            }
+
+            if (end > Math.PI*2) {
+                end -= Math.PI*2;
+                initialEvents[initialEventCount] = eventCount;
+                initialEventCount++;
+            }
+
+            events[eventCount] = (long) (1000 * start) << 32 | eventCount;
+            events[eventCount+1] = (long) (1000 * end) << 32 | eventCount + 1;
+            distances[eventCount] = dist;
+            pointsForHitting[eventCount] = -0.01f;
+            eventCount += 2;
+        }
+
+        int numFriendly = Math.min(friendlyRobots.length, 4);
+        for (int i = 0; i < numFriendly; i++) {
+            RobotInfo robot = friendlyRobots[i];
+
+            Direction dir = myLocation.directionTo(robot.location);
+            float stride = 0.5f * robot.type.strideRadius;
+            float dist = myLocation.distanceTo(robot.location);
+            float halfwidth = robot.type.bodyRadius + stride * (dist / bulletSpeed);
+            float transparency = 1f - robot.type.bodyRadius / halfwidth;
+            float radiansDelta = halfwidth / dist;
+            //System.out.println("Width in radians: " + radiansDelta + " " + dist + " " + halfwidth);
+            probabilityOfNotHitting[eventCount] = transparency;
+            float start = dir.radians - radiansDelta + (float)Math.PI;
+            float end = dir.radians + radiansDelta + (float)Math.PI;
+
+            if (start < 0) {
+                start += Math.PI*2;
+                initialEvents[initialEventCount] = eventCount;
+                initialEventCount++;
+            }
+
+            if (end > Math.PI*2) {
+                end -= Math.PI*2;
+                initialEvents[initialEventCount] = eventCount;
+                initialEventCount++;
+            }
+
+            events[eventCount] = (long) (1000 * start) << 32 | eventCount;
+            events[eventCount+1] = (long) (1000 * end) << 32 | eventCount + 1;
+            distances[eventCount] = dist;
+            pointsForHitting[eventCount] = -1f;
+            eventCount += 2;
+        }
+
+        int numHostile = Math.min(friendlyRobots.length, 4);
+        for (int i = 0; i < numHostile; i++) {
+            RobotInfo robot = hostileRobots[i];
+
+            Direction dir = myLocation.directionTo(robot.location);
+            float stride = 0.5f * robot.type.strideRadius;
+            float dist = myLocation.distanceTo(robot.location);
+            float halfwidth = robot.type.bodyRadius + stride * (dist / bulletSpeed);
+            float transparency = 1f - robot.type.bodyRadius / halfwidth;
+            float radiansDelta = halfwidth / dist;
+            //System.out.println("Width in radians: " + radiansDelta + " " + dist + " " + halfwidth);
+            probabilityOfNotHitting[eventCount] = transparency;
+            float start = dir.radians - radiansDelta + (float)Math.PI;
+            float end = dir.radians + radiansDelta + (float)Math.PI;
+
+            if (start < 0) {
+                start += Math.PI*2;
+                initialEvents[initialEventCount] = eventCount;
+                initialEventCount++;
+            }
+
+            if (end > Math.PI*2) {
+                end -= Math.PI*2;
+                initialEvents[initialEventCount] = eventCount;
+                initialEventCount++;
+            }
+
+            events[eventCount] = (long) (1000 * start) << 32 | eventCount;
+            events[eventCount+1] = (long) (1000 * end) << 32 | eventCount + 1;
+            distances[eventCount] = dist;
+            pointsForHitting[eventCount] = 1f;
+            eventCount += 2;
+
+            potentialFiringDirections[firingDirections] = (long)(1000 * (dir.radians + (float)Math.PI));
+            firingDirections++;
+        }
+
+        int w2 = Clock.getBytecodeNum();
+
+        // Inlined sorting algorithm
+        int left = 2;
+        int right = eventCount - 1;
+        for (int i = left, j = i; i < right; j = ++i) {
+            long ai = events[i + 1];
+            while (ai < events[j]) {
+                events[j + 1] = events[j];
+                if (j-- == left) {
+                    break;
+                }
+            }
+            events[j + 1] = ai;
+        }
+
+        int w3 = Clock.getBytecodeNum();
+
+        int w4 = Clock.getBytecodeNum();
+        Arrays.sort(potentialFiringDirections, 0, firingDirections);
+
+        /*
+        for (int i = 2; i < eventCount; i++) {
+            long ev = events[i];
+            int id = (int)ev;
+            float angle = (ev >> 32) / 1000f;
+            //System.out.println(IDENT + "Event " + id + " at angle " + angle);
+        }*/
+
+        // Add events crossing the 0 radian mark
+        int prev = 0;
+        for (int i = 0; i < initialEventCount; i++) {
+            //System.out.println(IDENT + "Inserting initial id " + initialEvents[i]);
+            prev = next[prev] = initialEvents[i];
+        }
+        next[prev] = -1;
+
+        float bestScore = 0f;
+        long bestAngle = -1;
+
+        if (firingDirections == 0) {
+            // Nowhere to shoot
+            return;
+        }
+
+        int nextFiringDirectionIndex = 0;
+        long nextFiringDirection = potentialFiringDirections[0];
+
+        for (int i = 2; i < eventCount; i++) {
+            long ev = events[i];
+            int id = (int)ev;
+
+            long angle = ev >> 32;
+            if (angle > nextFiringDirection) {
+                // Calculate score for interval
+                float rayStrength = 1f;
+                float score = 0f;
+                int c = next[0];
+                while(c != -1) {
+                    score += rayStrength * pointsForHitting[c];
+                    rayStrength *= probabilityOfNotHitting[c];
+                    c = next[c];
+                }
+
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestAngle = nextFiringDirection;
+                }
+
+                nextFiringDirectionIndex++;
+                if (nextFiringDirectionIndex < firingDirections) {
+                    nextFiringDirection = potentialFiringDirections[nextFiringDirectionIndex];
+                } else {
+                    // No more firing directions to consider
+                    break;
+                }
+            }
+
+            if ((id & 1) == 0) {
+                float dist = distances[id];
+                // Start of interval
+                // Insert into sorted linked list
+                //System.out.println(IDENT + "Inserting id " + id);
+                int c = 0;
+                while(true) {
+                    int k = next[c];
+                    if (k == -1 || dist < distances[k]) {
+                        next[id] = next[c];
+                        next[c] = id;
+                        break;
+                    }
+                    c = k;
+                }
+            } else {
+                // End of interval
+                // Remove from linked list
+                //System.out.println(IDENT + "Removing id " + id);
+                id -= 1;
+                int c = 0;
+                while(next[c] != id) {
+                    c = next[c];
+                }
+                next[c] = next[next[c]];
+            }
+        }
+
+
+        int w5 = Clock.getBytecodeNum();
+
+        if (hostileRobots.length > 1) {
+            System.out.println("Sweep: " + (w2-w1) + " " + (w3-w2) + " " + (w4 - w3) + " " + (w5 - w4) + ": " + hostileRobots.length + " " + friendlyRobots.length + " " + numTrees);
+        }
+
+        if (bestAngle != -1) {
+            float angle = bestAngle / 1000f;
+            rc.fireSingleShot(new Direction(angle));
+        }
+    }
+
     /**
      * A slightly more complicated example function, this returns true if the given bullet is on a collision
      * course with the current robot. Doesn't take into account objects between the bullet and this robot.
