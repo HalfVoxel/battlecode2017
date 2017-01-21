@@ -138,6 +138,7 @@ class Scout extends Robot {
     float[] bulletDamage = new float[100];
     float[] bulletSpeed = new float[100];
     boolean[] isDangerous = new boolean[100];
+    MapLocation[] movesToConsider = new MapLocation[100];
 
     public void run() throws GameActionException {
         System.out.println("I'm a scout!");
@@ -166,28 +167,24 @@ class Scout extends Robot {
             TreeInfo[] neutralTrees = rc.senseNearbyTrees(-1, Team.NEUTRAL);
 
 
-            int numDangerous = 0;
             int bulletsToConsider = Math.min(nearbyBullets.length, bulletX.length);
-            for (int i = 0; i < bulletsToConsider; i += 1) {
-                if (bulletCanHitUs(rc.getLocation(), nearbyBullets[i])) {
-                    isDangerous[i] = true;
-                    numDangerous += 1;
-                } else
-                    isDangerous[i] = false;
+            for (int i = 0; i < bulletsToConsider; i++) {
+                isDangerous[i] = bulletCanHitUs(myLocation, nearbyBullets[i]);
             }
 
-            int j = 0;
-            for (int i = 0; i < bulletsToConsider; i += 1) {
+            int numDangerous = 0;
+            for (int i = 0; i < bulletsToConsider; i++) {
                 if (!isDangerous[i])
                     continue;
+
                 BulletInfo bullet = nearbyBullets[i];
-                bulletX[j] = bullet.location.x;
-                bulletY[j] = bullet.location.y;
-                bulletDx[j] = bullet.dir.getDeltaX(1);
-                bulletDy[j] = bullet.dir.getDeltaY(1);
-                bulletDamage[j] = bullet.damage;
-                bulletSpeed[j] = bullet.speed;
-                j += 1;
+                bulletX[numDangerous] = bullet.location.x;
+                bulletY[numDangerous] = bullet.location.y;
+                bulletDx[numDangerous] = bullet.dir.getDeltaX(1);
+                bulletDy[numDangerous] = bullet.dir.getDeltaY(1);
+                bulletDamage[numDangerous] = bullet.damage;
+                bulletSpeed[numDangerous] = bullet.speed;
+                numDangerous++;
             }
 
             // Pick a new target with a small probability or when very close to the target
@@ -217,12 +214,12 @@ class Scout extends Robot {
                     tryMove(defenderTarget.location);
                 }
             } else {
-                List<MapLocation> movesToConsider = new ArrayList<>();
+                int numMovesToConsider = 0;
                 RobotInfo closestEnemy = null;
                 float disToClosestEnemy = 1000000f;
 
                 if (myLocation.distanceTo(target) > 0) {
-                    movesToConsider.add(myLocation.add(myLocation.directionTo(target), info.strideRadius));
+                    movesToConsider[numMovesToConsider++] = myLocation.add(myLocation.directionTo(target), info.strideRadius);
                 }
 
                 for (RobotInfo robot : robots) {
@@ -235,17 +232,18 @@ class Scout extends Robot {
 
                 if (closestEnemy != null) {
                     Direction dir = myLocation.directionTo(closestEnemy.location);
-                    movesToConsider.add(myLocation.add(dir.opposite(), info.strideRadius));
+                    movesToConsider[numMovesToConsider++] = myLocation.add(dir.opposite(), info.strideRadius);
                 }
 
                 float bestScore = -1000000f;
                 MapLocation bestMove = null;
                 int iterationsDone = 0;
-                        int processingTime = 0;
+                int processingTime = 0;
                 while (Clock.getBytecodesLeft()-processingTime > 3000 || iterationsDone < 2) {
-                    iterationsDone += 1;
                     MapLocation loc;
-                    if (movesToConsider.isEmpty()) {
+                    if (iterationsDone < numMovesToConsider) {
+                        loc = movesToConsider[iterationsDone];
+                    } else {
                         Direction dir = randomDirection();
                         int r = rnd.nextInt(10);
                         if (r < 5)
@@ -254,9 +252,6 @@ class Scout extends Robot {
                             loc = myLocation.add(dir, info.strideRadius * 0.5f);
                         else
                             loc = myLocation.add(dir, 0.2f);
-                    } else {
-                        loc = movesToConsider.get(0);
-                        movesToConsider.remove(0);
                     }
 
                     if (rc.canMove(loc)) {
@@ -269,58 +264,18 @@ class Scout extends Robot {
                         }
                         processingTime = bytecodesBefore - Clock.getBytecodesLeft();
                     }
+
+                    iterationsDone += 1;
                 }
+
+                System.out.println("ITERATIONS: " + iterationsDone);
                 if (bestMove != null) {
                     rc.move(bestMove);
                 }
             }
 
-            boolean nearbyEnemyGardener = false;
-            for (RobotInfo robot : robots) {
-                if (robot.getType() == RobotType.GARDENER) {
-                    nearbyEnemyGardener = true;
-                    break;
-                }
-            }
-
             boolean targetArchons = !highPriorityTargetExists() && rc.getRoundNum() > 2000;
             fireAtNearbyRobot(friendlyRobots, robots, targetArchons);
-            //fireAtNearbyRobotSweep(friendlyRobots, robots, trees);
-            //fireAtNearbyRobotSweep2(allRobots, trees);
-
-            /*if (!rc.hasAttacked() && rc.canFireSingleShot() && turnsLeft > STOP_SPENDING_AT_TIME) {
-                float bestScore3 = -1000000f;
-                RobotInfo bestRobot = null;
-                for (RobotInfo robot : robots) {
-                    if (robot.getType() != RobotType.SCOUT)
-                        continue;
-                    if (myLocation.distanceTo(robot.location) > 5.5f)
-                        continue;
-                    float score = 1;
-                    score /= myLocation.distanceTo(robot.getLocation()) + 1;
-                    if (score > bestScore3) {
-                        bestScore3 = score;
-                        bestRobot = robot;
-                    }
-                }
-
-                if (bestRobot != null) {
-                    lastAttackedEnemyID = bestRobot.getID();
-                    BodyInfo firstUnitHit = linecast(bestRobot.location);
-                    if (firstUnitHit != null && firstUnitHit.isTree()) {
-                        TreeInfo tree = (TreeInfo) firstUnitHit;
-
-                        if ((tree.health < 10 || tree.health > 25) && tree.getTeam() == rc.getTeam().opponent()) {
-                            rc.fireSingleShot(rc.getLocation().directionTo(bestRobot.location));
-                            System.out.println("Firing despite trees!");
-                        }
-                    }
-                }
-            }
-
-            if (!nearbyEnemyGardener && !rc.hasAttacked()) {
-                fireAtNearbyTree(trees);
-            }*/
 
             if (rc.getRoundNum() != roundAtStart) {
                 System.out.println("Error! Did not finish within the bytecode limit");
