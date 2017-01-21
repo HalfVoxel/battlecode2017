@@ -7,8 +7,9 @@ import re
 import sys
 import random
 import signal
+from itertools import chain
 
-maps = ["Arena", "Barbell", "Barrier", "Boxed", "Bullseye", "Chess", "Clusters", "Cramped", "DenseForest", "DigMeOut", "Enclosure", "GiantForest", "Hurdle", "LilForts", "LineOfFire", "MagicWood", "Maniple", "MyFirstMap", "OMGTree", "PasscalsTriangles", "Shrubbery", "SparseForest", "Sprinkles", "Standoff", "Waves", "shrine"]
+maps = ["Arena", "Barbell", "Barrier", "Boxed", "Bullseye", "Chess", "Clusters", "Cramped", "CrossFire", "DenseForest", "DigMeOut", "Enclosure", "GiantForest", "Hurdle", "LilForts", "LineOfFire", "MagicWood", "Maniple", "MyFirstMap", "OMGTree", "PasscalsTriangles", "Shrubbery", "SparseForest", "Sprinkles", "Standoff", "Waves", "shrine", "BulletHell"]
 lowerMaps = [m.lower() for m in maps]
 
 parser = argparse.ArgumentParser(description='Run BattleCode Bots')
@@ -18,6 +19,7 @@ parser.add_argument("-b", "--teamB", help="Team B")
 parser.add_argument("--tournament", help="Play multiple games and rank the teams", action="store_true")
 parser.add_argument("-q", "--quiet", help="Don't print bot logs", action="store_true")
 parser.add_argument("--seed", help="Seed for the game or tournament", type=int)
+parser.add_argument("--single-thread", help="Disable any parallelization", action="store_true")
 args = parser.parse_args()
 
 red = (201, 27, 0)
@@ -145,11 +147,17 @@ if args.tournament:
         # Run AvsB and BvsA in parallel
         g1 = run_tournament_part(args.teamA, args.teamB, False, seed)
         g2 = run_tournament_part(args.teamA, args.teamB, True, seed)
-        for v in zip(g1, g2):
-            for teamAwon in v:
+        if args.single_thread:
+            for teamAwon in chain(g1, g2):
                 if teamAwon:
                     teamAwins += 1
                 totalCount += 1
+        else:
+            for v in zip(g1, g2):
+                for teamAwon in v:
+                    if teamAwon:
+                        teamAwins += 1
+                    totalCount += 1
 
         print("Team A has won " + str((teamAwins / totalCount) * 100) + "% of the time (" +
               str(teamAwins) + " of " + str(totalCount) + ")")
