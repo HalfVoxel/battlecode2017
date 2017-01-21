@@ -1362,17 +1362,15 @@ abstract class Robot {
 
     void considerDonating() throws GameActionException{
         double cost = rc.getVictoryPointCost();
-        double maxPoints = rc.getTeamVictoryPoints() + Math.floor(rc.getTeamBullets() / cost);
-        if (maxPoints >= GameConstants.VICTORY_POINTS_TO_WIN) {
-            double donate = Math.floor(rc.getTeamBullets() / cost) * cost;
-            rc.donate((float) donate);
-        } else if (rc.getRoundNum() > rc.getRoundLimit()-300) {
-            double donate = Math.floor((rc.getTeamBullets() - 25) / cost) * cost;
-            rc.donate((float) donate);
-        } else if (rc.getTeamBullets() > 2000) {
-            // Victory points get more expensive over time, so donate them early on
-            final int bulletsToKeep = 2000;
-            rc.donate(rc.getTeamBullets() - bulletsToKeep);
+        double income = rc.getTreeCount() + 2;
+        double victoryPointsLeft = GameConstants.VICTORY_POINTS_TO_WIN - rc.getTeamVictoryPoints();
+        double turnsUntilVictory = (victoryPointsLeft * cost) / income;
+        if (turnsUntilVictory < 250 || rc.getRoundNum() > rc.getRoundLimit() - 300 || rc.getTeamBullets() > 2000) {
+            int shouldBuy = (int)Math.floor(rc.getTeamBullets() / cost);
+            double donate = shouldBuy * cost + 0.0001;
+            if (donate > 0) {
+                rc.donate((float) donate);
+            }
         }
     }
 }
