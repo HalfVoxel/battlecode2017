@@ -85,7 +85,18 @@ class Scout extends Robot {
     }
 
 
-    private TreeInfo findBestTreeToShake(TreeInfo[] neutralTrees) {
+    int lastBestTree = -1;
+    int lastBestTreeTick = -1;
+
+    private TreeInfo findBestTreeToShake(TreeInfo[] neutralTrees) throws GameActionException {
+        // Cache the best tree for a few ticks
+        if (rc.getRoundNum() < lastBestTree + 10 && rc.canSenseTree(lastBestTree)) {
+            TreeInfo tree = rc.senseTree(lastBestTree);
+            if (tree.containedBullets > 0) {
+                return tree;
+            }
+        }
+
         TreeInfo bestTree = null;
         float bestTreeScore = -1000000f;
         MapLocation myLocation = rc.getLocation();
@@ -101,6 +112,11 @@ class Scout extends Robot {
                     bestTreeScore = score;
                 }
             }
+        }
+
+        if (bestTree != null) {
+            lastBestTree = bestTree.ID;
+            lastBestTreeTick = rc.getRoundNum();
         }
 
         return bestTree;
