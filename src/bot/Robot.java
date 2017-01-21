@@ -1117,7 +1117,8 @@ abstract class Robot {
             }
         }
 
-        if (bestMove != null) {
+        // We need to check again that the move is legal, in case we exceeded the byte code limit
+        if (bestMove != null && rc.canMove(bestMove)) {
             rc.move(bestMove);
         }
     }

@@ -65,32 +65,32 @@ class Lumberjack extends Robot {
                     Direction toEnemy = myLocation.directionTo(enemyLocation);
                     tryMove(toEnemy);
                     success = true;
-                } else {
-                    // Try to find a good tree to chop down
-                    boolean done = false;
-                    while (!done) {
-                        TreeInfo bestTree = findBestTreeToChop();
-                        if (bestTree != null) {
-                            MapLocation myLocation = rc.getLocation();
+                }
 
-                            Direction towards = myLocation.directionTo(bestTree.location);
-                            if (rc.canChop(bestTree.ID)) {
-                                rc.chop(bestTree.ID);
-                                rc.setIndicatorLine(rc.getLocation(), bestTree.location, 0, 255, 0);
-                                done = true;
-                                success = true;
-                            } else if (tryMove(towards)) {
-                                rc.setIndicatorLine(rc.getLocation(), bestTree.location, 0, 0, 0);
-                                done = true;
-                                success = true;
-                            } else {
-                                // Don't try to chop down this tree until after N turns
-                                badTrees.put(bestTree.getID(), rc.getRoundNum() + 25);
-                                rc.setIndicatorLine(rc.getLocation(), bestTree.location, 255, 0, 0);
-                            }
-                        } else {
+                // Try to find a good tree to chop down
+                boolean done = false;
+                while (!done) {
+                    TreeInfo bestTree = findBestTreeToChop();
+                    if (bestTree != null) {
+                        MapLocation myLocation = rc.getLocation();
+
+                        Direction towards = myLocation.directionTo(bestTree.location);
+                        if (rc.canChop(bestTree.ID)) {
+                            rc.chop(bestTree.ID);
+                            rc.setIndicatorLine(rc.getLocation(), bestTree.location, 0, 255, 0);
                             done = true;
+                            success = true;
+                        } else if (!rc.hasMoved() && tryMove(towards)) {
+                            rc.setIndicatorLine(rc.getLocation(), bestTree.location, 0, 0, 0);
+                            done = true;
+                            success = true;
+                        } else {
+                            // Don't try to chop down this tree until after N turns
+                            badTrees.put(bestTree.getID(), rc.getRoundNum() + 25);
+                            rc.setIndicatorLine(rc.getLocation(), bestTree.location, 255, 0, 0);
                         }
+                    } else {
+                        done = true;
                     }
                 }
 
