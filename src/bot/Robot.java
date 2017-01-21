@@ -337,8 +337,8 @@ abstract class Robot {
     }
 
     void broadcast(int channel, MapLocation pos) throws GameActionException {
-        rc.broadcast(channel, (int) (pos.x * 1000));
-        rc.broadcast(channel + 1, (int) (pos.y * 1000));
+        rc.broadcastFloat(channel, pos.x);
+        rc.broadcastFloat(channel+1, pos.y);
     }
 
     void broadcast(int channel, long v) throws GameActionException {
@@ -351,7 +351,7 @@ abstract class Robot {
     }
 
     MapLocation readBroadcastPosition(int channel) throws GameActionException {
-        return new MapLocation(rc.readBroadcast(channel) / 1000f, rc.readBroadcast(channel + 1) / 1000f);
+        return new MapLocation(rc.readBroadcastFloat(channel), rc.readBroadcastFloat(channel + 1));
     }
 
     void updateLiveness() throws GameActionException {
@@ -401,7 +401,7 @@ abstract class Robot {
         if (globalMapEdgesDetermined != mapEdgesDetermined) {
             mapEdgesDetermined = globalMapEdgesDetermined;
             for (int i = 0; i < 4; i++) {
-                mapEdges[i] = rc.readBroadcast(MAP_EDGE_BROADCAST_OFFSET + i + 1) / 1000f;
+                mapEdges[i] = rc.readBroadcastFloat(MAP_EDGE_BROADCAST_OFFSET + i + 1);
             }
         }
 
@@ -424,7 +424,7 @@ abstract class Robot {
 
                     MapLocation mapEdge = rc.getLocation().add(angle, mn);
                     float result = i % 2 == 0 ? mapEdge.x : mapEdge.y;
-                    rc.broadcast(MAP_EDGE_BROADCAST_OFFSET + i + 1, (int) (result * 1000));
+                    rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + i + 1, result);
                     // This robot will pick up the change for real the next time determineMapSize is called
                     tmpDetermined |= (1 << i);
                     rc.broadcast(MAP_EDGE_BROADCAST_OFFSET, tmpDetermined);
