@@ -20,9 +20,13 @@ abstract class Robot {
     static final int GARDENER_CAN_PROBABLY_BUILD = 40;
     static final int PRIMARY_UNIT = 50;
     static final int HAS_SEEN = 1000;
+    static final int PATHFINDING = 3000;
 
     private static final int EXPLORATION_OFFSET = 100;
-    private static final int EXPLORATION_CHUNK_SIZE = 25;
+    private static final float PATHFINDING_NODE_SIZE = 2.0f;
+    private static final int PATHFINDING_CHUNK_SIZE = 4;
+    private static final int PATHFINDING_WORLD_WIDTH = 100;
+    private static final float PATHFINDING_CHUNK_RADIUS = PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE * 0.707106781f + 0.001f;
 
     static final int EXPLORATION_ORIGIN = EXPLORATION_OFFSET + 0;
     private static final int EXPLORATION_EXPLORED = EXPLORATION_OFFSET + 2;
@@ -145,6 +149,7 @@ abstract class Robot {
         if (Clock.getBytecodesLeft() > 1000) determineMapSize();
         if (Clock.getBytecodesLeft() > 1000 || rc.getType() == RobotType.GARDENER) shakeNearbyTrees();
         if (Clock.getBytecodesLeft() > 1000) broadcastEnemyLocations(null);
+        if (Clock.getBytecodesLeft() > 1000) broadcastExploration();
 
         if (rc.getRoundNum() != roundAtStart) {
             System.out.println("Error! Did not finish within the bytecode limit");
@@ -154,25 +159,101 @@ abstract class Robot {
         onStartOfTick();
     }
 
+    MapLocation jobChunkCenter;
+    int jobChunkIndex;
+    int jobChunkNx;
+    int jobChunkNy;
+    int jobChunkNodeIndex;
+    int jobChunkInfo;
+
     void broadcastExploration() throws GameActionException {
+        if (!doChunkJob()) return;
+
         // Determine chunk
-        MapLocation origin = readBroadcastPosition(EXPLORATION_ORIGIN);
+        MapLocation origin = readBroadcastPosition(EXPLORATION_ORIGIN).translate(-PATHFINDING_NODE_SIZE*PATHFINDING_WORLD_WIDTH/2, -PATHFINDING_NODE_SIZE*PATHFINDING_WORLD_WIDTH/2);
         MapLocation relativePos = rc.getLocation().translate(-origin.x, -origin.y);
-        int cx = (int) Math.floor(relativePos.x / EXPLORATION_CHUNK_SIZE + 4);
-        int cy = (int) Math.floor(relativePos.y / EXPLORATION_CHUNK_SIZE + 4);
-        if (cx < 0 || cy < 0 || cx >= 8 || cy >= 8) {
+        int cx = (int) Math.floor(relativePos.x / PATHFINDING_NODE_SIZE);
+        int cy = (int) Math.floor(relativePos.y / PATHFINDING_NODE_SIZE);
+        if (cx < 0 || cy < 0 || cx >= PATHFINDING_WORLD_WIDTH || cy >= PATHFINDING_WORLD_WIDTH) {
             System.out.println("In chunk that is out of bounds! " + cx + " " + cy);
             return;
         }
 
-        long exploredChunks = readBroadcastLong(EXPLORATION_EXPLORED);
+        cx /= PATHFINDING_CHUNK_SIZE;
+        cy /= PATHFINDING_CHUNK_SIZE;
 
-        // Mark the chunk we are in as explored
-        int chunkIndex = cy * 8 + cx;
-        long newExploredChunks = exploredChunks | (1 << chunkIndex);
-        if (exploredChunks != newExploredChunks) {
-            broadcast(EXPLORATION_EXPLORED, newExploredChunks);
+        //MapLocation chunkCenter0 = origin.translate((cx + 0.5f) * PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE, (cy + 0.5f) * PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE);
+
+        for (int dy = -1; dy <= 1; dy++) {
+            int ny = cy + dy;
+            for (int dx = -1; dx <= 1; dx++) {
+                if (Clock.getBytecodesLeft() < 800) break;
+
+                int nx = cx + dx;
+                int index = ny * (PATHFINDING_WORLD_WIDTH/PATHFINDING_CHUNK_SIZE) + nx;
+                int chunkInfo = rc.readBroadcast(PATHFINDING + index);
+
+                //MapLocation chunkCenter1 = origin.translate((nx + 0.5f) * PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE, (ny + 0.5f) * PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE);
+                //rc.setIndicatorDot(chunkCenter1, chunkInfo == 0 ? 128 : 0, 0, rc.canSenseAllOfCircle(chunkCenter1, chunkRadius) ? 255 : 0);
+
+                if (chunkInfo == 0) {
+                    // Chunk is not explored yet
+
+                    MapLocation chunkCenter = origin.translate((nx + 0.5f) * PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE, (ny + 0.5f) * PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE);
+
+                    if (rc.canSenseAllOfCircle(chunkCenter, PATHFINDING_CHUNK_RADIUS)) {
+                        // Start a new job
+                        jobChunkCenter = chunkCenter;
+                        jobChunkIndex = index;
+                        jobChunkNx = nx;
+                        jobChunkNy = ny;
+                        jobChunkNodeIndex = 0;
+                        jobChunkInfo = 0;
+                    }
+                }
+            }
         }
+    }
+
+
+    boolean doChunkJob () throws GameActionException {
+        if (jobChunkCenter == null) return true;
+
+        // Check if we can still see the whole chunk
+        if (!rc.canSenseAllOfCircle(jobChunkCenter, PATHFINDING_CHUNK_RADIUS)) return true;
+
+        MapLocation origin = readBroadcastPosition(EXPLORATION_ORIGIN).translate(-PATHFINDING_NODE_SIZE*PATHFINDING_WORLD_WIDTH/2, -PATHFINDING_NODE_SIZE*PATHFINDING_WORLD_WIDTH/2);
+
+        int startingTime = Clock.getBytecodeNum();
+
+        // Loop through all the nodes in the chunk
+        for (; jobChunkNodeIndex < PATHFINDING_CHUNK_SIZE*PATHFINDING_CHUNK_SIZE; jobChunkNodeIndex++) {
+            if (Clock.getBytecodesLeft() < 500 || Clock.getBytecodeNum() - startingTime > 6000) return false;
+
+            int y = jobChunkNodeIndex / 4;
+            int x = jobChunkNodeIndex % 4;
+
+            boolean traversable = true;
+
+            MapLocation nodeCenter = origin.translate(((x + 0.5f) + jobChunkNx*PATHFINDING_CHUNK_SIZE) * PATHFINDING_NODE_SIZE, ((y + 0.5f) + jobChunkNy*PATHFINDING_CHUNK_SIZE) * PATHFINDING_NODE_SIZE);
+            if (!onMap(nodeCenter, PATHFINDING_NODE_SIZE * 0.5f)) {
+                traversable = false;
+            } else if (rc.isCircleOccupiedExceptByThisRobot(nodeCenter, PATHFINDING_NODE_SIZE * 0.5f) && rc.senseNearbyTrees(nodeCenter, PATHFINDING_NODE_SIZE * 0.5f, null).length > 0) {
+                traversable = false;
+            }
+
+            if (traversable) {
+                jobChunkInfo |= 1 << (y * PATHFINDING_CHUNK_SIZE + x);
+                rc.setIndicatorDot(nodeCenter, 40, 200, 10);
+            } else {
+                rc.setIndicatorDot(nodeCenter, 200, 40, 10);
+            }
+        }
+
+        // Mark as explored
+        jobChunkInfo |= 1 << 30;
+        rc.broadcast(PATHFINDING + jobChunkIndex, jobChunkInfo);
+        return true;
     }
 
     MapLocation findBestUnexploredChunk() throws GameActionException {
@@ -196,7 +277,7 @@ abstract class Robot {
                     // Ignore chunks that we can never reach or that are already explored
                     if ((chunksToConsider & (1L << index)) != 0) {
                         // Chunk position
-                        MapLocation chunkPosition = new MapLocation(origin.x + (x - 4 + 0.5f) * EXPLORATION_CHUNK_SIZE, origin.y + (y - 4 + 0.5f) * EXPLORATION_CHUNK_SIZE);
+                        MapLocation chunkPosition = new MapLocation(origin.x + (x - 4 + 0.5f) * PATHFINDING_NODE_SIZE, origin.y + (y - 4 + 0.5f) * PATHFINDING_NODE_SIZE);
                         float score = 1f / chunkPosition.distanceTo(rc.getLocation());
 
 						/*try {
