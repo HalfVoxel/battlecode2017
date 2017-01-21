@@ -194,8 +194,8 @@ class Scout extends Robot {
             int processingTime = 0;
 
             // Save some processing power if we have no bullets to consider (will be used by e.g the exploration code)
-            int maxIterations = bulletsToConsider == 0 ? 3 : 1000;
-            while ((Clock.getBytecodesLeft()-processingTime > 3000 || iterationsDone < 2) && iterationsDone < maxIterations) {
+            int maxIterations = bulletsToConsider == 0 ? 6 : 1000;
+            while ((Clock.getBytecodesLeft()-processingTime > 3000 && iterationsDone < maxIterations) || iterationsDone < 2) {
                 MapLocation loc;
                 if (iterationsDone < numMovesToConsider) {
                     loc = movesToConsider[iterationsDone];
