@@ -21,11 +21,15 @@ abstract class Robot {
     static final int PRIMARY_UNIT = 50;
     static final int HAS_SEEN = 1000;
     static final int PATHFINDING = 3000;
+    static final int PATHFINDING_RESULT_TO_ENEMY_ARCHON = 4000;
+
+    static final int[] dx = new int[] { 1, 0, -1, 0 };
+    static final int[] dy = new int[] { 0, 1, 0, -1 };
 
     private static final int EXPLORATION_OFFSET = 100;
-    private static final float PATHFINDING_NODE_SIZE = 2.0f;
-    private static final int PATHFINDING_CHUNK_SIZE = 4;
-    private static final int PATHFINDING_WORLD_WIDTH = 100;
+    static final float PATHFINDING_NODE_SIZE = 2.0f;
+    static final int PATHFINDING_CHUNK_SIZE = 4;
+    static final int PATHFINDING_WORLD_WIDTH = 100;
     private static final float PATHFINDING_CHUNK_RADIUS = PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE * 0.707106781f + 0.001f;
 
     static final int EXPLORATION_ORIGIN = EXPLORATION_OFFSET + 0;
@@ -166,12 +170,38 @@ abstract class Robot {
         onStartOfTick();
     }
 
-    MapLocation jobChunkCenter;
-    int jobChunkIndex;
-    int jobChunkNx;
-    int jobChunkNy;
-    int jobChunkNodeIndex;
-    int jobChunkInfo;
+    MapLocation directionToEnemyArchon (MapLocation loc) throws GameActionException {
+        MapLocation origin = readBroadcastPosition(EXPLORATION_ORIGIN).translate(-PATHFINDING_NODE_SIZE*PATHFINDING_WORLD_WIDTH/2, -PATHFINDING_NODE_SIZE*PATHFINDING_WORLD_WIDTH/2);
+        MapLocation relativePos = loc.translate(-origin.x, -origin.y);
+        int nx = (int) Math.floor(relativePos.x / PATHFINDING_NODE_SIZE);
+        int ny = (int) Math.floor(relativePos.y / PATHFINDING_NODE_SIZE);
+
+        if (nx < 0 || ny < 0 || nx >= PATHFINDING_WORLD_WIDTH || ny >= PATHFINDING_WORLD_WIDTH) {
+            System.out.println("In chunk that is out of bounds! " + nx + " " + ny);
+            return loc;
+        }
+
+        int cx = nx / 4;
+        int cy = ny / 4;
+
+        int chunkIndex = cy * (PATHFINDING_WORLD_WIDTH / PATHFINDING_CHUNK_SIZE) + cx;
+        int dir = (rc.readBroadcast(PATHFINDING_RESULT_TO_ENEMY_ARCHON + chunkIndex) >> 2*((ny % 4) * PATHFINDING_CHUNK_SIZE + (nx % 4))) & 0x3;
+
+        // Direction needs to be reversed to move toward the archon
+        dir = (dir + 2) % 4;
+
+        int tx = nx + dx[dir];
+        int ty = ny + dy[dir];
+        MapLocation target = origin.translate((tx + 0.5f) * PATHFINDING_NODE_SIZE, (ty + 0.5f) * PATHFINDING_NODE_SIZE);
+        return target;
+    }
+
+    int pathfindingChunkDataForNode(int nodeX, int nodeY) throws GameActionException {
+        int cx = nodeX / PATHFINDING_CHUNK_SIZE;
+        int cy = nodeY / PATHFINDING_CHUNK_SIZE;
+        int index = cy * (PATHFINDING_WORLD_WIDTH/PATHFINDING_CHUNK_SIZE) + cx;
+        return rc.readBroadcast(PATHFINDING + index);
+    }
 
     void broadcastExploration() throws GameActionException {
         if (!doChunkJob()) return;
@@ -203,31 +233,39 @@ abstract class Robot {
                 //MapLocation chunkCenter1 = origin.translate((nx + 0.5f) * PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE, (ny + 0.5f) * PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE);
                 //rc.debug_setIndicatorDot(chunkCenter1, chunkInfo == 0 ? 128 : 0, 0, rc.canSenseAllOfCircle(chunkCenter1, chunkRadius) ? 255 : 0);
 
-                if (chunkInfo == 0) {
+                if ((chunkInfo & (1 << 30)) == 0) {
                     // Chunk is not explored yet
 
                     MapLocation chunkCenter = origin.translate((nx + 0.5f) * PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE, (ny + 0.5f) * PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE);
 
-                    if (rc.canSenseAllOfCircle(chunkCenter, PATHFINDING_CHUNK_RADIUS)) {
+                    if (rc.canSenseAllOfCircle(chunkCenter, PATHFINDING_CHUNK_RADIUS) || (jobChunkCenter == null && dx == 0 && dy == 0)) {
                         // Start a new job
                         jobChunkCenter = chunkCenter;
                         jobChunkIndex = index;
                         jobChunkNx = nx;
                         jobChunkNy = ny;
                         jobChunkNodeIndex = 0;
-                        jobChunkInfo = 0;
+                        jobChunkInfo = chunkInfo;
+                        jobNodeSkips = 0;
                     }
                 }
             }
         }
     }
 
+    private MapLocation jobChunkCenter;
+    private int jobChunkIndex;
+    private int jobChunkNx;
+    private int jobChunkNy;
+    private int jobChunkNodeIndex;
+    private int jobChunkInfo;
+    private int jobNodeSkips = 0;
 
     boolean doChunkJob () throws GameActionException {
         if (jobChunkCenter == null) return true;
 
         // Check if we can still see the whole chunk
-        if (!rc.canSenseAllOfCircle(jobChunkCenter, PATHFINDING_CHUNK_RADIUS)) return true;
+        //if (!rc.canSenseAllOfCircle(jobChunkCenter, PATHFINDING_CHUNK_RADIUS)) return true;
 
         MapLocation origin = readBroadcastPosition(EXPLORATION_ORIGIN).translate(-PATHFINDING_NODE_SIZE*PATHFINDING_WORLD_WIDTH/2, -PATHFINDING_NODE_SIZE*PATHFINDING_WORLD_WIDTH/2);
 
@@ -237,6 +275,13 @@ abstract class Robot {
         for (; jobChunkNodeIndex < PATHFINDING_CHUNK_SIZE*PATHFINDING_CHUNK_SIZE; jobChunkNodeIndex++) {
             if (Clock.getBytecodesLeft() < 500 || Clock.getBytecodeNum() - startingTime > 6000) return false;
 
+            int prevValue = jobChunkInfo & (1 << jobChunkNodeIndex);
+            if (prevValue != 0) {
+                // Seem we have already figured out that it is not traversable in an earlier update.
+                // Just assume the world looks the same
+                continue;
+            }
+
             int y = jobChunkNodeIndex / 4;
             int x = jobChunkNodeIndex % 4;
 
@@ -245,21 +290,43 @@ abstract class Robot {
             MapLocation nodeCenter = origin.translate(((x + 0.5f) + jobChunkNx*PATHFINDING_CHUNK_SIZE) * PATHFINDING_NODE_SIZE, ((y + 0.5f) + jobChunkNy*PATHFINDING_CHUNK_SIZE) * PATHFINDING_NODE_SIZE);
             if (!onMap(nodeCenter, PATHFINDING_NODE_SIZE * 0.5f)) {
                 traversable = false;
-            } else if (rc.isCircleOccupiedExceptByThisRobot(nodeCenter, PATHFINDING_NODE_SIZE * 0.5f) && rc.senseNearbyTrees(nodeCenter, PATHFINDING_NODE_SIZE * 0.5f, null).length > 0) {
-                traversable = false;
+            } else {
+                if (!rc.canSenseAllOfCircle(nodeCenter, PATHFINDING_NODE_SIZE)) {
+                    // Have to skip this one
+                    jobNodeSkips++;
+                    rc.setIndicatorDot(nodeCenter, 0, 40, 0);
+                    continue;
+                }
+
+                if (rc.isCircleOccupiedExceptByThisRobot(nodeCenter, PATHFINDING_NODE_SIZE * 0.5f) && rc.senseNearbyTrees(nodeCenter, PATHFINDING_NODE_SIZE * 0.5f, null).length > 0) {
+                    traversable = false;
+                }
             }
 
             if (traversable) {
-                jobChunkInfo |= 1 << (y * PATHFINDING_CHUNK_SIZE + x);
                 rc.setIndicatorDot(nodeCenter, 40, 200, 10);
             } else {
+                jobChunkInfo |= 1 << jobChunkNodeIndex;
                 rc.setIndicatorDot(nodeCenter, 200, 40, 10);
             }
         }
 
-        // Mark as explored
-        jobChunkInfo |= 1 << 30;
-        rc.broadcast(PATHFINDING + jobChunkIndex, jobChunkInfo);
+        if (jobNodeSkips == 0) {
+            // Mark as explored
+            jobChunkInfo |= 1 << 30;
+            rc.broadcast(PATHFINDING + jobChunkIndex, jobChunkInfo);
+        } else {
+            int nodesCalculated = PATHFINDING_CHUNK_SIZE*PATHFINDING_CHUNK_SIZE - jobNodeSkips;
+            int previousNodesCalculated = ((jobChunkInfo >> 16) & 0x1F);
+            // If we have more or the same amount of information as the last time
+            // this chunk was generated then update it, otherwise leave it be
+            if (nodesCalculated >= previousNodesCalculated) {
+                jobChunkInfo |= nodesCalculated << 16;
+                rc.broadcast(PATHFINDING + jobChunkIndex, jobChunkInfo);
+            }
+        }
+
+        jobChunkCenter = null;
         return true;
     }
 
