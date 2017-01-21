@@ -19,14 +19,7 @@ class Archon extends Robot {
         System.out.println("I'm an archon! ");
         // The code you want your robot to perform every round should be in this loop
         while (true) {
-            double maxPoints = rc.getTeamVictoryPoints() + Math.floor(rc.getTeamBullets() / GameConstants.BULLET_EXCHANGE_RATE);
-            if (maxPoints >= GameConstants.VICTORY_POINTS_TO_WIN) {
-                double donate = Math.floor(rc.getTeamBullets() / GameConstants.BULLET_EXCHANGE_RATE) * GameConstants.BULLET_EXCHANGE_RATE;
-                rc.donate((float) donate);
-            } else if (rc.getRoundNum() > rc.getRoundLimit()-300) {
-                double donate = Math.floor((rc.getTeamBullets() - 25) / GameConstants.BULLET_EXCHANGE_RATE) * GameConstants.BULLET_EXCHANGE_RATE;
-                rc.donate((float) donate);
-            }
+            considerDonating();
 
             int gardenerCount = spawnedCount(RobotType.GARDENER);
             boolean saveForTank = false;

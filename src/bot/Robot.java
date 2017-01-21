@@ -111,6 +111,7 @@ abstract class Robot {
         if (Clock.getBytecodesLeft() > 1000) determineMapSize();
         if (Clock.getBytecodesLeft() > 1000 || rc.getType() == RobotType.GARDENER) shakeNearbyTrees();
         if (Clock.getBytecodesLeft() > 1000) broadcastEnemyLocations(null);
+        if (Clock.getBytecodesLeft() > 1000) considerDonating();
         Clock.yield();
     }
 
@@ -1315,5 +1316,17 @@ abstract class Robot {
 
     <T> T randomChoice(T[] values) {
         return values.length > 0 ? values[(int) (rnd.nextFloat() * values.length)] : null;
+    }
+
+    void considerDonating() throws GameActionException{
+        double cost = rc.getVictoryPointCost();
+        double maxPoints = rc.getTeamVictoryPoints() + Math.floor(rc.getTeamBullets() / cost);
+        if (maxPoints >= GameConstants.VICTORY_POINTS_TO_WIN) {
+            double donate = Math.floor(rc.getTeamBullets() / cost) * cost;
+            rc.donate((float) donate);
+        } else if (rc.getRoundNum() > rc.getRoundLimit()-300) {
+            double donate = Math.floor((rc.getTeamBullets() - 25) / cost) * cost;
+            rc.donate((float) donate);
+        }
     }
 }
