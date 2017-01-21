@@ -215,7 +215,12 @@ class Gardener extends Robot {
             boolean invalidTarget = (moveFailCounter > 5 || speedToTarget < info.strideRadius * 0.2f || !likelyValidTarget(target, desiredRadius)) && !hasSettled;
             boolean canSeeTarget = target.distanceSquaredTo(rc.getLocation()) < 0.01f || rc.canSenseAllOfCircle(target, desiredRadius);
 
-            RobotType buildTarget = scoutCount * 2 > soldierCount ? RobotType.SOLDIER : RobotType.SCOUT;
+            RobotType buildTarget;
+            if(scoutCount == 0)
+                buildTarget = RobotType.SCOUT;
+
+            else
+                buildTarget = RobotType.SOLDIER;
             int buildTargetCount = buildTarget == RobotType.SCOUT ? scoutCount : soldierCount;
             if ((!hasBuiltScout || Math.pow(rc.getTreeCount() + 1, 0.9) > buildTargetCount) && !saveForTank && rc.isBuildReady() && rc.hasRobotBuildRequirements(buildTarget)) {
                 saveForTank = true;
