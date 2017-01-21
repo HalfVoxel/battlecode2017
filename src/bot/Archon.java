@@ -176,22 +176,32 @@ class Archon extends Robot {
                     int nx = nindex % PATHFINDING_WORLD_WIDTH;
                     int ny = nindex / PATHFINDING_WORLD_WIDTH;
                     int chunk = pathfindingChunkDataForNode(nx, ny);
-                    boolean traversable = ((chunk >> ((ny % PATHFINDING_CHUNK_SIZE) * PATHFINDING_CHUNK_SIZE + (nx % PATHFINDING_CHUNK_SIZE))) & 1) == 0;
+
+                    // Traversable if this is == 0, blocked if it is == 1
+                    int blocked = (chunk >> ((ny % PATHFINDING_CHUNK_SIZE) * PATHFINDING_CHUNK_SIZE + (nx % PATHFINDING_CHUNK_SIZE))) & 1;
+                    int fullyExplored = (chunk >> 30) & 1;
                     explored[nindex] = pathfindingIndex;
                     parents[nindex] = i;
                     searchTime2 += Clock.getBytecodeNum() - w1;
 
-                    if (!traversable) {
-                        // We definitely know it is not traversable
-                        tertiaryQueue.addLast(nindex);
-                        costs[nindex] = costs[node] + 100;
-                    } else {
-                        boolean fullyExplored = (chunk & (1 << 30)) != 0;
-                        if (fullyExplored) {
+                    switch(blocked | (fullyExplored << 1)) {
+                        // blocked
+                        case 1:
+                        case 3:
+                            // We definitely know it is not traversable
+                            tertiaryQueue.addLast(nindex);
+                            costs[nindex] = costs[node] + 100;
+                            break;
+
+                        // fullyExplored == 1
+                        case 2:
                             // We definitely know it is traversable
                             queue.addLast(nindex);
                             costs[nindex] = costs[node] + 1;
-                        } else {
+                            break;
+
+                        // traversable, but not fully explored. It might actually be blocked
+                        default:
                             w1 = Clock.getBytecodeNum();
 
                             // It may be traversable or it may not, we don't really know
@@ -201,7 +211,7 @@ class Archon extends Robot {
                             }
 
                             searchTime3 += Clock.getBytecodeNum() - w1;
-                        }
+                            break;
                     }
 
                     //rc.debug_setIndicatorDot(origin.translate(nx * PATHFINDING_NODE_SIZE, ny * PATHFINDING_NODE_SIZE), 0, 0, 200);
