@@ -47,9 +47,33 @@ class Tank extends Robot {
             RobotInfo[] friendlyRobots = rc.senseNearbyRobots(-1, rc.getTeam());
             BulletInfo[] bullets = rc.senseNearbyBullets(info.strideRadius + info.bodyRadius + 3f);
 
-            if (robots.length > 0) {
-                MapLocation enemyLocation = robots[0].getLocation();
-                moveToAvoidBullets(enemyLocation, bullets, robots);
+            RobotInfo bestRobot = null;
+            float bestRobotScore = 0f;
+            for (RobotInfo robot : robots) {
+                float score;
+                switch(robot.getType()) {
+                    case ARCHON:
+                        score = rc.getRoundNum() > 1500 ? 0.1f : 0f;
+                        break;
+                    case GARDENER:
+                        score = 1f;
+                        break;
+                    case SCOUT:
+                        score = 2f;
+                        break;
+                    default:
+                        score = 0.8f;
+                        break;
+                }
+
+                if (score > bestRobotScore) {
+                    bestRobot = robot;
+                    bestRobotScore = score;
+                }
+            }
+
+            if (bestRobot != null) {
+                moveToAvoidBullets(bestRobot.location, bullets, robots);
             }
 
             if (!rc.hasMoved()) {
