@@ -8,7 +8,7 @@ import sys
 import random
 import signal
 
-maps = ["Arena", "Barbell", "Barrier", "Boxed", "Bullseye", "Chess", "Clusters", "Cramped", "DenseForest", "DigMeOut", "Enclosure", "GiantForest", "Hurdle", "LilForts", "LineOfFire", "MagicWood", "Maniple", "MyFirstMap", "OMGTree", "PasscalsTriangles", "Shrubbery", "SparseForest", "Sprinkles", "Standoff", "Waves", "shrine"]
+maps = ["Arena", "Barbell", "Barrier", "Boxed", "Bullseye", "Chess", "Clusters", "Cramped", "CrossFire", "DenseForest", "DigMeOut", "Enclosure", "GiantForest", "Hurdle", "LilForts", "LineOfFire", "MagicWood", "Maniple", "MyFirstMap", "OMGTree", "PasscalsTriangles", "Shrubbery", "SparseForest", "Sprinkles", "Standoff", "Waves", "shrine", "BulletHell"]
 lowerMaps = [m.lower() for m in maps]
 
 parser = argparse.ArgumentParser(description='Run BattleCode Bots')
