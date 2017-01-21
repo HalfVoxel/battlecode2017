@@ -18,7 +18,7 @@ class Lumberjack extends Robot {
                 float turnsToChopDown = (tree.health / GameConstants.LUMBERJACK_CHOP_DAMAGE) + (float) Math.sqrt(rc.getLocation().distanceTo(tree.location) / info.strideRadius) + 1f;
                 float score = ((tree.containedRobot != null ? tree.containedRobot.bulletCost * 1.5f : 0) + tree.containedBullets + 1) / turnsToChopDown;
                 if (!badTrees.containsKey(tree.getID()) || rc.getRoundNum() > badTrees.get(tree.getID())) {
-                    // setIndicatorDot(tree.location, score);
+                    // debug_setIndicatorDot(tree.location, score);
 
                     if (score > bestScore) {
                         bestScore = score;

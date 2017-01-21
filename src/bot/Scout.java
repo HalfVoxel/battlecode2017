@@ -46,7 +46,7 @@ class Scout extends Robot {
                 if (unit.type == RobotType.SCOUT)
                     score -= 1f / (loc.distanceSquaredTo(unit.location) + 1);
             } else {
-                switch(unit.type) {
+                switch (unit.type) {
                     case GARDENER:
                         //score += 10f / (loc.distanceSquaredTo(unit.location) + 1);
                         break;
@@ -79,7 +79,8 @@ class Scout extends Robot {
             score += (bestTree.containedBullets * 0.5) / (loc.distanceTo(bestTree.location) + 1);
         }
 
-        score -= 1000f * getEstimatedDamageAtPosition(loc.x, loc.y, numBullets, bulletX, bulletY, bulletDx, bulletDy, bulletDamage, bulletSpeed, bulletImpactDistances);;
+        score -= 1000f * getEstimatedDamageAtPosition(loc.x, loc.y, numBullets, bulletX, bulletY, bulletDx, bulletDy, bulletDamage, bulletSpeed, bulletImpactDistances);
+        ;
 
         return score;
     }
@@ -195,7 +196,7 @@ class Scout extends Robot {
 
             // Save some processing power if we have no bullets to consider (will be used by e.g the exploration code)
             int maxIterations = bulletsToConsider == 0 ? 6 : 1000;
-            while ((Clock.getBytecodesLeft()-processingTime > 3000 && iterationsDone < maxIterations) || iterationsDone < 2) {
+            while ((Clock.getBytecodesLeft() - processingTime > 3000 && iterationsDone < maxIterations) || iterationsDone < 2) {
                 MapLocation loc;
                 if (iterationsDone < numMovesToConsider) {
                     loc = movesToConsider[iterationsDone];

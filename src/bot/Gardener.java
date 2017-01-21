@@ -216,7 +216,7 @@ class Gardener extends Robot {
             boolean canSeeTarget = target.distanceSquaredTo(rc.getLocation()) < 0.01f || rc.canSenseAllOfCircle(target, desiredRadius);
 
             RobotType buildTarget;
-            if(scoutCount == 0)
+            if (scoutCount == 0)
                 buildTarget = RobotType.SCOUT;
 
             else

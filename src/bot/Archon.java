@@ -74,24 +74,24 @@ class Archon extends Robot {
     private static boolean[][] differentChunk = null;
     private static int pathfindingIndex = 0;
 
-    void resetPathfinding () {
+    void resetPathfinding() {
         pathfindingIndex++;
     }
 
-    void addPathfindingseed (MapLocation seed) throws GameActionException {
+    void addPathfindingseed(MapLocation seed) throws GameActionException {
         if (explored == null) {
             // This will take some time
-            explored = new int[PATHFINDING_WORLD_WIDTH*PATHFINDING_WORLD_WIDTH];
-            costs = new int[PATHFINDING_WORLD_WIDTH*PATHFINDING_WORLD_WIDTH];
-            parents = new int[PATHFINDING_WORLD_WIDTH*PATHFINDING_WORLD_WIDTH];
+            explored = new int[PATHFINDING_WORLD_WIDTH * PATHFINDING_WORLD_WIDTH];
+            costs = new int[PATHFINDING_WORLD_WIDTH * PATHFINDING_WORLD_WIDTH];
+            parents = new int[PATHFINDING_WORLD_WIDTH * PATHFINDING_WORLD_WIDTH];
 
             // Mark the borders of the world as always being explored to prevent
             // us from going out of bounds (they will never be traversable anyway)
             for (int i = 0; i < PATHFINDING_WORLD_WIDTH; i++) {
-                explored[i*PATHFINDING_WORLD_WIDTH] = 1 << 30;
-                explored[i*PATHFINDING_WORLD_WIDTH + PATHFINDING_WORLD_WIDTH - 1] = 1 << 30;
+                explored[i * PATHFINDING_WORLD_WIDTH] = 1 << 30;
+                explored[i * PATHFINDING_WORLD_WIDTH + PATHFINDING_WORLD_WIDTH - 1] = 1 << 30;
                 explored[i] = 1 << 30;
-                explored[(PATHFINDING_WORLD_WIDTH - 1)*PATHFINDING_WORLD_WIDTH + i] = 1 << 30;
+                explored[(PATHFINDING_WORLD_WIDTH - 1) * PATHFINDING_WORLD_WIDTH + i] = 1 << 30;
             }
 
             neighbourOffsets = new int[4];
@@ -99,10 +99,10 @@ class Archon extends Robot {
                 neighbourOffsets[i] = dy[i] * PATHFINDING_WORLD_WIDTH + dx[i];
             }
 
-            differentChunk = new boolean[PATHFINDING_CHUNK_SIZE*PATHFINDING_CHUNK_SIZE][];
+            differentChunk = new boolean[PATHFINDING_CHUNK_SIZE * PATHFINDING_CHUNK_SIZE][];
             for (int x = 0; x < PATHFINDING_CHUNK_SIZE; x++) {
                 for (int y = 0; y < PATHFINDING_CHUNK_SIZE; y++) {
-                    int index = y*PATHFINDING_CHUNK_SIZE + x;
+                    int index = y * PATHFINDING_CHUNK_SIZE + x;
                     differentChunk[index] = new boolean[4];
                     for (int i = 0; i < 4; i++) {
                         int nx = x + dx[i];
@@ -115,11 +115,11 @@ class Archon extends Robot {
             }
         }
 
-        MapLocation origin = readBroadcastPosition(EXPLORATION_ORIGIN).translate(-PATHFINDING_NODE_SIZE*PATHFINDING_WORLD_WIDTH/2, -PATHFINDING_NODE_SIZE*PATHFINDING_WORLD_WIDTH/2);
+        MapLocation origin = readBroadcastPosition(EXPLORATION_ORIGIN).translate(-PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2, -PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2);
         MapLocation relativePos = seed.translate(-origin.x, -origin.y);
         int seedx = (int) Math.floor(relativePos.x / PATHFINDING_NODE_SIZE);
         int seedy = (int) Math.floor(relativePos.y / PATHFINDING_NODE_SIZE);
-        int index = seedy*PATHFINDING_WORLD_WIDTH + seedx;
+        int index = seedy * PATHFINDING_WORLD_WIDTH + seedx;
         explored[index] = pathfindingIndex;
         costs[index] = 0;
         queue.add(seedx + seedy * PATHFINDING_WORLD_WIDTH);
@@ -140,7 +140,7 @@ class Archon extends Robot {
             }
         }
 
-        MapLocation origin = readBroadcastPosition(EXPLORATION_ORIGIN).translate(-PATHFINDING_NODE_SIZE*PATHFINDING_WORLD_WIDTH/2, -PATHFINDING_NODE_SIZE*PATHFINDING_WORLD_WIDTH/2);
+        MapLocation origin = readBroadcastPosition(EXPLORATION_ORIGIN).translate(-PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2, -PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2);
 
         int w0 = Clock.getBytecodeNum();
 
@@ -153,7 +153,7 @@ class Archon extends Robot {
             int node;
             if (queue.size() > 0) {
                 node = queue.pollFirst();
-            } else if (secondaryQueue.size() > 0 ) {
+            } else if (secondaryQueue.size() > 0) {
                 node = secondaryQueue.pollFirst();
             } else {
                 node = tertiaryQueue.pollFirst();
@@ -233,17 +233,17 @@ class Archon extends Robot {
         int w1 = Clock.getBytecodesLeft();
         int t1 = rc.getRoundNum();
 
-        MapLocation origin = readBroadcastPosition(EXPLORATION_ORIGIN).translate(-PATHFINDING_NODE_SIZE*PATHFINDING_WORLD_WIDTH/2, -PATHFINDING_NODE_SIZE*PATHFINDING_WORLD_WIDTH/2);
+        MapLocation origin = readBroadcastPosition(EXPLORATION_ORIGIN).translate(-PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2, -PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2);
 
-        assert(PATHFINDING_CHUNK_SIZE == 4);
+        assert (PATHFINDING_CHUNK_SIZE == 4);
 
-        for (int cy = 0; cy < PATHFINDING_WORLD_WIDTH/PATHFINDING_CHUNK_SIZE; cy++) {
+        for (int cy = 0; cy < PATHFINDING_WORLD_WIDTH / PATHFINDING_CHUNK_SIZE; cy++) {
             float wy = origin.y + (cy + 0.5f) * PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE;
 
             // Don't bother broadcasting information for tiles outside the map
             if (!onMapY(wy, -PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE * 0.5f)) continue;
 
-            for (int cx = 0; cx < PATHFINDING_WORLD_WIDTH/PATHFINDING_CHUNK_SIZE; cx++) {
+            for (int cx = 0; cx < PATHFINDING_WORLD_WIDTH / PATHFINDING_CHUNK_SIZE; cx++) {
                 float wx = origin.x + (cx + 0.5f) * PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE;
 
                 if (!onMapX(wx, -PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE * 0.5f)) continue;
@@ -253,7 +253,7 @@ class Archon extends Robot {
                 int offset = cy * PATHFINDING_CHUNK_SIZE * PATHFINDING_WORLD_WIDTH + cx * PATHFINDING_CHUNK_SIZE;
                 for (int dy = 0; dy < PATHFINDING_CHUNK_SIZE; dy++) {
                     int o = offset + dy * PATHFINDING_WORLD_WIDTH;
-                    int shift = 2*dy*PATHFINDING_CHUNK_SIZE;
+                    int shift = 2 * dy * PATHFINDING_CHUNK_SIZE;
                     // Loop unrolled 4x
                     data |= (parents[o] << shift) | (parents[o + 1] << (shift + 2)) | (parents[o + 2] << (shift + 4)) | (parents[o + 3] << (shift + 6));
                 }
@@ -267,11 +267,11 @@ class Archon extends Robot {
     }
 
     void debug_search() throws GameActionException {
-        MapLocation origin = readBroadcastPosition(EXPLORATION_ORIGIN).translate(-PATHFINDING_NODE_SIZE*PATHFINDING_WORLD_WIDTH/2, -PATHFINDING_NODE_SIZE*PATHFINDING_WORLD_WIDTH/2);
+        MapLocation origin = readBroadcastPosition(EXPLORATION_ORIGIN).translate(-PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2, -PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2);
 
         for (int y = 0; y < PATHFINDING_WORLD_WIDTH; y++) {
             for (int x = 0; x < PATHFINDING_WORLD_WIDTH; x++) {
-                int index = y*PATHFINDING_WORLD_WIDTH + x;
+                int index = y * PATHFINDING_WORLD_WIDTH + x;
                 if (explored[index] == pathfindingIndex) {
                     MapLocation loc = origin.translate(x * PATHFINDING_NODE_SIZE, y * PATHFINDING_NODE_SIZE);
                     debug_setIndicatorDot(loc, costs[index] / 120f);

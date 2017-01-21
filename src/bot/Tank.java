@@ -51,7 +51,7 @@ class Tank extends Robot {
             float bestRobotScore = 0f;
             for (RobotInfo robot : robots) {
                 float score;
-                switch(robot.getType()) {
+                switch (robot.getType()) {
                     case ARCHON:
                         score = rc.getRoundNum() > 1500 ? 0.1f : 0f;
                         break;
@@ -97,16 +97,16 @@ class Tank extends Robot {
 
             boolean targetArchons = rc.getTeamBullets() > 1000 || rc.getRoundNum() > 1000;
             fireAtNearbyRobot(friendlyRobots, robots, targetArchons);
-            if(!rc.hasAttacked()){
+            if (!rc.hasAttacked()) {
                 int nearbyGardeners = 0;
-                for(RobotInfo robot : robots){
-                    if(robot.getType() == RobotType.GARDENER){
+                for (RobotInfo robot : robots) {
+                    if (robot.getType() == RobotType.GARDENER) {
                         nearbyGardeners += 1;
                     }
                 }
                 TreeInfo[] enemyTrees = rc.senseNearbyTrees(-1, rc.getTeam().opponent());
                 int nearbyTrees = enemyTrees.length;
-                if(nearbyTrees/(nearbyGardeners+0.01) > 15)
+                if (nearbyTrees / (nearbyGardeners + 0.01) > 15)
                     fireAtNearbyTree(enemyTrees);
             }
 
