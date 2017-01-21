@@ -20,6 +20,7 @@ abstract class Robot {
     static final int GARDENER_CAN_PROBABLY_BUILD = 40;
     static final int PRIMARY_UNIT = 50;
     static final int HAS_SEEN = 1000;
+    static final int TREES_WITH_BULLETS = 2001;
 
     private static final int EXPLORATION_OFFSET = 100;
     private static final int EXPLORATION_CHUNK_SIZE = 25;
@@ -73,6 +74,40 @@ abstract class Robot {
             return true;
         }
         return false;
+    }
+
+    /**
+     * Adds the tree to a global list of trees known to have bullets in them
+     * @param tree
+     * @throws GameActionException
+     */
+    void detectTreeWithBullets (TreeInfo tree) throws GameActionException {
+        int numTreesWithBullets = rc.readBroadcast(TREES_WITH_BULLETS);
+
+        // Too many, ignore
+        if (numTreesWithBullets >= 500) return;
+
+        numTreesWithBullets++;
+        rc.broadcast(TREES_WITH_BULLETS, numTreesWithBullets);
+        rc.broadcast(TREES_WITH_BULLETS + 1 + numTreesWithBullets * 3, tree.containedBullets);
+        broadcast(TREES_WITH_BULLETS + 1 + numTreesWithBullets * 3 + 1, tree.location);
+    }
+
+    /**
+     * Removes a tree from the global list of trees known to have bullets in them
+     * @param index Index in the global list
+     * @throws GameActionException
+     */
+    void removeTreeWithBullets (int index) throws GameActionException {
+        int treesWithBullets = rc.readBroadcast(TREES_WITH_BULLETS) - 1;
+        int channel = TREES_WITH_BULLETS + 1 + index*3;
+        int lastChannel = TREES_WITH_BULLETS + 1 + treesWithBullets*3;
+
+        // Copy last element to replace the element that was just removed
+        rc.broadcast(channel, rc.readBroadcast(lastChannel));
+        rc.broadcast(channel + 1, rc.readBroadcast(lastChannel + 1));
+        rc.broadcast(channel + 2, rc.readBroadcast(lastChannel + 2));
+        rc.broadcast(TREES_WITH_BULLETS, treesWithBullets);
     }
 
     boolean tryMove(MapLocation to) throws GameActionException {

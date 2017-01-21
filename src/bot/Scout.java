@@ -2,9 +2,6 @@ package bot;
 
 import battlecode.common.*;
 
-import java.util.Random;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -18,14 +15,83 @@ class Scout extends Robot {
         return rc.getRoundNum() < lastAttackingEnemySpotted + 20 || rc.getRoundNum() < lastGardenerSpotted + 20;
     }
 
-    private MapLocation pickTarget() throws GameActionException {
-        Direction dir = randomDirection();
-        MapLocation target = rc.getLocation().add(dir, info.sensorRadius - 1f);
-        if (!rc.onTheMap(target)) {
-            dir = randomDirection();
-            target = clampToMap(rc.getLocation().add(dir, info.sensorRadius - 1f));
+    int treesWithBulletsIndex = 0;
+    MapLocation lastFallbackTree = null;
+    int lastFallbackIndex = -1;
+
+    boolean checkTreeStillValidToShake (MapLocation loc, int index) throws GameActionException {
+        if (rc.canSenseLocation(loc)) {
+            TreeInfo tree = rc.senseTreeAtLocation(loc);
+            if (tree == null || tree.containedBullets == 0) {
+                removeTreeWithBullets(index);
+                return false;
+            }
         }
-        return target;
+
+        return true;
+    }
+
+    private MapLocation pickTarget() throws GameActionException {
+        MapLocation bestTarget = null;
+        int bestIndex = -1;
+        float bestScore = 0f;
+
+        if (lastFallbackTree != null) {
+            if (checkTreeStillValidToShake(lastFallbackTree, lastFallbackIndex)) {
+                rc.setIndicatorLine(rc.getLocation(), lastFallbackTree, 0, 255, 0);
+
+                float score = 1f / rc.getLocation().distanceTo(lastFallbackTree);
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestTarget = lastFallbackTree;
+                    bestIndex = lastFallbackIndex;
+                }
+            } else {
+                rc.setIndicatorLine(rc.getLocation(), lastFallbackTree, 255, 0, 0);
+                lastFallbackTree = null;
+            }
+        }
+
+        // Check the global array of trees to shake
+        int numTreesWithBullets = rc.readBroadcast(TREES_WITH_BULLETS);
+        int cnt = Math.min(10, numTreesWithBullets);
+        for (int k = 0; k < cnt; k++) {
+            int index = (treesWithBulletsIndex + k) % numTreesWithBullets;
+            int bullets = rc.readBroadcast(TREES_WITH_BULLETS + 1 + 3*index);
+            MapLocation loc = readBroadcastPosition(TREES_WITH_BULLETS + 1 + 3*index + 1);
+
+            if (!checkTreeStillValidToShake(loc, index)) {
+                // This would have been decremented due to the tree being removed from the list
+                numTreesWithBullets--;
+                if (numTreesWithBullets == 0) break;
+
+                rc.setIndicatorLine(rc.getLocation(), loc, 255, 0, 0);
+            } else {
+                rc.setIndicatorLine(rc.getLocation(), loc, 255, 255, 0);
+                float score = 1f / rc.getLocation().distanceTo(loc);
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestTarget = loc;
+                    bestIndex = index;
+                }
+            }
+        }
+
+        treesWithBulletsIndex += cnt;
+
+        if (bestTarget != null) {
+            lastFallbackTree = bestTarget;
+            lastFallbackIndex = bestIndex;
+            return lastFallbackTree;
+        } else {
+            Direction dir = randomDirection();
+            MapLocation target = rc.getLocation().add(dir, info.sensorRadius - 1f);
+            if (!rc.onTheMap(target)) {
+                dir = randomDirection();
+                target = clampToMap(rc.getLocation().add(dir, info.sensorRadius - 1f));
+            }
+            return target;
+        }
     }
 
     private float getPositionScore(MapLocation loc, MapLocation[] enemyArchons, RobotInfo[] units, int numBullets,
@@ -84,7 +150,6 @@ class Scout extends Robot {
         return score;
     }
 
-
     private TreeInfo findBestTreeToShake(TreeInfo[] neutralTrees) {
         TreeInfo bestTree = null;
         float bestTreeScore = -1000000f;
@@ -104,6 +169,20 @@ class Scout extends Robot {
         }
 
         return bestTree;
+    }
+
+    private void detectTrees(TreeInfo[] neutralTrees) throws GameActionException {
+        // Limit the number of trees we look at to the N closest
+        int numTrees = Math.min(neutralTrees.length, 40);
+        for (int i = 0; i < numTrees; i++) {
+            TreeInfo tree = neutralTrees[i];
+            if (tree.containedBullets > 0) {
+                if (detect(tree.ID)) {
+                    rc.setIndicatorDot(tree.location, 255, 255, 255);
+                    detectTreeWithBullets(tree);
+                }
+            }
+        }
     }
 
     private void fireAtNearbyTree(TreeInfo[] trees) throws GameActionException {
@@ -190,6 +269,7 @@ class Scout extends Robot {
                 target = pickTarget();
             }
 
+            detectTrees(neutralTrees);
             TreeInfo bestTree = findBestTreeToShake(neutralTrees);
 
             RobotInfo defenderTarget = null;
