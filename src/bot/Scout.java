@@ -158,6 +158,7 @@ class Scout extends Robot {
 
         // The code you want your robot to perform every round should be in this loop
         while (true) {
+            shakeNearbyTrees();
             int roundAtStart = rc.getRoundNum();
             int turnsLeft = rc.getRoundLimit() - rc.getRoundNum();
             MapLocation myLocation = rc.getLocation();

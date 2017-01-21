@@ -336,7 +336,7 @@ abstract class Robot {
 
     void shakeNearbyTrees() throws GameActionException {
         if (rc.canShake()) {
-            TreeInfo[] trees = rc.senseNearbyTrees(info.bodyRadius + info.strideRadius - 0.001f);
+            TreeInfo[] trees = rc.senseNearbyTrees(info.bodyRadius + GameConstants.INTERACTION_DIST_FROM_EDGE - 0.001f);
             TreeInfo bestTree = null;
             for (TreeInfo tree : trees) {
                 // Make sure it is not the tree of an opponent
