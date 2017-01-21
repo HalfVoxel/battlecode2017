@@ -1381,4 +1381,24 @@ abstract class Robot {
             }
         }
     }
+
+    void fireAtNearbyTree(TreeInfo[] trees) throws GameActionException {
+        Team enemy = rc.getTeam().opponent();
+        int turnsLeft = rc.getRoundLimit() - rc.getRoundNum();
+
+        for (TreeInfo tree : trees) {
+            if (Clock.getBytecodesLeft() < 2500)
+                break;
+            if (tree.getTeam() == enemy) {
+                BodyInfo firstUnitHit = linecast(tree.location);
+                if (firstUnitHit != null && firstUnitHit.isTree() && ((TreeInfo) firstUnitHit).getTeam() == enemy) {
+                    TreeInfo t = (TreeInfo) firstUnitHit;
+                    if (rc.canFireSingleShot() && turnsLeft > STOP_SPENDING_AT_TIME && t.getHealth() > 20 &&
+                            (t.getHealth() < 45 || t.location.distanceTo(rc.getLocation()) < 3f)) {
+                        rc.fireSingleShot(rc.getLocation().directionTo(tree.location));
+                    }
+                }
+            }
+        }
+    }
 }

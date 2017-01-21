@@ -106,31 +106,6 @@ class Scout extends Robot {
         return bestTree;
     }
 
-    private void fireAtNearbyTree(TreeInfo[] trees) throws GameActionException {
-        Team enemy = rc.getTeam().opponent();
-        int turnsLeft = rc.getRoundLimit() - rc.getRoundNum();
-
-        for (TreeInfo tree : trees) {
-            if (Clock.getBytecodesLeft() < 2000)
-                break;
-            if (tree.getTeam() == enemy) {
-                BodyInfo firstUnitHit = linecast(tree.location);
-                if (firstUnitHit != null && firstUnitHit.isTree() && ((TreeInfo) firstUnitHit).getTeam() == enemy) {
-                    TreeInfo t = (TreeInfo) firstUnitHit;
-                    if (treeLifeMap.containsKey(t.getID()) && t.getHealth() < treeLifeMap.get(t.getID())) {
-                        if (t.getHealth() > 30) {
-                            if (rc.canFireSingleShot() && turnsLeft > STOP_SPENDING_AT_TIME) {
-                                rc.fireSingleShot(rc.getLocation().directionTo(tree.location));
-                            }
-                            break;
-                        }
-                    }
-                    treeLifeMap.put(t.getID(), t.getHealth());
-                }
-            }
-        }
-    }
-
     float[] bulletX = new float[100];
     float[] bulletY = new float[100];
     float[] bulletDx = new float[100];
