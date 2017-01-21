@@ -138,9 +138,6 @@ class Scout extends Robot {
         MapLocation[] archons = rc.getInitialArchonLocations(enemy);
         MapLocation target = randomChoice(archons);
 
-        // Sort of accurate check (will fail if multiple scouts are built at the same time)
-        boolean isDefender = spawnedCount(RobotType.SCOUT) == 2;
-
         if (target == null) target = rc.getLocation();
 
         // The code you want your robot to perform every round should be in this loop
@@ -183,81 +180,62 @@ class Scout extends Robot {
 
             TreeInfo bestTree = findBestTreeToShake(neutralTrees);
 
-            RobotInfo defenderTarget = null;
-            for (RobotInfo robot : friendlyRobots) {
-                if (robot.getType() == RobotType.GARDENER) {
-                    defenderTarget = robot;
-                    break;
+            int numMovesToConsider = 0;
+            RobotInfo closestEnemy = null;
+            float disToClosestEnemy = 1000000f;
+
+            if (myLocation.distanceTo(target) > 0) {
+                movesToConsider[numMovesToConsider++] = myLocation.add(myLocation.directionTo(target), info.strideRadius);
+            }
+
+            for (RobotInfo robot : robots) {
+                float dist = myLocation.distanceTo(robot.location);
+                if (dist < disToClosestEnemy) {
+                    disToClosestEnemy = dist;
+                    closestEnemy = robot;
                 }
             }
 
-            if (isDefender && defenderTarget != null && robots.length == 0 && bulletsToConsider == 0) {
-                float defDist = myLocation.distanceTo(defenderTarget.location);
-                if (defDist < RobotType.GARDENER.bodyRadius + rc.getType().bodyRadius + 0.5) {
-                    Direction tgDir = defenderTarget.location.directionTo(myLocation).rotateLeftRads(rc.getType().strideRadius / defDist);
-                    MapLocation tg = defenderTarget.location.add(tgDir, defDist);
-                    tryMove(tg);
+            if (closestEnemy != null) {
+                Direction dir = myLocation.directionTo(closestEnemy.location);
+                movesToConsider[numMovesToConsider++] = myLocation.add(dir.opposite(), info.strideRadius);
+            }
+
+            float bestScore = -1000000f;
+            MapLocation bestMove = null;
+            int iterationsDone = 0;
+            int processingTime = 0;
+            while (Clock.getBytecodesLeft()-processingTime > 3000 || iterationsDone < 2) {
+                MapLocation loc;
+                if (iterationsDone < numMovesToConsider) {
+                    loc = movesToConsider[iterationsDone];
                 } else {
-                    tryMove(defenderTarget.location);
+                    Direction dir = randomDirection();
+                    int r = rnd.nextInt(10);
+                    if (r < 5)
+                        loc = myLocation.add(dir, info.strideRadius);
+                    else if (r < 7)
+                        loc = myLocation.add(dir, info.strideRadius * 0.5f);
+                    else
+                        loc = myLocation.add(dir, 0.2f);
                 }
-            } else {
-                int numMovesToConsider = 0;
-                RobotInfo closestEnemy = null;
-                float disToClosestEnemy = 1000000f;
 
-                if (myLocation.distanceTo(target) > 0) {
-                    movesToConsider[numMovesToConsider++] = myLocation.add(myLocation.directionTo(target), info.strideRadius);
-                }
-
-                for (RobotInfo robot : robots) {
-                    float dist = myLocation.distanceTo(robot.location);
-                    if (dist < disToClosestEnemy) {
-                        disToClosestEnemy = dist;
-                        closestEnemy = robot;
+                if (rc.canMove(loc)) {
+                    int bytecodesBefore = Clock.getBytecodesLeft();
+                    float score = getPositionScore(loc, archons, allRobots,
+                            numDangerous, bulletX, bulletY, bulletDx, bulletDy, bulletDamage, bulletSpeed, bulletImpactDistances, bestTree, target);
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestMove = loc;
                     }
+                    processingTime = bytecodesBefore - Clock.getBytecodesLeft();
                 }
 
-                if (closestEnemy != null) {
-                    Direction dir = myLocation.directionTo(closestEnemy.location);
-                    movesToConsider[numMovesToConsider++] = myLocation.add(dir.opposite(), info.strideRadius);
-                }
+                iterationsDone += 1;
+            }
 
-                float bestScore = -1000000f;
-                MapLocation bestMove = null;
-                int iterationsDone = 0;
-                int processingTime = 0;
-                while (Clock.getBytecodesLeft()-processingTime > 3000 || iterationsDone < 2) {
-                    MapLocation loc;
-                    if (iterationsDone < numMovesToConsider) {
-                        loc = movesToConsider[iterationsDone];
-                    } else {
-                        Direction dir = randomDirection();
-                        int r = rnd.nextInt(10);
-                        if (r < 5)
-                            loc = myLocation.add(dir, info.strideRadius);
-                        else if (r < 7)
-                            loc = myLocation.add(dir, info.strideRadius * 0.5f);
-                        else
-                            loc = myLocation.add(dir, 0.2f);
-                    }
-
-                    if (rc.canMove(loc)) {
-                        int bytecodesBefore = Clock.getBytecodesLeft();
-                        float score = getPositionScore(loc, archons, allRobots,
-                                numDangerous, bulletX, bulletY, bulletDx, bulletDy, bulletDamage, bulletSpeed, bulletImpactDistances, bestTree, target);
-                        if (score > bestScore) {
-                            bestScore = score;
-                            bestMove = loc;
-                        }
-                        processingTime = bytecodesBefore - Clock.getBytecodesLeft();
-                    }
-
-                    iterationsDone += 1;
-                }
-
-                if (bestMove != null) {
-                    rc.move(bestMove);
-                }
+            if (bestMove != null) {
+                rc.move(bestMove);
             }
 
             boolean targetArchons = !highPriorityTargetExists() && rc.getRoundNum() > 2000;
