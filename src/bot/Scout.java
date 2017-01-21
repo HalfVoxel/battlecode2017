@@ -290,7 +290,7 @@ class Scout extends Robot {
             }
 
             boolean targetArchons = !highPriorityTargetExists() && rc.getRoundNum() > 2000;
-            //fireAtNearbyRobot(friendlyRobots, robots, targetArchons);
+            fireAtNearbyRobot(friendlyRobots, robots, targetArchons);
             //fireAtNearbyRobotSweep(friendlyRobots, robots, trees);
             //fireAtNearbyRobotSweep2(allRobots, trees);
 

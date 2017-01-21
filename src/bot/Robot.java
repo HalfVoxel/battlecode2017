@@ -466,7 +466,6 @@ abstract class Robot {
                     if (rc.canFireSingleShot()) {
                         // ...Then fire a bullet in the direction of the enemy.
                         rc.fireSingleShot(dir);
-                        //fireAtNearbyRobotSweep(friendlyRobots, hostileRobots, trees);
                     }
 
                     break;
