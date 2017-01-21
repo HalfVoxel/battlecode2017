@@ -42,6 +42,13 @@ abstract class Robot {
     void init() throws GameActionException {
         info = rc.getType();
         spawnPos = rc.getLocation();
+
+        // Conservative map edges
+        mapEdges[0] = spawnPos.x + GameConstants.MAP_MAX_WIDTH;
+        mapEdges[1] = spawnPos.y + GameConstants.MAP_MAX_WIDTH;
+        mapEdges[2] = spawnPos.x - GameConstants.MAP_MAX_WIDTH;
+        mapEdges[3] = spawnPos.y - GameConstants.MAP_MAX_WIDTH;
+
         onStartOfTick();
     }
 
@@ -315,20 +322,29 @@ abstract class Robot {
      * True if the location is on the map using the information known so far
      */
     boolean onMap(MapLocation pos) {
-        return ((mapEdgesDetermined & 1) == 0 || pos.x <= mapEdges[0]) &&
-                ((mapEdgesDetermined & 2) == 0 || pos.y <= mapEdges[1]) &&
-                ((mapEdgesDetermined & 4) == 0 || pos.x >= mapEdges[2]) &&
-                ((mapEdgesDetermined & 8) == 0 || pos.y >= mapEdges[3]);
+        return pos.x <= mapEdges[0] && pos.y <= mapEdges[1] && pos.x >= mapEdges[2] && pos.y >= mapEdges[3];
+    }
+
+    /**
+     * True if the location is on the map using the information known so far
+     */
+    boolean onMap(float x, float y) {
+        return x <= mapEdges[0] && y <= mapEdges[1] && x >= mapEdges[2] && y >= mapEdges[3];
     }
 
     /**
      * True if the location is at least margin units from the edge of the map using the information known so far
      */
     boolean onMap(MapLocation pos, float margin) {
-        return ((mapEdgesDetermined & 1) == 0 || pos.x <= mapEdges[0] - margin) &&
-                ((mapEdgesDetermined & 2) == 0 || pos.y <= mapEdges[1] - margin) &&
-                ((mapEdgesDetermined & 4) == 0 || pos.x >= mapEdges[2] + margin) &&
-                ((mapEdgesDetermined & 8) == 0 || pos.y >= mapEdges[3] + margin);
+        return pos.x <= mapEdges[0] - margin && pos.y <= mapEdges[1] - margin && pos.x >= mapEdges[2] + margin && pos.y >= mapEdges[3] + margin;
+    }
+
+    boolean onMapX(float xcoord, float margin) {
+        return xcoord <= mapEdges[0] - margin && xcoord >= mapEdges[2] + margin;
+    }
+
+    boolean onMapY(float ycoord, float margin) {
+        return ycoord <= mapEdges[1] - margin && ycoord >= mapEdges[3] + margin;
     }
 
     /**
@@ -344,23 +360,19 @@ abstract class Robot {
     MapLocation clampToMap(MapLocation pos, float margin) {
         float x = pos.x;
         float y = pos.y;
-        if ((mapEdgesDetermined & 1) != 0) x = Math.min(x, mapEdges[0] - margin);
-        if ((mapEdgesDetermined & 2) != 0) y = Math.min(y, mapEdges[1] - margin);
-        if ((mapEdgesDetermined & 4) != 0) x = Math.max(x, mapEdges[2] + margin);
-        if ((mapEdgesDetermined & 8) != 0) y = Math.max(y, mapEdges[3] + margin);
+        x = Math.min(x, mapEdges[0] - margin);
+        y = Math.min(y, mapEdges[1] - margin);
+        x = Math.max(x, mapEdges[2] + margin);
+        y = Math.max(y, mapEdges[3] + margin);
         return new MapLocation(x, y);
     }
 
     float getDistanceToMapEdge(MapLocation pos) {
         float ret = 10f;
-        if ((mapEdgesDetermined & 1) != 0)
-            ret = Math.min(ret, mapEdges[0] - pos.x);
-        if ((mapEdgesDetermined & 2) != 0)
-            ret = Math.min(ret, mapEdges[1] - pos.y);
-        if ((mapEdgesDetermined & 4) != 0)
-            ret = Math.min(ret, pos.x - mapEdges[2]);
-        if ((mapEdgesDetermined & 8) != 0)
-            ret = Math.min(ret, pos.y - mapEdges[3]);
+        ret = Math.min(ret, mapEdges[0] - pos.x);
+        ret = Math.min(ret, mapEdges[1] - pos.y);
+        ret = Math.min(ret, pos.x - mapEdges[2]);
+        ret = Math.min(ret, pos.y - mapEdges[3]);
         return ret;
     }
 
@@ -510,6 +522,18 @@ abstract class Robot {
                     tmpDetermined |= (1 << i);
                     rc.broadcast(MAP_EDGE_BROADCAST_OFFSET, tmpDetermined);
                     System.out.println("Found map edge " + i + " at " + result);
+
+                    // We also know that the other edge of the map is no further than MAX_WIDTH away from this edge
+                    float otherEdge = i < 2 ? result - GameConstants.MAP_MAX_WIDTH : result + GameConstants.MAP_MAX_WIDTH;
+                    int otherEdgeIndex = MAP_EDGE_BROADCAST_OFFSET + ((i + 2) % 4) + 1;
+
+                    // Make sure we don't overwrite the edge with something worse
+                    float prevValueForOtherEdge = rc.readBroadcastFloat(otherEdgeIndex);
+                    if (i < 2) otherEdge = Math.max(otherEdge, prevValueForOtherEdge);
+                    else otherEdge = Math.min(otherEdge, prevValueForOtherEdge);
+
+                    rc.broadcastFloat(otherEdgeIndex, otherEdge);
+                    System.out.println("Other map edge " + ((i + 2) % 4) + " must be around " + otherEdge);
 
                     rc.setIndicatorLine(mapEdge.add(angle + (float) Math.PI * 0.5f, 50), mapEdge.add(angle - (float) Math.PI * 0.5f, 50), 255, 255, 255);
                 }
