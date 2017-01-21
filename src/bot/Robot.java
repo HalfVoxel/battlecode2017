@@ -18,6 +18,7 @@ abstract class Robot {
     static final int TREE_OFFSET = 30;
     static final int GARDENER_CAN_PROBABLY_BUILD = 40;
     static final int PRIMARY_UNIT = 50;
+    static final int HAS_SEEN = 1000;
 
     private static final int EXPLORATION_OFFSET = 100;
     private static final int EXPLORATION_CHUNK_SIZE = 25;
@@ -52,6 +53,25 @@ abstract class Robot {
 
     protected int spawnedCount(RobotType tp) throws GameActionException {
         return rc.readBroadcast(tp.ordinal());
+    }
+
+    /**
+     * Adds the ID to a global shared set of all detected entities and returns if this was
+     * the first time that entity was detected.
+     * @param id ID of the entity, assumed to be in the range 0...32000.
+     * @return True if this was the first time this particular ID was detected. False otherwise.
+     * @throws GameActionException
+     */
+    boolean detect (int id) throws GameActionException {
+        // Note that the right shift by id will only use the last 5 bits
+        // and thus this will pick out the id'th bit in the broadcast array when starting
+        // from the offset HAS_SEEN
+        if (((rc.readBroadcast(HAS_SEEN + (id >> 5)) >> id) & 1) == 0) {
+            // Broadcast that index but with the bit set
+            rc.broadcast(HAS_SEEN + (id >> 5), rc.readBroadcast(HAS_SEEN + (id >> 5)) | (1 << id));
+            return true;
+        }
+        return false;
     }
 
     boolean tryMove(MapLocation to) throws GameActionException {
