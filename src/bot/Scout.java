@@ -19,26 +19,13 @@ class Scout extends Robot {
     }
 
     private MapLocation pickTarget() throws GameActionException {
-        int lastAttackingEnemySpotted = rc.readBroadcast(HIGH_PRIORITY_TARGET_OFFSET);
-        MapLocation highPriorityTargetPos = readBroadcastPosition(HIGH_PRIORITY_TARGET_OFFSET + 1);
-        if (rc.getRoundNum() < lastAttackingEnemySpotted + 50 && rc.getLocation().distanceTo(highPriorityTargetPos) < info.strideRadius * 8) {
-            // Defend!
-            return highPriorityTargetPos;
-        } else {
-            int lastTimeGardenerSpotted = rc.readBroadcast(GARDENER_OFFSET);
-            if (rc.getRoundNum() < lastTimeGardenerSpotted + 50) {
-                // Follow that gardener!
-                return readBroadcastPosition(GARDENER_OFFSET + 1);
-            } else {
-                Direction dir = randomDirection();
-                MapLocation target = rc.getLocation().add(dir, info.sensorRadius - 1f);
-                if (!rc.onTheMap(target)) {
-                    dir = randomDirection();
-                    target = clampToMap(rc.getLocation().add(dir, info.sensorRadius - 1f));
-                }
-                return target;
-            }
+        Direction dir = randomDirection();
+        MapLocation target = rc.getLocation().add(dir, info.sensorRadius - 1f);
+        if (!rc.onTheMap(target)) {
+            dir = randomDirection();
+            target = clampToMap(rc.getLocation().add(dir, info.sensorRadius - 1f));
         }
+        return target;
     }
 
     private float getPositionScore(MapLocation loc, MapLocation[] enemyArchons, RobotInfo[] units, int numBullets,
@@ -61,17 +48,17 @@ class Scout extends Robot {
             } else {
                 switch(unit.type) {
                     case GARDENER:
-                        score += 10f / (loc.distanceSquaredTo(unit.location) + 1);
+                        //score += 10f / (loc.distanceSquaredTo(unit.location) + 1);
                         break;
                     case SCOUT:
                         if (rc.getHealth() >= unit.health)
-                            score += 2f / (loc.distanceSquaredTo(unit.location) + 1);
+                            score += 0.1f / (loc.distanceSquaredTo(unit.location) + 1);
                         else
                             score -= 2f / (loc.distanceSquaredTo(unit.location) + 1);
                         break;
                     case LUMBERJACK:
                         float dis = loc.distanceTo(unit.location);
-                        score -= 10f / (dis * dis + 1);
+                        score -= 24f / (dis * dis + 1);
                         score += 2f / (dis + 1);
                         if (dis < GameConstants.LUMBERJACK_STRIKE_RADIUS + 3f) {
                             score -= 1000;
@@ -81,7 +68,7 @@ class Scout extends Robot {
                         break;
                     default:
                         float dis2 = loc.distanceTo(unit.location);
-                        score -= 5f / (dis2 * dis2 + 1);
+                        score -= 12f / (dis2 * dis2 + 1);
                         score += 1f / (dis2 + 1);
                         break;
                 }
@@ -164,11 +151,17 @@ class Scout extends Robot {
             MapLocation myLocation = rc.getLocation();
             // See if there are any nearby enemy robots
             RobotInfo[] robots = rc.senseNearbyRobots(-1, enemy);
-            RobotInfo[] friendlyRobots = rc.senseNearbyRobots(-1, rc.getTeam());
+            //RobotInfo[] friendlyRobots = rc.senseNearbyRobots(-1, rc.getTeam());
             RobotInfo[] allRobots = rc.senseNearbyRobots();
             BulletInfo[] nearbyBullets = rc.senseNearbyBullets(8f);
             float[] bulletImpactDistances = updateBulletHitDistances(nearbyBullets);
             TreeInfo[] trees = rc.senseNearbyTrees();
+            float senseRadius = info.sensorRadius;
+            while(trees.length > 100){
+                senseRadius -= 2;
+                trees = rc.senseNearbyTrees(senseRadius);
+            }
+
 
             int numDangerous = 0;
             int bulletsToConsider = Math.min(nearbyBullets.length, bulletX.length);
@@ -222,22 +215,22 @@ class Scout extends Robot {
             if (closestEnemy != null) {
                 Direction dir = myLocation.directionTo(closestEnemy.location);
                 movesToConsider.add(myLocation.add(dir.opposite(), info.strideRadius));
-                movesToConsider.add(myLocation.add(dir,
-                        Math.max(0f, Math.min(myLocation.distanceTo(closestEnemy.location) - 2.01f, info.strideRadius))));
+                //movesToConsider.add(myLocation.add(dir,
+                //        Math.max(0f, Math.min(myLocation.distanceTo(closestEnemy.location) - 2.01f, info.strideRadius))));
             }
 
             float bestScore = -1000000f;
             MapLocation bestMove = null;
             int iterationsDone = 0;
-            while (Clock.getBytecodesLeft() > 4000 || iterationsDone < 2) {
-                iterationsDone += 1;
+            int processingTime = 0;
+            while (Clock.getBytecodesLeft()-processingTime > 3000 || iterationsDone < 2) {
                 MapLocation loc;
                 if (movesToConsider.isEmpty()) {
                     Direction dir = randomDirection();
-                    int r = rnd.nextInt(10);
-                    if (r < 5)
+                    int r = rnd.nextInt(20);
+                    if (r < 18)
                         loc = myLocation.add(dir, info.strideRadius);
-                    else if (r < 7)
+                    else if (r < 19)
                         loc = myLocation.add(dir, info.strideRadius * 0.5f);
                     else
                         loc = myLocation.add(dir, 0.2f);
@@ -247,12 +240,15 @@ class Scout extends Robot {
                 }
 
                 if (rc.canMove(loc)) {
-                    float score = getPositionScore(loc, archons, allRobots,
+                    int bytecodesBefore = Clock.getBytecodesLeft();
+                    iterationsDone += 1;
+                    float score = getPositionScore(loc, archons, robots,
                             numDangerous, bulletX, bulletY, bulletDx, bulletDy, bulletDamage, bulletSpeed, bulletImpactDistances, bestTree, target);
                     if (score > bestScore) {
                         bestScore = score;
                         bestMove = loc;
                     }
+                    processingTime = bytecodesBefore - Clock.getBytecodesLeft();
                 }
             }
             if (bestMove != null) {
