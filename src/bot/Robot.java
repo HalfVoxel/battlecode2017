@@ -1244,7 +1244,9 @@ abstract class Robot {
         float bestScore = -1000000f;
         MapLocation bestMove = null;
         int iterationsDone = 0;
-        while (Clock.getBytecodesLeft() > 3000 || iterationsDone < 2) {
+        // Save some processing power if we have no bullets to consider (will be used by e.g the exploration code)
+        int maxIterations = bullets.length == 0 ? 5 : 1000;
+        while ((Clock.getBytecodesLeft() > 3000 && iterationsDone < maxIterations) || iterationsDone < 2) {
             iterationsDone += 1;
             MapLocation loc;
             if (movesToConsider.isEmpty()) {
