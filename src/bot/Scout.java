@@ -270,9 +270,9 @@ class Scout extends Robot {
             boolean targetArchons = !highPriorityTargetExists() && rc.getRoundNum() > 2000;
             //fireAtNearbyRobot(friendlyRobots, robots, targetArchons);
             //fireAtNearbyRobotSweep(friendlyRobots, robots, trees);
-            fireAtNearbyRobotSweep2(allRobots, trees);
+            //fireAtNearbyRobotSweep2(allRobots, trees);
 
-            if (!rc.hasAttacked() && rc.canFireSingleShot() && turnsLeft > STOP_SPENDING_AT_TIME) {
+            /*if (!rc.hasAttacked() && rc.canFireSingleShot() && turnsLeft > STOP_SPENDING_AT_TIME) {
                 float bestScore3 = -1000000f;
                 RobotInfo bestRobot = null;
                 for (RobotInfo robot : robots) {
@@ -304,7 +304,7 @@ class Scout extends Robot {
 
             if (!nearbyEnemyGardener && !rc.hasAttacked()) {
                 fireAtNearbyTree(trees);
-            }
+            }*/
 
             if (rc.getRoundNum() != roundAtStart) {
                 System.out.println("Error! Did not finish within the bytecode limit");

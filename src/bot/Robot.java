@@ -316,7 +316,7 @@ abstract class Robot {
     }
 
     void updateLiveness() throws GameActionException {
-        float countAsDeadLimit = 10;
+        float countAsDeadLimit = rc.getType() == RobotType.SCOUT ? 4 : 10;
         if (countingAsAlive && rc.getHealth() <= countAsDeadLimit) {
             rc.broadcast(info.ordinal(), spawnedCount(info) - 1);
             countingAsAlive = false;
