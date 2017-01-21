@@ -5,8 +5,8 @@ import battlecode.common.*;
 import java.util.*;
 
 abstract class Robot {
-    RobotController rc = null;
-    RobotType info = null;
+    static RobotController rc = null;
+    static RobotType info = null;
     MapLocation spawnPos = null;
     Random rnd = new Random(SEED);
     int lastAttackedEnemyID = -1;
@@ -38,8 +38,8 @@ abstract class Robot {
 
     static final int STOP_SPENDING_AT_TIME = 50;
 
-    int mapEdgesDetermined = 0;
-    float[] mapEdges = new float[4];
+    static int mapEdgesDetermined = 0;
+    static float[] mapEdges = new float[4];
     boolean countingAsAlive = true;
     private Map<Integer, Float> bulletHitDistance = new HashMap<>();
 
