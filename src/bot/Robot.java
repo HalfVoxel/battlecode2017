@@ -1327,6 +1327,10 @@ abstract class Robot {
         } else if (rc.getRoundNum() > rc.getRoundLimit()-300) {
             double donate = Math.floor((rc.getTeamBullets() - 25) / cost) * cost;
             rc.donate((float) donate);
+        } else if (rc.getTeamBullets() > 2000) {
+            // Victory points get more expensive over time, so donate them early on
+            final int bulletsToKeep = 2000;
+            rc.donate(rc.getTeamBullets() - bulletsToKeep);
         }
     }
 }
