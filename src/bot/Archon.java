@@ -2,10 +2,6 @@ package bot;
 
 import battlecode.common.*;
 
-import java.util.ArrayDeque;
-import java.util.Deque;
-import java.util.Queue;
-
 class Archon extends Robot {
 
     @Override
