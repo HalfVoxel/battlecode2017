@@ -9,7 +9,7 @@ import random
 import signal
 from itertools import chain
 
-maps = ["Arena", "Barbell", "Barrier", "Boxed", "Bullseye", "Chess", "Clusters", "Cramped", "CrossFire", "DenseForest", "DigMeOut", "Enclosure", "GiantForest", "Hurdle", "LilForts", "LineOfFire", "MagicWood", "Maniple", "MyFirstMap", "OMGTree", "PasscalsTriangles", "Shrubbery", "SparseForest", "Sprinkles", "Standoff", "Waves", "shrine", "BulletHell"]
+maps = ["Arena", "Barbell", "Barrier", "Boxed", "Bullseye", "Chess", "Clusters", "Cramped", "CrossFire", "DenseForest", "DigMeOut", "Enclosure", "GiantForest", "Hurdle", "LilForts", "LineOfFire", "MagicWood", "Maniple", "MyFirstMap", "OMGTree", "PasscalsTriangles", "Shrubbery", "SparseForest", "Sprinkles", "Standoff", "Waves", "shrine"]
 lowerMaps = [m.lower() for m in maps]
 
 parser = argparse.ArgumentParser(description='Run BattleCode Bots')
