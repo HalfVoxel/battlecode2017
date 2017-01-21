@@ -63,9 +63,9 @@ class Archon extends Robot {
         }
     }
 
-    private static ArrayDeque<Integer> queue = new ArrayDeque<>();
-    private static ArrayDeque<Integer> secondaryQueue = new ArrayDeque<>();
-    private static ArrayDeque<Integer> tertiaryQueue = new ArrayDeque<>();
+    private static CustomQueue queue = new CustomQueue();
+    private static CustomQueue secondaryQueue = new CustomQueue();
+    private static CustomQueue tertiaryQueue = new CustomQueue();
 
     private static int[] explored = null;
     private static int[] costs = null;
@@ -122,7 +122,7 @@ class Archon extends Robot {
         int index = seedy * PATHFINDING_WORLD_WIDTH + seedx;
         explored[index] = pathfindingIndex;
         costs[index] = 0;
-        queue.add(seedx + seedy * PATHFINDING_WORLD_WIDTH);
+        queue.addLast(seedx + seedy * PATHFINDING_WORLD_WIDTH);
     }
 
     static int searchTime = 0;
@@ -144,27 +144,32 @@ class Archon extends Robot {
 
         int w0 = Clock.getBytecodeNum();
 
-        while (queue.size() > 0 || secondaryQueue.size() > 0 || tertiaryQueue.size() > 0) {
+        while (true) {
             if (Clock.getBytecodesLeft() < 1600) {
                 searchTime += Clock.getBytecodeNum() - w0;
                 return;
             }
 
+            int w2 = Clock.getBytecodeNum();
+
             int node;
-            if (queue.size() > 0) {
+            // Inlined check for queue.isEmpty
+            if (queue.head != queue.tail) {
                 node = queue.pollFirst();
-            } else if (secondaryQueue.size() > 0) {
+            } else if (secondaryQueue.head != secondaryQueue.tail) {
                 node = secondaryQueue.pollFirst();
-            } else {
+            } else if (tertiaryQueue.head != tertiaryQueue.tail) {
                 node = tertiaryQueue.pollFirst();
+            } else {
+                break;
             }
 
             int x = node % PATHFINDING_WORLD_WIDTH;
             int y = node / PATHFINDING_WORLD_WIDTH;
 
-            int w2 = Clock.getBytecodeNum();
-            rc.setIndicatorDot(origin.translate(x * PATHFINDING_NODE_SIZE, y * PATHFINDING_NODE_SIZE), 255, 255, 255);
             searchTime4 += Clock.getBytecodeNum() - w2;
+
+            //rc.setIndicatorDot(origin.translate((x + 0.5f) * PATHFINDING_NODE_SIZE, (y + 0.5f) * PATHFINDING_NODE_SIZE), 255, 255, 255);
 
             for (int i = 0; i < 4; i++) {
                 int nindex = node + neighbourOffsets[i];
@@ -175,35 +180,33 @@ class Archon extends Robot {
                     int ny = nindex / PATHFINDING_WORLD_WIDTH;
                     int chunk = pathfindingChunkDataForNode(nx, ny);
                     boolean traversable = ((chunk >> ((ny % PATHFINDING_CHUNK_SIZE) * PATHFINDING_CHUNK_SIZE + (nx % PATHFINDING_CHUNK_SIZE))) & 1) == 0;
-                    boolean fullyExplored = (chunk & (1 << 30)) != 0;
                     explored[nindex] = pathfindingIndex;
                     parents[nindex] = i;
-                    int ncost = costs[node];
                     searchTime2 += Clock.getBytecodeNum() - w1;
 
                     if (!traversable) {
                         // We definitely know it is not traversable
                         tertiaryQueue.addLast(nindex);
-                        ncost += 100;
-                    } else if (fullyExplored) {
-                        // We definitely know it is traversable
-                        queue.add(nindex);
-                        ncost += 1;
+                        costs[nindex] = costs[node] + 100;
                     } else {
-                        w1 = Clock.getBytecodeNum();
-
-                        // It may be traversable or it may not, we don't really know
-                        if (onMap(origin.x + x * PATHFINDING_NODE_SIZE, origin.y + y * PATHFINDING_NODE_SIZE)) {
+                        boolean fullyExplored = (chunk & (1 << 30)) != 0;
+                        if (fullyExplored) {
+                            // We definitely know it is traversable
                             queue.addLast(nindex);
-                            ncost += 1;
+                            costs[nindex] = costs[node] + 1;
                         } else {
-                            ncost += 1000;
-                        }
+                            w1 = Clock.getBytecodeNum();
 
-                        searchTime3 += Clock.getBytecodeNum() - w1;
+                            // It may be traversable or it may not, we don't really know
+                            if (onMap(origin.x + x * PATHFINDING_NODE_SIZE, origin.y + y * PATHFINDING_NODE_SIZE)) {
+                                queue.addLast(nindex);
+                                costs[nindex] = costs[node] + 1;
+                            }
+
+                            searchTime3 += Clock.getBytecodeNum() - w1;
+                        }
                     }
 
-                    costs[nindex] = ncost;
                     //rc.debug_setIndicatorDot(origin.translate(nx * PATHFINDING_NODE_SIZE, ny * PATHFINDING_NODE_SIZE), 0, 0, 200);
                 }
             }
@@ -273,7 +276,7 @@ class Archon extends Robot {
             for (int x = 0; x < PATHFINDING_WORLD_WIDTH; x++) {
                 int index = y * PATHFINDING_WORLD_WIDTH + x;
                 if (explored[index] == pathfindingIndex) {
-                    MapLocation loc = origin.translate(x * PATHFINDING_NODE_SIZE, y * PATHFINDING_NODE_SIZE);
+                    MapLocation loc = origin.translate((x + 0.5f) * PATHFINDING_NODE_SIZE, (y + 0.5f) * PATHFINDING_NODE_SIZE);
                     debug_setIndicatorDot(loc, costs[index] / 120f);
                 }
             }
