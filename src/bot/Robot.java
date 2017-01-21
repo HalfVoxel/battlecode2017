@@ -10,6 +10,7 @@ abstract class Robot {
     MapLocation spawnPos = null;
     Random rnd = new Random(SEED);
     int lastAttackedEnemyID = -1;
+    int roundAtStart = 0;
 
     static final int SEED = 0;
     static final int MAP_EDGE_BROADCAST_OFFSET = 10;
@@ -129,6 +130,8 @@ abstract class Robot {
     }
 
     void onStartOfTick() throws GameActionException {
+        roundAtStart = rc.getRoundNum();
+
         if (rc.readBroadcast(PRIMARY_UNIT) != rc.getRoundNum()) {
             // We are the designated primary unit (first unit in spawn order, usually archons)
             rc.broadcast(PRIMARY_UNIT, rc.getRoundNum());
@@ -142,6 +145,11 @@ abstract class Robot {
         if (Clock.getBytecodesLeft() > 1000) determineMapSize();
         if (Clock.getBytecodesLeft() > 1000 || rc.getType() == RobotType.GARDENER) shakeNearbyTrees();
         if (Clock.getBytecodesLeft() > 1000) broadcastEnemyLocations(null);
+
+        if (rc.getRoundNum() != roundAtStart) {
+            System.out.println("Error! Did not finish within the bytecode limit");
+        }
+
         Clock.yield();
         onStartOfTick();
     }

@@ -155,8 +155,6 @@ class Scout extends Robot {
         // The code you want your robot to perform every round should be in this loop
         while (true) {
             shakeNearbyTrees();
-            int roundAtStart = rc.getRoundNum();
-            int turnsLeft = rc.getRoundLimit() - rc.getRoundNum();
             MapLocation myLocation = rc.getLocation();
             // See if there are any nearby enemy robots
             RobotInfo[] robots = rc.senseNearbyRobots(-1, enemy);
@@ -191,8 +189,6 @@ class Scout extends Robot {
             if (rnd.nextInt(200) < 1 || myLocation.distanceTo(target) < 4f) {
                 target = pickTarget();
             }
-
-            int clock1 = Clock.getBytecodeNum();
 
             TreeInfo bestTree = findBestTreeToShake(neutralTrees);
 
@@ -268,7 +264,6 @@ class Scout extends Robot {
                     iterationsDone += 1;
                 }
 
-                System.out.println("ITERATIONS: " + iterationsDone);
                 if (bestMove != null) {
                     rc.move(bestMove);
                 }
@@ -276,10 +271,6 @@ class Scout extends Robot {
 
             boolean targetArchons = !highPriorityTargetExists() && rc.getRoundNum() > 2000;
             fireAtNearbyRobot(friendlyRobots, robots, targetArchons);
-
-            if (rc.getRoundNum() != roundAtStart) {
-                System.out.println("Error! Did not finish within the bytecode limit");
-            }
 
             yieldAndDoBackgroundTasks();
         }
