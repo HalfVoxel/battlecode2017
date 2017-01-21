@@ -201,7 +201,7 @@ abstract class Robot {
                 int chunkInfo = rc.readBroadcast(PATHFINDING + index);
 
                 //MapLocation chunkCenter1 = origin.translate((nx + 0.5f) * PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE, (ny + 0.5f) * PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE);
-                //rc.setIndicatorDot(chunkCenter1, chunkInfo == 0 ? 128 : 0, 0, rc.canSenseAllOfCircle(chunkCenter1, chunkRadius) ? 255 : 0);
+                //rc.debug_setIndicatorDot(chunkCenter1, chunkInfo == 0 ? 128 : 0, 0, rc.canSenseAllOfCircle(chunkCenter1, chunkRadius) ? 255 : 0);
 
                 if (chunkInfo == 0) {
                     // Chunk is not explored yet
@@ -288,7 +288,7 @@ abstract class Robot {
                         float score = 1f / chunkPosition.distanceTo(rc.getLocation());
 
 						/*try {
-                            setIndicatorDot(chunkPosition, 10 * score)
+                            debug_setIndicatorDot(chunkPosition, 10 * score)
 						} catch {
 							case e:Exception =>
 						}*/
@@ -458,7 +458,7 @@ abstract class Robot {
         }
     }
 
-    void setIndicatorDot(MapLocation pos, float value) throws GameActionException {
+    void debug_setIndicatorDot(MapLocation pos, float value) throws GameActionException {
         float r = Math.max(Math.min(value * 3f, 1f), 0f);
         float g = Math.max(Math.min((value - 1 / 3f) * 3f, 1f), 0f);
         float b = Math.max(Math.min((value - 2 / 3f) * 3f, 1f), 0f);
