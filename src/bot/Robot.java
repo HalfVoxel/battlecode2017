@@ -17,6 +17,7 @@ abstract class Robot {
     static final int GARDENER_OFFSET = 25;
     static final int TREE_OFFSET = 30;
     static final int GARDENER_CAN_PROBABLY_BUILD = 40;
+    static final int PRIMARY_UNIT = 50;
 
     private static final int EXPLORATION_OFFSET = 100;
     private static final int EXPLORATION_CHUNK_SIZE = 25;
@@ -32,9 +33,10 @@ abstract class Robot {
     boolean countingAsAlive = true;
     private Map<Integer, Float> bulletHitDistance = new HashMap<>();
 
-    void init() {
+    void init() throws GameActionException {
         info = rc.getType();
         spawnPos = rc.getLocation();
+        onStartOfTick();
     }
 
     abstract void run() throws GameActionException;
@@ -106,13 +108,22 @@ abstract class Robot {
         return false;
     }
 
+    void onStartOfTick() throws GameActionException {
+        if (rc.readBroadcast(PRIMARY_UNIT) != rc.getRoundNum()) {
+            // We are the designated primary unit (first unit in spawn order, usually archons)
+            rc.broadcast(PRIMARY_UNIT, rc.getRoundNum());
+
+            considerDonating();
+        }
+    }
+
     void yieldAndDoBackgroundTasks() throws GameActionException {
         updateLiveness();
         if (Clock.getBytecodesLeft() > 1000) determineMapSize();
         if (Clock.getBytecodesLeft() > 1000 || rc.getType() == RobotType.GARDENER) shakeNearbyTrees();
         if (Clock.getBytecodesLeft() > 1000) broadcastEnemyLocations(null);
-        if (Clock.getBytecodesLeft() > 1000) considerDonating();
         Clock.yield();
+        onStartOfTick();
     }
 
     void broadcastExploration() throws GameActionException {

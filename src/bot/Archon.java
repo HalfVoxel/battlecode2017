@@ -19,8 +19,6 @@ class Archon extends Robot {
         System.out.println("I'm an archon! ");
         // The code you want your robot to perform every round should be in this loop
         while (true) {
-            considerDonating();
-
             int gardenerCount = spawnedCount(RobotType.GARDENER);
             boolean saveForTank = false;
             int tankCount = spawnedCount(RobotType.TANK);
