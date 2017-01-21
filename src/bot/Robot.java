@@ -499,8 +499,16 @@ abstract class Robot {
                         rc.firePentadShot(dir);
                     }
 
+                    if (rc.canFirePentadShot() && rc.getLocation().distanceTo(bestRobot.location) < 3.5f){
+                        rc.firePentadShot(dir);
+                    }
+
                     if (rc.canFireTriadShot() && friendlyRobots.length < hostileRobots.length && (friendlyRobots.length == 0 || hostileRobots.length >= 2)) {
                         // ...Then fire a bullet in the direction of the enemy.
+                        rc.fireTriadShot(dir);
+                    }
+
+                    if (rc.canFireTriadShot() && rc.getLocation().distanceTo(bestRobot.location) < 5.5f){
                         rc.fireTriadShot(dir);
                     }
 
