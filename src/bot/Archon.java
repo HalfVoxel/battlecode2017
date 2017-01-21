@@ -14,9 +14,14 @@ class Archon extends Robot {
         if (readBroadcastPosition(EXPLORATION_ORIGIN).equals(new MapLocation(0, 0))) {
             System.out.println("Set exploration origin");
             broadcast(EXPLORATION_ORIGIN, rc.getLocation());
+
+            for (int i = 0; i < 4; i++) {
+                rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + i + 1, mapEdges[i]);
+            }
         }
 
         System.out.println("I'm an archon! ");
+
         // The code you want your robot to perform every round should be in this loop
         while (true) {
             int gardenerCount = spawnedCount(RobotType.GARDENER);
