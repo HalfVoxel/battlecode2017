@@ -85,12 +85,17 @@ class Scout extends Robot {
     }
 
 
-    private TreeInfo findBestTreeToShake(TreeInfo[] trees) {
+    private TreeInfo findBestTreeToShake(TreeInfo[] neutralTrees) {
         TreeInfo bestTree = null;
         float bestTreeScore = -1000000f;
-        for (TreeInfo tree : trees) {
-            if (tree.getTeam() == Team.NEUTRAL) {
-                float score = tree.containedBullets / (1 + rc.getLocation().distanceTo(tree.location));
+        MapLocation myLocation = rc.getLocation();
+
+        // Limit the number of trees we look at to the N closest
+        int numTrees = Math.min(neutralTrees.length, 40);
+        for (int i = 0; i < numTrees; i++) {
+            TreeInfo tree = neutralTrees[i];
+            if (tree.containedBullets > 0) {
+                float score = tree.containedBullets / (1 + myLocation.distanceTo(tree.location));
                 if (score > bestTreeScore) {
                     bestTree = tree;
                     bestTreeScore = score;
@@ -158,12 +163,7 @@ class Scout extends Robot {
             RobotInfo[] allRobots = rc.senseNearbyRobots();
             BulletInfo[] nearbyBullets = rc.senseNearbyBullets(8f);
             float[] bulletImpactDistances = updateBulletHitDistances(nearbyBullets);
-            TreeInfo[] trees = rc.senseNearbyTrees();
-            float senseRadius = info.sensorRadius;
-            while(trees.length > 100){
-                senseRadius -= 2;
-                trees = rc.senseNearbyTrees(senseRadius);
-            }
+            TreeInfo[] neutralTrees = rc.senseNearbyTrees(-1, Team.NEUTRAL);
 
 
             int numDangerous = 0;
@@ -197,7 +197,7 @@ class Scout extends Robot {
 
             int clock1 = Clock.getBytecodeNum();
 
-            TreeInfo bestTree = findBestTreeToShake(trees);
+            TreeInfo bestTree = findBestTreeToShake(neutralTrees);
 
             RobotInfo defenderTarget = null;
             for (RobotInfo robot : friendlyRobots) {
