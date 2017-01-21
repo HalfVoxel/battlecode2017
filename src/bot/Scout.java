@@ -88,7 +88,7 @@ class Scout extends Robot {
     int lastBestTree = -1;
     int lastBestTreeTick = -1;
 
-    private TreeInfo findBestTreeToShake(TreeInfo[] neutralTrees) throws GameActionException {
+    private TreeInfo findBestTreeToShake() throws GameActionException {
         // Cache the best tree for a few ticks
         if (rc.getRoundNum() < lastBestTree + 10 && rc.canSenseTree(lastBestTree)) {
             TreeInfo tree = rc.senseTree(lastBestTree);
@@ -97,6 +97,7 @@ class Scout extends Robot {
             }
         }
 
+        TreeInfo[] neutralTrees = rc.senseNearbyTrees(-1, Team.NEUTRAL);
         TreeInfo bestTree = null;
         float bestTreeScore = -1000000f;
         MapLocation myLocation = rc.getLocation();
@@ -128,7 +129,6 @@ class Scout extends Robot {
     float[] bulletDy = new float[100];
     float[] bulletDamage = new float[100];
     float[] bulletSpeed = new float[100];
-    boolean[] isDangerous = new boolean[100];
     MapLocation[] movesToConsider = new MapLocation[100];
 
     public void run() throws GameActionException {
@@ -150,27 +150,24 @@ class Scout extends Robot {
             RobotInfo[] allRobots = rc.senseNearbyRobots();
             BulletInfo[] nearbyBullets = rc.senseNearbyBullets(8f);
             float[] bulletImpactDistances = updateBulletHitDistances(nearbyBullets);
-            TreeInfo[] neutralTrees = rc.senseNearbyTrees(-1, Team.NEUTRAL);
-
 
             int bulletsToConsider = Math.min(nearbyBullets.length, bulletX.length);
+            // Discard bullets that cannot hit us and move the bullets that can hit us to the front of the array
+            // The first bulletsToConsider bullets will can potentially hit us after the loop is done
             for (int i = 0; i < bulletsToConsider; i++) {
-                isDangerous[i] = bulletCanHitUs(myLocation, nearbyBullets[i]);
-            }
-
-            int numDangerous = 0;
-            for (int i = 0; i < bulletsToConsider; i++) {
-                if (!isDangerous[i])
-                    continue;
-
-                BulletInfo bullet = nearbyBullets[i];
-                bulletX[numDangerous] = bullet.location.x;
-                bulletY[numDangerous] = bullet.location.y;
-                bulletDx[numDangerous] = bullet.dir.getDeltaX(1);
-                bulletDy[numDangerous] = bullet.dir.getDeltaY(1);
-                bulletDamage[numDangerous] = bullet.damage;
-                bulletSpeed[numDangerous] = bullet.speed;
-                numDangerous++;
+                if (!bulletCanHitUs(myLocation, nearbyBullets[i])) {
+                    bulletsToConsider--;
+                    nearbyBullets[i] = nearbyBullets[bulletsToConsider];
+                    i--;
+                } else {
+                    BulletInfo bullet = nearbyBullets[i];
+                    bulletX[i] = bullet.location.x;
+                    bulletY[i] = bullet.location.y;
+                    bulletDx[i] = bullet.dir.getDeltaX(1);
+                    bulletDy[i] = bullet.dir.getDeltaY(1);
+                    bulletDamage[i] = bullet.damage;
+                    bulletSpeed[i] = bullet.speed;
+                }
             }
 
             // Pick a new target with a small probability or when very close to the target
@@ -178,26 +175,16 @@ class Scout extends Robot {
                 target = pickTarget();
             }
 
-            TreeInfo bestTree = findBestTreeToShake(neutralTrees);
+            TreeInfo bestTree = findBestTreeToShake();
 
             int numMovesToConsider = 0;
-            RobotInfo closestEnemy = null;
-            float disToClosestEnemy = 1000000f;
 
             if (myLocation.distanceTo(target) > 0) {
                 movesToConsider[numMovesToConsider++] = myLocation.add(myLocation.directionTo(target), info.strideRadius);
             }
 
-            for (RobotInfo robot : robots) {
-                float dist = myLocation.distanceTo(robot.location);
-                if (dist < disToClosestEnemy) {
-                    disToClosestEnemy = dist;
-                    closestEnemy = robot;
-                }
-            }
-
-            if (closestEnemy != null) {
-                Direction dir = myLocation.directionTo(closestEnemy.location);
+            if (robots.length > 0) {
+                Direction dir = myLocation.directionTo(robots[0].location);
                 movesToConsider[numMovesToConsider++] = myLocation.add(dir.opposite(), info.strideRadius);
             }
 
@@ -205,7 +192,10 @@ class Scout extends Robot {
             MapLocation bestMove = null;
             int iterationsDone = 0;
             int processingTime = 0;
-            while (Clock.getBytecodesLeft()-processingTime > 3000 || iterationsDone < 2) {
+
+            // Save some processing power if we have no bullets to consider (will be used by e.g the exploration code)
+            int maxIterations = bulletsToConsider == 0 ? 3 : 1000;
+            while ((Clock.getBytecodesLeft()-processingTime > 3000 || iterationsDone < 2) && iterationsDone < maxIterations) {
                 MapLocation loc;
                 if (iterationsDone < numMovesToConsider) {
                     loc = movesToConsider[iterationsDone];
@@ -223,7 +213,7 @@ class Scout extends Robot {
                 if (rc.canMove(loc)) {
                     int bytecodesBefore = Clock.getBytecodesLeft();
                     float score = getPositionScore(loc, archons, allRobots,
-                            numDangerous, bulletX, bulletY, bulletDx, bulletDy, bulletDamage, bulletSpeed, bulletImpactDistances, bestTree, target);
+                            bulletsToConsider, bulletX, bulletY, bulletDx, bulletDy, bulletDamage, bulletSpeed, bulletImpactDistances, bestTree, target);
                     if (score > bestScore) {
                         bestScore = score;
                         bestMove = loc;
