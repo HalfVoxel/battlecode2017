@@ -2,6 +2,7 @@ package bot;
 
 class CustomQueue {
     int[] elements = new int[1024];
+    int mask = 1023;
     public int head;
     public int tail;
 
@@ -9,13 +10,13 @@ class CustomQueue {
     }
 
     public void addLast(int e) {
-        elements[tail] = e;
-        if ( (tail = (tail + 1) & (elements.length - 1)) == head)
+        elements[tail & mask] = e;
+        if (tail++ - head == mask)
             doubleCapacity();
     }
 
     public int size() {
-        return (tail - head) & (elements.length - 1);
+        return tail - head;
     }
 
     public boolean isEmpty() {
@@ -23,12 +24,12 @@ class CustomQueue {
     }
 
     public int pollFirst() {
-        int h = head;
-        head = (h + 1) & (elements.length - 1);
-        return elements[h];
+        return elements[head++ & mask];
     }
 
     private void doubleCapacity() {
+        head &= mask;
+        tail &= mask;
         assert head == tail;
         int p = head;
         int n = elements.length;
@@ -42,5 +43,6 @@ class CustomQueue {
         elements = a;
         head = 0;
         tail = n;
+        mask = elements.length - 1;
     }
 }
