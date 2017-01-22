@@ -10,18 +10,6 @@ class Archon extends Robot {
         rc.broadcast(HIGH_PRIORITY_TARGET_OFFSET, -1000);
         int STOP_SPENDING_AT_TIME = 100;
 
-        // Set the exploration origin if it has not been set already
-        if (explorationOrigin.equals(new MapLocation(0, 0))) {
-            System.out.println("Set exploration origin");
-            explorationOrigin = rc.getLocation().translate(-PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2, -PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2);
-            broadcast(EXPLORATION_ORIGIN, explorationOrigin);
-
-            rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (0 + 1), mapEdges0);
-            rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (1 + 1), mapEdges1);
-            rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (2 + 1), mapEdges2);
-            rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (3 + 1), mapEdges3);
-        }
-
         System.out.println("I'm an archon! ");
         rc.broadcast(RobotType.ARCHON.ordinal(), rc.getInitialArchonLocations(rc.getTeam()).length);
 

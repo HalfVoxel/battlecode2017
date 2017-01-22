@@ -56,7 +56,20 @@ abstract class Robot {
         mapEdges2 = Math.max(spawnPos.x - GameConstants.MAP_MAX_WIDTH, 0f);
         mapEdges3 = Math.max(spawnPos.y - GameConstants.MAP_MAX_WIDTH, 0f);
 
-        explorationOrigin = readBroadcastPosition(EXPLORATION_ORIGIN);
+        // Set the exploration origin if it has not been set already
+        if (readBroadcastLong(EXPLORATION_ORIGIN) == 0L) {
+            System.out.println("Set exploration origin");
+            explorationOrigin = rc.getLocation().translate(-PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2, -PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2);
+            broadcast(EXPLORATION_ORIGIN, explorationOrigin);
+
+            rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (0 + 1), mapEdges0);
+            rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (1 + 1), mapEdges1);
+            rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (2 + 1), mapEdges2);
+            rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (3 + 1), mapEdges3);
+        } else {
+            explorationOrigin = readBroadcastPosition(EXPLORATION_ORIGIN);
+        }
+
         onStartOfTick();
     }
 
