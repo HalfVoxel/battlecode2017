@@ -189,6 +189,11 @@ class Scout extends Robot {
                 movesToConsider[numMovesToConsider++] = myLocation.add(dir.opposite(), info.strideRadius);
             }
 
+            if(bestTree != null){
+                Direction dir = myLocation.directionTo(bestTree.location);
+                movesToConsider[numMovesToConsider++] = myLocation.add(dir, info.strideRadius);
+            }
+
             float bestScore = -1000000f;
             MapLocation bestMove = null;
             int iterationsDone = 0;
@@ -196,16 +201,16 @@ class Scout extends Robot {
 
             // Save some processing power if we have no bullets to consider (will be used by e.g the exploration code)
             int maxIterations = bulletsToConsider == 0 ? 6 : 1000;
-            while ((Clock.getBytecodesLeft() - processingTime > 3000 && iterationsDone < maxIterations) || iterationsDone < 2) {
+            while ((Clock.getBytecodesLeft() - processingTime > 3000 && iterationsDone < maxIterations) || iterationsDone < 3) {
                 MapLocation loc;
                 if (iterationsDone < numMovesToConsider) {
                     loc = movesToConsider[iterationsDone];
                 } else {
                     Direction dir = randomDirection();
                     int r = rnd.nextInt(10);
-                    if (r < 5)
+                    if (r < 8)
                         loc = myLocation.add(dir, info.strideRadius);
-                    else if (r < 7)
+                    else if (r < 9)
                         loc = myLocation.add(dir, info.strideRadius * 0.5f);
                     else
                         loc = myLocation.add(dir, 0.2f);
