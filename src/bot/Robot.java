@@ -1300,7 +1300,7 @@ abstract class Robot {
     void moveToAvoidBullets(MapLocation secondaryTarget, BulletInfo[] bullets, RobotInfo[] units) throws GameActionException {
         if (rc.hasMoved()) return;
 
-        if (bullets.length == 0) {
+        if (bullets.length == 0 && rc.getType() != RobotType.LUMBERJACK) {
             Direction desiredDir = rc.getLocation().directionTo(secondaryTarget);
             float desiredStride = Math.min(rc.getLocation().distanceTo(secondaryTarget), info.strideRadius);
 
@@ -1350,8 +1350,12 @@ abstract class Robot {
         RobotInfo closestEnemy = null;
         float disToClosestEnemy = 1000000f;
 
-        if (myLocation.distanceTo(secondaryTarget) > 0) {
+        if (secondaryTarget != null && myLocation.distanceTo(secondaryTarget) > 0) {
             movesToConsider.add(myLocation.add(myLocation.directionTo(secondaryTarget), Math.min(myLocation.distanceTo(secondaryTarget), info.strideRadius)));
+            if(rc.getType() == RobotType.LUMBERJACK) {
+                movesToConsider.add(myLocation);
+            }
+
         } else {
             movesToConsider.add(myLocation);
         }
@@ -1404,7 +1408,6 @@ abstract class Robot {
         // Save some processing power if we have no bullets to consider (will be used by e.g the exploration code)
         int maxIterations = bullets.length == 0 ? 5 : 1000;
         while ((Clock.getBytecodesLeft() > 3000 && iterationsDone < maxIterations) || iterationsDone < 2) {
-            iterationsDone += 1;
             MapLocation loc;
             if (movesToConsider.isEmpty()) {
                 Direction dir = randomDirection();
@@ -1421,14 +1424,18 @@ abstract class Robot {
             }
 
             if (rc.canMove(loc)) {
+                iterationsDone += 1;
                 float score = getDefensiveBulletAvoidanceScore(loc, bulletX, bulletY, bulletDx, bulletDy,
                         bulletDamage, bulletSpeed, units, secondaryTarget);
                 if (score > bestScore) {
                     bestScore = score;
                     bestMove = loc;
                 }
+                //if(rc.getType() == RobotType.LUMBERJACK)
+                //    System.out.println(loc + ": " + score);
             }
         }
+        //System.out.println(iterationsDone + " iterations done");
 
         // We need to check again that the move is legal, in case we exceeded the byte code limit
         if (bestMove != null && rc.canMove(bestMove)) {
@@ -1460,11 +1467,21 @@ abstract class Robot {
             }
         }
 
-        if (!ignoreTarget) {
+        if (!ignoreTarget && target != null) {
             score -= 1.15f * loc.distanceTo(target);
         }
 
         if (rc.getType() == RobotType.LUMBERJACK) {
+            TreeInfo[] trees = rc.senseNearbyTrees();
+            for (TreeInfo tree : trees) {
+                if (tree.getTeam() == Team.NEUTRAL) {
+                    score += Math.sqrt((tree.containedRobot != null ? tree.containedRobot.bulletCost * 1.5f : 0) + tree.containedBullets + 1) / (loc.distanceTo(tree.location) + 1);
+                } else if (tree.getTeam() == myTeam) {
+                    score -= 1f / (loc.distanceTo(tree.location));
+                } else{
+                    score += 4f / (loc.distanceTo(tree.location));
+                }
+            }
             for (RobotInfo unit : units) {
                 float dis = loc.distanceTo(unit.location);
                 if (unit.team == myTeam) {
@@ -1476,9 +1493,10 @@ abstract class Robot {
                     }
                 } else {
                     if (unit.getType() != RobotType.LUMBERJACK) {
-                        score += 6f / (dis + 1);
-                        if (dis < GameConstants.LUMBERJACK_STRIKE_RADIUS + 1f + unit.getType().bodyRadius) {
-                            score += 100;
+                        //System.out.println("Applied bonus: " + (400000f / (dis + 1)));
+                        score += 10000f / (dis + 1);
+                        if (dis < GameConstants.LUMBERJACK_STRIKE_RADIUS) {
+                            score += 10000;
                         }
                     }
                 }
