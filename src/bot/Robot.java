@@ -42,6 +42,7 @@ abstract class Robot {
     static float mapEdges0, mapEdges1, mapEdges2, mapEdges3;
     boolean countingAsAlive = true;
     private Map<Integer, Float> bulletHitDistance = new HashMap<>();
+    private Map<Integer, MapLocation> unitLastLocation = new HashMap();
 
     void init() throws GameActionException {
         info = rc.getType();
@@ -634,6 +635,15 @@ abstract class Robot {
             for (RobotInfo robot : hostileRobots) {
                 if (bestRobotsTried.contains(robot.ID))
                     continue;
+                MapLocation lastLoc = unitLastLocation.get(robot.getID());
+                if(lastLoc == null){
+                    lastLoc = robot.location;
+                    unitLastLocation.put(robot.getID(), lastLoc);
+                }
+                if(!lastLoc.equals(robot.location) && lastLoc.x >= 0){
+                    lastLoc = new MapLocation(-1f, -1f);
+                    unitLastLocation.put(robot.getID(), lastLoc);
+                }
                 float score = 0;
                 switch (robot.type) {
                     case GARDENER:
@@ -651,6 +661,10 @@ abstract class Robot {
                         }
                         score += 50;
                         break;
+                }
+                if(lastLoc.x >= 0) {
+                    score *= 2;
+                    System.out.println("Target hasn't moved");
                 }
                 score /= 4 + robot.health / robot.type.maxHealth;
                 score /= myLocation.distanceTo(robot.location) + 1;
