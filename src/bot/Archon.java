@@ -143,7 +143,7 @@ class Archon extends Robot {
 
         float centerOffsetX = origin.x - (mapEdges0 + mapEdges2) * 0.5f;
         float centerOffsetY = origin.y - (mapEdges1 + mapEdges3) * 0.5f;
-        double mapRadius = Math.min((mapEdges0 - mapEdges2) * 0.5, (mapEdges1 - mapEdges3) * 0.5f);
+        double mapRadius = Math.min(mapEdges0 - mapEdges2, mapEdges1 - mapEdges3) * 0.5f;
         mapRadius /= PATHFINDING_NODE_SIZE;
         centerOffsetX /= PATHFINDING_NODE_SIZE;
         centerOffsetY /= PATHFINDING_NODE_SIZE;
