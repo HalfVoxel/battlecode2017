@@ -12,22 +12,22 @@ class Lumberjack extends Robot {
 
     TreeInfo findBestTreeToChop(boolean mustBeChopable) {
         TreeInfo[] trees;
-        if(mustBeChopable)
+        if (mustBeChopable)
             trees = rc.senseNearbyTrees(3f);
         else {
             trees = rc.senseNearbyTrees();
-            if(trees.length > 50)
+            if (trees.length > 50)
                 trees = rc.senseNearbyTrees(5f);
         }
         TreeInfo bestTree = null;
         float bestScore = 0f;
         for (TreeInfo tree : trees) {
-            if(mustBeChopable && !rc.canChop(tree.ID))
+            if (mustBeChopable && !rc.canChop(tree.ID))
                 continue;
             if (tree.team != rc.getTeam()) {
-                float turnsToChopDown = (tree.health / GameConstants.LUMBERJACK_CHOP_DAMAGE) + (float) Math.sqrt(Math.max(3f, rc.getLocation().distanceTo(tree.location)) / info.strideRadius) + 1f;
+                float turnsToChopDown = (tree.health / GameConstants.LUMBERJACK_CHOP_DAMAGE) + (float)Math.sqrt(Math.max(3f, rc.getLocation().distanceTo(tree.location)) / info.strideRadius) + 1f;
                 float score = ((tree.containedRobot != null ? tree.containedRobot.bulletCost * 1.5f : 0) + tree.containedBullets + 1) / turnsToChopDown;
-                if(tree.getTeam() == rc.getTeam().opponent()){
+                if (tree.getTeam() == rc.getTeam().opponent()) {
                     score *= 10;
                 }
                 if (score > bestScore) {
@@ -77,7 +77,7 @@ class Lumberjack extends Robot {
 
             TreeInfo bestTree = findBestTreeToChop(false);
             BulletInfo[] bullets = rc.senseNearbyBullets(8f);
-            if(bullets.length > 5)
+            if (bullets.length > 5)
                 bullets = rc.senseNearbyBullets(info.strideRadius + info.bodyRadius + 3f);
             RobotInfo[] enemyRobots = rc.senseNearbyRobots(-1, enemy);
             MapLocation target = bestTree == null ? pickTarget(archons) : bestTree.location;
@@ -97,15 +97,16 @@ class Lumberjack extends Robot {
                     rc.strike();
             }
 
-            if(!rc.hasAttacked()) {
+            if (!rc.hasAttacked()) {
                 float strikeScore = 0;
                 if (friendlyRobots.length > 0)
                     strikeScore -= 1000;
                 TreeInfo[] treesInStrikeRange = rc.senseNearbyTrees(GameConstants.LUMBERJACK_STRIKE_RADIUS);
                 for (TreeInfo tree : treesInStrikeRange) {
-                    if(!rc.canStrike())
+                    if (!rc.canStrike())
                         System.out.println("Can't strike tree!!");
-                    float turnsToChopDown = (tree.health / GameConstants.LUMBERJACK_CHOP_DAMAGE) + (float) Math.sqrt(Math.max(3f, rc.getLocation().distanceTo(tree.location)) / info.strideRadius) + 1f;float score = ((tree.containedRobot != null ? tree.containedRobot.bulletCost * 1.5f : 0) + tree.containedBullets + (float) Math.sqrt(rc.getLocation().distanceTo(tree.location) / info.strideRadius) + 1) / turnsToChopDown;
+                    float turnsToChopDown = (tree.health / GameConstants.LUMBERJACK_CHOP_DAMAGE) + (float)Math.sqrt(Math.max(3f, rc.getLocation().distanceTo(tree.location)) / info.strideRadius) + 1f;
+                    float score = ((tree.containedRobot != null ? tree.containedRobot.bulletCost * 1.5f : 0) + tree.containedBullets + (float)Math.sqrt(rc.getLocation().distanceTo(tree.location) / info.strideRadius) + 1) / turnsToChopDown;
                     if ((tree.containedRobot != null || tree.containedBullets > 0) && tree.getHealth() <= 10)
                         score -= 10000;
                     if (tree.getTeam() == rc.getTeam().opponent()) {
@@ -122,8 +123,7 @@ class Lumberjack extends Robot {
                 if (strikeScore > chopScore || (strikeScore > 0 && (bestTree == null || !rc.canChop(bestTree.ID)))) {
                     rc.strike();
                     //System.out.println("Lumberjack struck trees");
-                }
-                else if(bestTree != null && rc.canChop(bestTree.ID)){
+                } else if (bestTree != null && rc.canChop(bestTree.ID)) {
                     rc.chop(bestTree.ID);
                 }
             }
