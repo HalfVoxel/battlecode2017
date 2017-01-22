@@ -141,6 +141,13 @@ class Archon extends Robot {
 
         int w0 = Clock.getBytecodeNum();
 
+        float centerOffsetX = origin.x - (mapEdges0 + mapEdges2) * 0.5f;
+        float centerOffsetY = origin.y - (mapEdges1 + mapEdges3) * 0.5f;
+        double mapRadius = Math.min((mapEdges0 - mapEdges2) * 0.5, (mapEdges1 - mapEdges3) * 0.5f);
+        mapRadius /= PATHFINDING_NODE_SIZE;
+        centerOffsetX /= PATHFINDING_NODE_SIZE;
+        centerOffsetY /= PATHFINDING_NODE_SIZE;
+
         while (true) {
             if (Clock.getBytecodesLeft() < 1600) {
                 searchTime += Clock.getBytecodeNum() - w0;
@@ -207,12 +214,19 @@ class Archon extends Robot {
                             w1 = Clock.getBytecodeNum();
 
                             // It may be traversable or it may not, we don't really know
-                            float wx = origin.x + nx * PATHFINDING_NODE_SIZE;
-                            float wy = origin.y + ny * PATHFINDING_NODE_SIZE;
-                            // Inlined onMap call
-                            if (wx <= mapEdges0 && wy <= mapEdges1 && wx >= mapEdges2 && wy >= mapEdges3) {
+
+                            // Short circuit the check below for a large part of the map
+                            if (Math.hypot(nx + centerOffsetX, ny + centerOffsetY) < mapRadius) {
                                 queue.addLast(nindex);
                                 costs[nindex] = costs[node] + 1;
+                            } else {
+                                float wx = origin.x + nx * PATHFINDING_NODE_SIZE;
+                                float wy = origin.y + ny * PATHFINDING_NODE_SIZE;
+                                // Inlined onMap call
+                                if (wx <= mapEdges0 && wy <= mapEdges1 && wx >= mapEdges2 && wy >= mapEdges3) {
+                                    queue.addLast(nindex);
+                                    costs[nindex] = costs[node] + 1;
+                                }
                             }
 
                             searchTime3 += Clock.getBytecodeNum() - w1;
