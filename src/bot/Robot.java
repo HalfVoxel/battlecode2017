@@ -39,7 +39,7 @@ abstract class Robot {
     static final int STOP_SPENDING_AT_TIME = 50;
 
     static int mapEdgesDetermined = 0;
-    static float[] mapEdges = new float[4];
+    static float mapEdges0, mapEdges1, mapEdges2, mapEdges3;
     boolean countingAsAlive = true;
     private Map<Integer, Float> bulletHitDistance = new HashMap<>();
 
@@ -48,10 +48,10 @@ abstract class Robot {
         spawnPos = rc.getLocation();
 
         // Conservative map edges
-        mapEdges[0] = spawnPos.x + GameConstants.MAP_MAX_WIDTH;
-        mapEdges[1] = spawnPos.y + GameConstants.MAP_MAX_WIDTH;
-        mapEdges[2] = spawnPos.x - GameConstants.MAP_MAX_WIDTH;
-        mapEdges[3] = spawnPos.y - GameConstants.MAP_MAX_WIDTH;
+        mapEdges0 = Math.min(spawnPos.x, 500f) + GameConstants.MAP_MAX_WIDTH;
+        mapEdges1 = Math.min(spawnPos.y, 500f) + GameConstants.MAP_MAX_WIDTH;
+        mapEdges2 = Math.max(spawnPos.x - GameConstants.MAP_MAX_WIDTH, 0f);
+        mapEdges3 = Math.max(spawnPos.y - GameConstants.MAP_MAX_WIDTH, 0f);
 
         onStartOfTick();
     }
@@ -390,29 +390,29 @@ abstract class Robot {
      * True if the location is on the map using the information known so far
      */
     boolean onMap(MapLocation pos) {
-        return pos.x <= mapEdges[0] && pos.y <= mapEdges[1] && pos.x >= mapEdges[2] && pos.y >= mapEdges[3];
+        return pos.x <= mapEdges0 && pos.y <= mapEdges1 && pos.x >= mapEdges2 && pos.y >= mapEdges3;
     }
 
     /**
      * True if the location is on the map using the information known so far
      */
     boolean onMap(float x, float y) {
-        return x <= mapEdges[0] && y <= mapEdges[1] && x >= mapEdges[2] && y >= mapEdges[3];
+        return x <= mapEdges0 && y <= mapEdges1 && x >= mapEdges2 && y >= mapEdges3;
     }
 
     /**
      * True if the location is at least margin units from the edge of the map using the information known so far
      */
     boolean onMap(MapLocation pos, float margin) {
-        return pos.x <= mapEdges[0] - margin && pos.y <= mapEdges[1] - margin && pos.x >= mapEdges[2] + margin && pos.y >= mapEdges[3] + margin;
+        return pos.x <= mapEdges0 - margin && pos.y <= mapEdges1 - margin && pos.x >= mapEdges2 + margin && pos.y >= mapEdges3 + margin;
     }
 
     boolean onMapX(float xcoord, float margin) {
-        return xcoord <= mapEdges[0] - margin && xcoord >= mapEdges[2] + margin;
+        return xcoord <= mapEdges0 - margin && xcoord >= mapEdges2 + margin;
     }
 
     boolean onMapY(float ycoord, float margin) {
-        return ycoord <= mapEdges[1] - margin && ycoord >= mapEdges[3] + margin;
+        return ycoord <= mapEdges1 - margin && ycoord >= mapEdges3 + margin;
     }
 
     /**
@@ -428,19 +428,19 @@ abstract class Robot {
     MapLocation clampToMap(MapLocation pos, float margin) {
         float x = pos.x;
         float y = pos.y;
-        x = Math.min(x, mapEdges[0] - margin);
-        y = Math.min(y, mapEdges[1] - margin);
-        x = Math.max(x, mapEdges[2] + margin);
-        y = Math.max(y, mapEdges[3] + margin);
+        x = Math.min(x, mapEdges0 - margin);
+        y = Math.min(y, mapEdges1 - margin);
+        x = Math.max(x, mapEdges2 + margin);
+        y = Math.max(y, mapEdges3 + margin);
         return new MapLocation(x, y);
     }
 
     float getDistanceToMapEdge(MapLocation pos) {
         float ret = 10f;
-        ret = Math.min(ret, mapEdges[0] - pos.x);
-        ret = Math.min(ret, mapEdges[1] - pos.y);
-        ret = Math.min(ret, pos.x - mapEdges[2]);
-        ret = Math.min(ret, pos.y - mapEdges[3]);
+        ret = Math.min(ret, mapEdges0 - pos.x);
+        ret = Math.min(ret, mapEdges1 - pos.y);
+        ret = Math.min(ret, pos.x - mapEdges2);
+        ret = Math.min(ret, pos.y - mapEdges3);
         return ret;
     }
 
@@ -561,9 +561,10 @@ abstract class Robot {
         int globalMapEdgesDetermined = rc.readBroadcast(MAP_EDGE_BROADCAST_OFFSET);
         if (globalMapEdgesDetermined != mapEdgesDetermined) {
             mapEdgesDetermined = globalMapEdgesDetermined;
-            for (int i = 0; i < 4; i++) {
-                mapEdges[i] = rc.readBroadcastFloat(MAP_EDGE_BROADCAST_OFFSET + i + 1);
-            }
+            mapEdges0 = rc.readBroadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (0 + 1));
+            mapEdges1 = rc.readBroadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (1 + 1));
+            mapEdges2 = rc.readBroadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (2 + 1));
+            mapEdges3 = rc.readBroadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (3 + 1));
         }
 
         int tmpDetermined = mapEdgesDetermined;

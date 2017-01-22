@@ -15,9 +15,10 @@ class Archon extends Robot {
             System.out.println("Set exploration origin");
             broadcast(EXPLORATION_ORIGIN, rc.getLocation());
 
-            for (int i = 0; i < 4; i++) {
-                rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + i + 1, mapEdges[i]);
-            }
+            rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (0 + 1), mapEdges0);
+            rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (1 + 1), mapEdges1);
+            rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (2 + 1), mapEdges2);
+            rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (3 + 1), mapEdges3);
         }
 
         System.out.println("I'm an archon! ");
