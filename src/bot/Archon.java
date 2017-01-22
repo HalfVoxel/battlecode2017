@@ -68,7 +68,6 @@ class Archon extends Robot {
     private static int[] costs = null;
     private static int[] parents = null;
     private static int[] neighbourOffsets = null;
-    private static boolean[][] differentChunk = null;
     private static int pathfindingIndex = 0;
 
     void resetPathfinding() {
@@ -94,21 +93,6 @@ class Archon extends Robot {
             neighbourOffsets = new int[4];
             for (int i = 0; i < 4; i++) {
                 neighbourOffsets[i] = dy[i] * PATHFINDING_WORLD_WIDTH + dx[i];
-            }
-
-            differentChunk = new boolean[PATHFINDING_CHUNK_SIZE * PATHFINDING_CHUNK_SIZE][];
-            for (int x = 0; x < PATHFINDING_CHUNK_SIZE; x++) {
-                for (int y = 0; y < PATHFINDING_CHUNK_SIZE; y++) {
-                    int index = y * PATHFINDING_CHUNK_SIZE + x;
-                    differentChunk[index] = new boolean[4];
-                    for (int i = 0; i < 4; i++) {
-                        int nx = x + dx[i];
-                        int ny = y + dy[i];
-                        if (nx < 0 || ny < 0 || nx >= PATHFINDING_CHUNK_SIZE || ny >= PATHFINDING_CHUNK_SIZE) {
-                            differentChunk[index][i] = true;
-                        }
-                    }
-                }
             }
         }
 
