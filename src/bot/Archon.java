@@ -22,6 +22,7 @@ class Archon extends Robot {
         }
 
         System.out.println("I'm an archon! ");
+        rc.broadcast(RobotType.ARCHON.ordinal(), rc.getInitialArchonLocations(rc.getTeam()).length);
 
         // The code you want your robot to perform every round should be in this loop
         while (true) {
