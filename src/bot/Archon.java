@@ -179,12 +179,14 @@ class Archon extends Robot {
 
                     // Traversable if this is == 0, blocked if it is == 1
                     int blocked = (chunk >> ((ny % PATHFINDING_CHUNK_SIZE) * PATHFINDING_CHUNK_SIZE + (nx % PATHFINDING_CHUNK_SIZE))) & 1;
-                    int fullyExplored = (chunk >> 30) & 1;
+                    // Note that fullyExplored is stored in bit 31, not 30 so this
+                    // will be 2 if it is explored and 0 if it is not explored
+                    int fullyExplored = chunk >>> 30;
                     explored[nindex] = pathfindingIndex;
                     parents[nindex] = i;
                     searchTime2 += Clock.getBytecodeNum() - w1;
 
-                    switch(blocked | (fullyExplored << 1)) {
+                    switch(blocked | fullyExplored) {
                         // blocked
                         case 1:
                         case 3:

@@ -234,7 +234,8 @@ abstract class Robot {
                 //MapLocation chunkCenter1 = origin.translate((nx + 0.5f) * PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE, (ny + 0.5f) * PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE);
                 //rc.debug_setIndicatorDot(chunkCenter1, chunkInfo == 0 ? 128 : 0, 0, rc.canSenseAllOfCircle(chunkCenter1, chunkRadius) ? 255 : 0);
 
-                if ((chunkInfo & (1 << 30)) == 0) {
+                //noinspection NumericOverflow
+                if ((chunkInfo & (1 << 31)) == 0) {
                     // Chunk is not explored yet
 
                     MapLocation chunkCenter = origin.translate((nx + 0.5f) * PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE, (ny + 0.5f) * PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE);
@@ -314,7 +315,8 @@ abstract class Robot {
 
         if (jobNodeSkips == 0) {
             // Mark as explored
-            jobChunkInfo |= 1 << 30;
+            //noinspection NumericOverflow
+            jobChunkInfo |= 1 << 31;
             rc.broadcast(PATHFINDING + jobChunkIndex, jobChunkInfo);
         } else {
             int nodesCalculated = PATHFINDING_CHUNK_SIZE * PATHFINDING_CHUNK_SIZE - jobNodeSkips;
