@@ -14,6 +14,22 @@ class Tank extends Robot {
             return highPriorityTargetPos;
         }
 
+        if (true) {
+            MapLocation c = rc.getLocation();
+            for (int i = 0; i < 5; i++) {
+                MapLocation next = directionToEnemyArchon(c);
+                rc.setIndicatorLine(c, next, 100, 100, 0);
+                c = next;
+            }
+
+            // Try to take a shorter path
+            if (linecast(c) == null) {
+                return c;
+            } else {
+                return directionToEnemyArchon(rc.getLocation());
+            }
+        }
+
         if (rnd.nextFloat() < 0.2) {
             return fallBackPositions[rnd.nextInt(fallBackPositions.length)];
         } else {
