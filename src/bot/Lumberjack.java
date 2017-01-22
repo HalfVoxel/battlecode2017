@@ -71,9 +71,6 @@ class Lumberjack extends Robot {
         MapLocation[] archons = rc.getInitialArchonLocations(enemy);
         // The code you want your robot to perform every round should be in this loop
         while (true) {
-            // See if there are any enemy robots within striking range (distance 1 from lumberjack's radius)
-            RobotInfo[] robots = rc.senseNearbyRobots(GameConstants.LUMBERJACK_STRIKE_RADIUS, enemy);
-            RobotInfo[] friendlyRobots = rc.senseNearbyRobots(GameConstants.LUMBERJACK_STRIKE_RADIUS, rc.getTeam());
 
             TreeInfo bestTree = findBestTreeToChop(false);
             BulletInfo[] bullets = rc.senseNearbyBullets(8f);
@@ -82,6 +79,10 @@ class Lumberjack extends Robot {
             RobotInfo[] enemyRobots = rc.senseNearbyRobots(-1, enemy);
             MapLocation target = bestTree == null ? pickTarget(archons) : bestTree.location;
             moveToAvoidBullets(target, bullets, enemyRobots);
+
+            // See if there are any enemy robots within striking range (distance 1 from lumberjack's radius)
+            RobotInfo[] robots = rc.senseNearbyRobots(GameConstants.LUMBERJACK_STRIKE_RADIUS, enemy);
+            RobotInfo[] friendlyRobots = rc.senseNearbyRobots(GameConstants.LUMBERJACK_STRIKE_RADIUS, rc.getTeam());
             if (robots.length > 0 && !rc.hasAttacked()) {
                 float myValue = 0f;
                 for (RobotInfo robot : friendlyRobots) {
