@@ -207,7 +207,10 @@ class Archon extends Robot {
                             w1 = Clock.getBytecodeNum();
 
                             // It may be traversable or it may not, we don't really know
-                            if (onMap(origin.x + x * PATHFINDING_NODE_SIZE, origin.y + y * PATHFINDING_NODE_SIZE)) {
+                            float wx = origin.x + nx * PATHFINDING_NODE_SIZE;
+                            float wy = origin.y + ny * PATHFINDING_NODE_SIZE;
+                            // Inlined onMap call
+                            if (wx <= mapEdges0 && wy <= mapEdges1 && wx >= mapEdges2 && wy >= mapEdges3) {
                                 queue.addLast(nindex);
                                 costs[nindex] = costs[node] + 1;
                             }
