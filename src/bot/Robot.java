@@ -1273,7 +1273,57 @@ abstract class Robot {
         return null;
     }
 
+    int fallbackMovementDirection = 1;
+    float fallbackDirectionLimit = 0.5f;
+    int movementBlockedTicks = 0;
+
     void moveToAvoidBullets(MapLocation secondaryTarget, BulletInfo[] bullets, RobotInfo[] units) throws GameActionException {
+        if (rc.hasMoved()) return;
+
+        if (bullets.length == 0) {
+            Direction desiredDir = rc.getLocation().directionTo(secondaryTarget);
+            float desiredStride = Math.min(rc.getLocation().distanceTo(secondaryTarget), info.strideRadius);
+
+            // Already at target
+            if (desiredDir == null) return;
+
+            final int steps = 12;
+            float radiansPerStep = fallbackMovementDirection * fallbackDirectionLimit * (float)Math.PI / (float)steps;
+            for (int i = 0; i < steps; i++) {
+                float angle = i * radiansPerStep;
+                Direction dir = desiredDir.rotateLeftRads(angle);
+                //rc.setIndicatorLine(rc.getLocation(), rc.getLocation().add(dir, info.strideRadius), 200, fallbackMovementDirection > 0 ? 255 : 0, 200);
+                if (rc.canMove(dir, desiredStride)) {
+                    if (angle <= Math.PI*0.5f + 0.001f) {
+                        fallbackDirectionLimit = 0.5f;
+                    }
+                    rc.move(dir, desiredStride);
+                    movementBlockedTicks = 0;
+                    break;
+                }
+            }
+
+            if (!rc.hasMoved()) {
+                // Failed to move while the limit was 0.5, then increase it to 1.0
+                // and move in the other direction.
+                if (fallbackDirectionLimit == 0.5f) {
+                    fallbackDirectionLimit = 1f;
+                    fallbackMovementDirection *= -1;
+                    movementBlockedTicks = 0;
+                    moveToAvoidBullets(secondaryTarget, bullets, units);
+                } else {
+                    movementBlockedTicks += 1;
+                    if (movementBlockedTicks > 6) {
+                        fallbackMovementDirection *= -1;
+                        movementBlockedTicks = 0;
+                        moveToAvoidBullets(secondaryTarget, bullets, units);
+                    }
+                }
+            }
+
+            return;
+        }
+
         MapLocation myLocation = rc.getLocation();
 
         List<MapLocation> movesToConsider = new ArrayList<>();
