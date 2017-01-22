@@ -653,13 +653,16 @@ abstract class Robot {
                         score += targetArchons ? 1f : 0f;
                         break;
                     case SCOUT:
+                        score += 50;
+                        break;
+                    case SOLDIER:
                         score += 150;
                         break;
                     default:
                         if (closestThreat == null || robot.location.distanceTo(myLocation) < closestThreat.distanceTo(myLocation)) {
                             closestThreat = robot.location;
                         }
-                        score += 50;
+                        score += 80;
                         break;
                 }
                 if(lastLoc.x >= 0) {
@@ -1565,7 +1568,10 @@ abstract class Robot {
         double income = rc.getTreeCount() + 2;
         double victoryPointsLeft = GameConstants.VICTORY_POINTS_TO_WIN - rc.getTeamVictoryPoints();
         double turnsUntilVictory = (victoryPointsLeft * cost) / income;
-        if (turnsUntilVictory < 250 || rc.getRoundNum() > rc.getRoundLimit() - 300 || rc.getTeamBullets() > 2000) {
+        int gardenerCount = spawnedCount(RobotType.GARDENER);
+        int archonCount = spawnedCount(RobotType.ARCHON);
+        if (turnsUntilVictory < 250 || rc.getRoundNum() > rc.getRoundLimit() - 300 || rc.getTeamBullets() > 2000 ||
+                (gardenerCount == 0 && archonCount == 0 && rc.getTeamBullets() > 20 && rc.getRoundNum() > 50)) {
             int shouldBuy = (int)Math.floor(rc.getTeamBullets() / cost);
             double donate = shouldBuy * cost + 0.0001;
             if (donate > 0) {
