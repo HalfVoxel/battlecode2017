@@ -9,7 +9,7 @@ class Tank extends Robot {
     MapLocation pickTarget(MapLocation[] fallBackPositions) throws GameActionException {
         int lastAttackingEnemySpotted = rc.readBroadcast(HIGH_PRIORITY_TARGET_OFFSET);
         MapLocation highPriorityTargetPos = readBroadcastPosition(HIGH_PRIORITY_TARGET_OFFSET + 1);
-        if (rc.getRoundNum() < lastAttackingEnemySpotted + 50 && rc.getLocation().distanceTo(highPriorityTargetPos) < info.strideRadius * 8) {
+        if (rc.getRoundNum() < lastAttackingEnemySpotted + 50 && rc.getLocation().distanceTo(highPriorityTargetPos) < info.strideRadius * 20) {
             // Defend!
             return highPriorityTargetPos;
         }
@@ -95,7 +95,7 @@ class Tank extends Robot {
                 }
             }
 
-            boolean targetArchons = rc.getTeamBullets() > 1000 || rc.getRoundNum() > 1000;
+            boolean targetArchons = rc.getTeamBullets() > 1000 || rc.getRoundNum() > 1000 || (rc.getRoundNum() > 300 && archons.length == 1);
             fireAtNearbyRobot(friendlyRobots, robots, targetArchons);
             if (!rc.hasAttacked()) {
                 int nearbyGardeners = 0;
