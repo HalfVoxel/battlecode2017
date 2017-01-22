@@ -223,6 +223,8 @@ abstract class Robot {
 
         //MapLocation chunkCenter0 = origin.translate((cx + 0.5f) * PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE, (cy + 0.5f) * PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE);
 
+        int recalculationTime = (rc.getRoundNum() / 100) & 0xF;
+
         for (int dy = -1; dy <= 1; dy++) {
             int ny = cy + dy;
             for (int dx = -1; dx <= 1; dx++) {
@@ -235,8 +237,9 @@ abstract class Robot {
                 //MapLocation chunkCenter1 = origin.translate((nx + 0.5f) * PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE, (ny + 0.5f) * PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE);
                 //rc.debug_setIndicatorDot(chunkCenter1, chunkInfo == 0 ? 128 : 0, 0, rc.canSenseAllOfCircle(chunkCenter1, chunkRadius) ? 255 : 0);
 
+                boolean outdated = ((chunkInfo >> 21) & 0xF) != recalculationTime;
                 //noinspection NumericOverflow
-                if ((chunkInfo & (1 << 31)) == 0) {
+                if ((chunkInfo & (1 << 31)) == 0 || outdated) {
                     // Chunk is not explored yet
 
                     MapLocation chunkCenter = origin.translate((nx + 0.5f) * PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE, (ny + 0.5f) * PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE);
@@ -248,8 +251,10 @@ abstract class Robot {
                         jobChunkNx = nx;
                         jobChunkNy = ny;
                         jobChunkNodeIndex = 0;
-                        jobChunkInfo = chunkInfo;
+                        // Clear the recalculation time for the chunk and update it with the current time
+                        jobChunkInfo = (chunkInfo & (~(0xF << 21))) | recalculationTime << 21;
                         jobNodeSkips = 0;
+                        jobChunkWasOutdated = outdated;
                     }
                 }
             }
@@ -263,6 +268,7 @@ abstract class Robot {
     private int jobChunkNodeIndex;
     private int jobChunkInfo;
     private int jobNodeSkips = 0;
+    private boolean jobChunkWasOutdated;
 
     boolean doChunkJob() throws GameActionException {
         if (jobChunkCenter == null) return true;
@@ -274,15 +280,19 @@ abstract class Robot {
 
         int startingTime = Clock.getBytecodeNum();
 
+        boolean alreadyFullyExplored = (jobChunkInfo & (1 << 31)) != 0;
+
         // Loop through all the nodes in the chunk
         for (; jobChunkNodeIndex < PATHFINDING_CHUNK_SIZE * PATHFINDING_CHUNK_SIZE; jobChunkNodeIndex++) {
             if (Clock.getBytecodesLeft() < 500 || Clock.getBytecodeNum() - startingTime > 6000) return false;
 
             int prevValue = jobChunkInfo & (1 << jobChunkNodeIndex);
             if (prevValue != 0) {
-                // Seem we have already figured out that it is not traversable in an earlier update.
-                // Just assume the world looks the same
-                continue;
+                if (!jobChunkWasOutdated) {
+                    // Seem we have already figured out that it is not traversable in an earlier update
+                    // and it wasn't too long ago. Assume the world looks the same.
+                    continue;
+                }
             }
 
             int y = jobChunkNodeIndex / 4;
@@ -296,8 +306,13 @@ abstract class Robot {
             } else {
                 if (!rc.canSenseAllOfCircle(nodeCenter, PATHFINDING_NODE_SIZE)) {
                     // Have to skip this one
-                    jobNodeSkips++;
-                    rc.setIndicatorDot(nodeCenter, 0, 40, 0);
+                    // If we have previously explored the whole chunk then we just want to update it
+                    // with as much new information as we can, don't count skipped nodes because they
+                    // will just contain the last information that was up to date
+                    if (!alreadyFullyExplored) {
+                        jobNodeSkips++;
+                        rc.setIndicatorDot(nodeCenter, 0, 40, 0);
+                    }
                     continue;
                 }
 
@@ -305,6 +320,9 @@ abstract class Robot {
                     traversable = false;
                 }
             }
+
+            // Clear that bit
+            jobChunkInfo &= ~(1 << jobChunkNodeIndex);
 
             if (traversable) {
                 rc.setIndicatorDot(nodeCenter, 40, 200, 10);
@@ -314,18 +332,20 @@ abstract class Robot {
             }
         }
 
+        int nodesCalculated = PATHFINDING_CHUNK_SIZE * PATHFINDING_CHUNK_SIZE - jobNodeSkips;
+        int previousNodesCalculated = ((jobChunkInfo >> 16) & 0x1F);
+        // Clear the previous value
+        jobChunkInfo &= ~(0x1F << 16);
+        jobChunkInfo |= nodesCalculated << 16;
         if (jobNodeSkips == 0) {
             // Mark as explored
             //noinspection NumericOverflow
             jobChunkInfo |= 1 << 31;
             rc.broadcast(PATHFINDING + jobChunkIndex, jobChunkInfo);
         } else {
-            int nodesCalculated = PATHFINDING_CHUNK_SIZE * PATHFINDING_CHUNK_SIZE - jobNodeSkips;
-            int previousNodesCalculated = ((jobChunkInfo >> 16) & 0x1F);
             // If we have more or the same amount of information as the last time
             // this chunk was generated then update it, otherwise leave it be
             if (nodesCalculated >= previousNodesCalculated) {
-                jobChunkInfo |= nodesCalculated << 16;
                 rc.broadcast(PATHFINDING + jobChunkIndex, jobChunkInfo);
             }
         }

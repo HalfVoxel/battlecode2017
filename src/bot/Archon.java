@@ -229,6 +229,9 @@ class Archon extends Robot {
         searchTime2 = 0;
         searchTime3 = 0;
         searchTime4 = 0;
+        yieldAndDoBackgroundTasks();
+        debug_graph();
+        yieldAndDoBackgroundTasks();
         debug_search();
 
         // Write pathfinding result
@@ -278,6 +281,29 @@ class Archon extends Robot {
 
         int t = (rc.getRoundNum() - t1) * 20000 + w1 - Clock.getBytecodesLeft();
         System.out.println("Broadcasting direction info took " + t);
+    }
+
+    void debug_graph() throws GameActionException {
+        MapLocation origin = readBroadcastPosition(EXPLORATION_ORIGIN).translate(-PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2, -PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2);
+
+        for (int y = 0; y < PATHFINDING_WORLD_WIDTH; y++) {
+            for (int x = 0; x < PATHFINDING_WORLD_WIDTH; x++) {
+                int index = y * PATHFINDING_WORLD_WIDTH + x;
+                if (explored[index] == pathfindingIndex) {
+                    MapLocation loc = origin.translate((x + 0.5f) * PATHFINDING_NODE_SIZE, (y + 0.5f) * PATHFINDING_NODE_SIZE);
+                    int chunk = pathfindingChunkDataForNode(x, y);
+                    boolean blocked = ((chunk >> ((y % PATHFINDING_CHUNK_SIZE) * PATHFINDING_CHUNK_SIZE + (x % PATHFINDING_CHUNK_SIZE))) & 1) != 0;
+                    boolean fullyExplored = (chunk >>> 31) != 0;
+                    if (blocked) {
+                        rc.setIndicatorDot(loc, 255, 255, 255);
+                    } else if (!fullyExplored) {
+                        rc.setIndicatorDot(loc, 128, 128, 128);
+                    } else {
+                        rc.setIndicatorDot(loc, 0, 0, 0);
+                    }
+                }
+            }
+        }
     }
 
     void debug_search() throws GameActionException {
