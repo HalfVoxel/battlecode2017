@@ -1616,6 +1616,14 @@ abstract class Robot {
                     score -= 10 * Math.exp(-loc.distanceTo(tree.location) * 0.5);
                 }
             }
+
+            float distx = 10f;
+            float disty = 10f;
+            distx = Math.min(distx, mapEdges0 - loc.x);
+            disty = Math.min(disty, mapEdges1 - loc.y);
+            distx = Math.min(distx, loc.x - mapEdges2);
+            disty = Math.min(disty, loc.y - mapEdges3);
+            score += (distx + disty) * 5f;
         }
 
         // Move away from reserved nodes if there are no enemies or bullets nearby
