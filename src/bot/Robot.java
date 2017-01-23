@@ -1823,7 +1823,8 @@ abstract class Robot {
         int archonCount = spawnedCount(RobotType.ARCHON);
         if (turnsUntilVictory < 250 || rc.getRoundNum() > rc.getRoundLimit() - 300 || rc.getTeamBullets() > 2000 ||
                 (gardenerCount == 0 && archonCount == 0 && rc.getTeamBullets() > 20 && rc.getRoundNum() > 50)) {
-            int shouldBuy = (int)Math.floor(rc.getTeamBullets() / cost);
+            int toKeep = turnsUntilVictory < 50 ? 0 : 200;
+            int shouldBuy = (int)Math.floor((rc.getTeamBullets() - toKeep)/ cost);
             double donate = shouldBuy * cost + 0.0001;
             if (donate > 0) {
                 rc.donate((float)donate);
