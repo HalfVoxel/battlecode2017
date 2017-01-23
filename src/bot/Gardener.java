@@ -261,7 +261,7 @@ class Gardener extends Robot {
             //    turn around
             boolean blocked = !rc.canMove(targetLoc);
             RobotInfo blockingRobot = rc.senseRobotAtLocation(targetLoc);
-            if (blocked && blockingRobot != null && blockingRobot.type == RobotType.GARDENER) {
+            if (blocked && ((blockingRobot != null && blockingRobot.type == RobotType.GARDENER) || !onMap(targetLoc, PATHFINDING_NODE_SIZE * 0.5f))) {
                 if (moveDir == 1) plantationMaxX = x;
                 else plantationMinX = x;
 
@@ -275,7 +275,7 @@ class Gardener extends Robot {
                 MapLocation up = nodePosition(x + moveDir, y + 1);
                 MapLocation down = nodePosition(x + moveDir, y - 1);
                 TreeInfo treeUp = rc.senseTreeAtLocation(up);
-                TreeInfo treeDown = rc.senseTreeAtLocation(up);
+                TreeInfo treeDown = rc.senseTreeAtLocation(down);
 
                 // Mark nearby trees as high priority (for woodcutters)
                 for (TreeInfo tree : rc.senseNearbyTrees(targetLoc, 2, null)) {
@@ -310,7 +310,7 @@ class Gardener extends Robot {
                     moveDir *= -1;
                     System.out.println("Flipping direction because blocked|didExpand (2)");
                 }
-            } else if (blocked) {
+            } else if (blocked && (blockingRobot == null || blockingRobot.team == rc.getTeam())) {
                 if (moveDir == 1) plantationMaxX = Math.min(plantationMaxX, x + 1);
                 else plantationMinX = Math.max(plantationMinX, x - 1);
 
