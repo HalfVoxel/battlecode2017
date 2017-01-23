@@ -48,7 +48,7 @@ class Scout extends Robot {
             } else {
                 switch (unit.type) {
                     case GARDENER:
-                        //score += 10f / (loc.distanceSquaredTo(unit.location) + 1);
+                        score += 10f / (loc.distanceSquaredTo(unit.location) + 1);
                         break;
                     case SCOUT:
                         if (rc.getHealth() >= unit.health)

@@ -844,8 +844,14 @@ abstract class Robot {
             }
 
             if (bestRobot != null) {
-                if (bestRobot.getType() != RobotType.SCOUT && rc.getType() == RobotType.SCOUT) {
-                    continue;
+                if(rc.getType() == RobotType.SCOUT){
+                    if(bestRobot.getType() == RobotType.SCOUT || bestRobot.getType() == RobotType.GARDENER){
+                        if(myLocation.distanceTo(bestRobot.location) > 3f)
+                            break;
+                    }
+                    else{
+                        break;
+                    }
                 }
                 lastAttackedEnemyID = bestRobot.getID();
                 bestRobotsTried.add(bestRobot.ID);
@@ -1599,7 +1605,6 @@ abstract class Robot {
                                            float[] bulletDamage, float[] bulletSpeed,
                                            RobotInfo[] units, MapLocation target) throws GameActionException {
         Team myTeam = rc.getTeam();
-
         float score = 0f;
         boolean ignoreTarget = false;
         if (rc.getType() == RobotType.ARCHON) {
