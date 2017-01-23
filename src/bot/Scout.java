@@ -124,14 +124,6 @@ class Scout extends Robot {
         return bestTree;
     }
 
-    float[] bulletX = new float[100];
-    float[] bulletY = new float[100];
-    float[] bulletDx = new float[100];
-    float[] bulletDy = new float[100];
-    float[] bulletDamage = new float[100];
-    float[] bulletSpeed = new float[100];
-    MapLocation[] movesToConsider = new MapLocation[100];
-
     public void run() throws GameActionException {
         System.out.println("I'm a scout!");
 
@@ -194,6 +186,10 @@ class Scout extends Robot {
                 movesToConsider[numMovesToConsider++] = myLocation.add(dir, info.strideRadius);
             }
 
+            if (previousBestMove != null) {
+                movesToConsider[numMovesToConsider++] = previousBestMove;
+            }
+
             float bestScore = -1000000f;
             MapLocation bestMove = null;
             int iterationsDone = 0;
@@ -232,6 +228,7 @@ class Scout extends Robot {
 
             if (bestMove != null) {
                 rc.move(bestMove);
+                previousBestMove = bestMove;
             }
 
             boolean targetArchons = !highPriorityTargetExists() && rc.getRoundNum() > 2000;
