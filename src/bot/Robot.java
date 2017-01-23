@@ -1461,7 +1461,7 @@ abstract class Robot {
             }
         }
 
-        if (bullets.length == 0 && rc.getType() != RobotType.LUMBERJACK && reservedNodeLocation == null) {
+        if (bullets.length == 0 && info != RobotType.LUMBERJACK && info != RobotType.ARCHON && reservedNodeLocation == null) {
             Direction desiredDir = rc.getLocation().directionTo(secondaryTarget);
             float desiredStride = Math.min(rc.getLocation().distanceTo(secondaryTarget), info.strideRadius);
 
