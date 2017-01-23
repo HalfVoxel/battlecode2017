@@ -213,11 +213,11 @@ class Gardener extends Robot {
 
             rc.setIndicatorDot(snapped, 200, 100, 100);
 
+            MapLocation up = nodePosition(x, y + 1);
+            MapLocation down = nodePosition(x, y - 1);
+            boolean canBuildAdditionalTreesHere = !rc.isCircleOccupiedExceptByThisRobot(up, GameConstants.BULLET_TREE_RADIUS) || !rc.isCircleOccupiedExceptByThisRobot(down, GameConstants.BULLET_TREE_RADIUS);
             if (rc.hasTreeBuildRequirements() && rc.isBuildReady() && !rc.hasMoved() && !rc.isCircleOccupiedExceptByThisRobot(snapped, info.bodyRadius)) {
-                MapLocation up = nodePosition(x, y + 1);
-                MapLocation down = nodePosition(x, y - 1);
-
-                if (!rc.isCircleOccupiedExceptByThisRobot(up, GameConstants.BULLET_TREE_RADIUS) || !rc.isCircleOccupiedExceptByThisRobot(down, GameConstants.BULLET_TREE_RADIUS)) {
+                if (canBuildAdditionalTreesHere) {
                     // Move to the snapped node position
                     System.out.println("Trying to move to plant trees");
 
@@ -272,8 +272,8 @@ class Gardener extends Robot {
 
                 boolean didExpand = false;
 
-                MapLocation up = nodePosition(x + moveDir, y + 1);
-                MapLocation down = nodePosition(x + moveDir, y - 1);
+                up = nodePosition(x + moveDir, y + 1);
+                down = nodePosition(x + moveDir, y - 1);
                 TreeInfo treeUp = rc.senseTreeAtLocation(up);
                 TreeInfo treeDown = rc.senseTreeAtLocation(down);
 
@@ -282,22 +282,23 @@ class Gardener extends Robot {
                     markAsHighPriority(tree.ID);
                 }
 
+                // Don't build units in the middle of a plantation row
+                // only do it when the units have a chance to get out
                 if (treeUp == null || treeDown == null) {
                     tryBuildUnits(new Direction(moveDir == 1 ? 0 : (float)Math.PI));
                 }
 
-                if (plantationMaxX - plantationMinX < 4 && onMap(targetLoc, PATHFINDING_NODE_SIZE * 0.5f)) {
+                if (!canBuildAdditionalTreesHere && plantationMaxX - plantationMinX < 4 && onMap(nodePosition(x + moveDir, y), PATHFINDING_NODE_SIZE * 0.5f)) {
                     didExpand = true;
-                    // TODO: Mark trees as high priority
 
                     //if (treeUp == null || treeDown == treeUp.team == rc.getTeam() || treeDown)
 
-                    int reserveX;
+                    int reserveX = x + moveDir;
                     if (moveDir == 1) {
-                        reserveX = plantationMaxX = x + 1;
+                        plantationMaxX = reserveX;
                         System.out.println("Expanded plantation to +X");
                     } else {
-                        reserveX = plantationMinX = x - 1;
+                        plantationMinX = reserveX;
                         System.out.println("Expanded plantation to -X");
                     }
 
@@ -523,7 +524,7 @@ class Gardener extends Robot {
 
                 // Check if the whole region is on the map
                 if (!onMapX(p0.x - PATHFINDING_NODE_SIZE * 1.5f, 0) || !onMapX(p0.x + PATHFINDING_NODE_SIZE * 2.5f, 0) || !onMapY(p0.y, PATHFINDING_NODE_SIZE * 1.5f)) {
-                    score -= 100;
+                    continue;
                 }
 
                 //System.out.println("Final score: " + score + " Best: " + bestPlantationScore);
