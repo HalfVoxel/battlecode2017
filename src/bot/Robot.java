@@ -297,6 +297,8 @@ abstract class Robot {
 
         int recalculationTime = (rc.getRoundNum() / 100) & 0xF;
 
+        float totalWeight = 0f;
+
         for (int dy = -1; dy <= 1; dy++) {
             int ny = cy + dy;
             for (int dx = -1; dx <= 1; dx++) {
@@ -316,17 +318,25 @@ abstract class Robot {
 
                     MapLocation chunkCenter = explorationOrigin.translate((nx + 0.5f) * PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE, (ny + 0.5f) * PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE);
 
-                    if (rc.canSenseAllOfCircle(chunkCenter, PATHFINDING_CHUNK_RADIUS) || (jobChunkCenter == null && dx == 0 && dy == 0)) {
-                        // Start a new job
-                        jobChunkCenter = chunkCenter;
-                        jobChunkIndex = index;
-                        jobChunkNx = nx;
-                        jobChunkNy = ny;
-                        jobChunkNodeIndex = 0;
-                        // Clear the recalculation time for the chunk and update it with the current time
-                        jobChunkInfo = (chunkInfo & (~(0xF << 21))) | recalculationTime << 21;
-                        jobNodeSkips = 0;
-                        jobChunkWasOutdated = outdated;
+                    if (rc.canSensePartOfCircle(chunkCenter, PATHFINDING_CHUNK_RADIUS)) {
+                        float weight = 0.1f;
+                        if (rc.canSenseAllOfCircle(chunkCenter, PATHFINDING_CHUNK_RADIUS)) weight += 2;
+                        if (dx == 0 && dy == 0) weight += 0.2f;
+
+                        // Reservoir sampling
+                        totalWeight += weight;
+                        if (rnd.nextFloat() * totalWeight < weight) {
+                            // Start a new job
+                            jobChunkCenter = chunkCenter;
+                            jobChunkIndex = index;
+                            jobChunkNx = nx;
+                            jobChunkNy = ny;
+                            jobChunkNodeIndex = 0;
+                            // Clear the recalculation time for the chunk and update it with the current time
+                            jobChunkInfo = (chunkInfo & (~(0xF << 21))) | recalculationTime << 21;
+                            jobNodeSkips = 0;
+                            jobChunkWasOutdated = outdated;
+                        }
                     }
                 }
             }
