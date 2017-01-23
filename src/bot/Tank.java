@@ -2,14 +2,12 @@ package bot;
 
 import battlecode.common.*;
 
-import java.util.Random;
-
 class Tank extends Robot {
 
     MapLocation pickTarget(MapLocation[] fallBackPositions) throws GameActionException {
         int lastAttackingEnemySpotted = rc.readBroadcast(HIGH_PRIORITY_TARGET_OFFSET);
         MapLocation highPriorityTargetPos = readBroadcastPosition(HIGH_PRIORITY_TARGET_OFFSET + 1);
-        if (rc.getRoundNum() < lastAttackingEnemySpotted + 50 && rc.getLocation().distanceTo(highPriorityTargetPos) < info.strideRadius * 20) {
+        if (rc.getRoundNum() < lastAttackingEnemySpotted + 50 && rc.getLocation().distanceTo(highPriorityTargetPos) < type.strideRadius * 20) {
             // Defend!
             return highPriorityTargetPos;
         }
@@ -54,7 +52,7 @@ class Tank extends Robot {
             return fallBackPositions[rnd.nextInt(fallBackPositions.length)];
         } else {
             Direction dir = randomDirection();
-            return clampToMap(rc.getLocation().add(dir, info.strideRadius * 10), info.sensorRadius * 0.8f);
+            return clampToMap(rc.getLocation().add(dir, type.strideRadius * 10), type.sensorRadius * 0.8f);
         }
     }
 
@@ -81,7 +79,7 @@ class Tank extends Robot {
             // See if there are any nearby enemy robots
             RobotInfo[] robots = rc.senseNearbyRobots(-1, enemy);
             RobotInfo[] friendlyRobots = rc.senseNearbyRobots(-1, rc.getTeam());
-            BulletInfo[] bullets = rc.senseNearbyBullets(info.strideRadius + info.bodyRadius + 3f);
+            BulletInfo[] bullets = rc.senseNearbyBullets(type.strideRadius + type.bodyRadius + 3f);
 
             RobotInfo bestRobot = null;
             float bestRobotScore = 0f;
@@ -126,7 +124,7 @@ class Tank extends Robot {
                 speedToTarget *= 0.5f;
                 speedToTarget += 0.5f * (d1 - d2);
 
-                if (speedToTarget < info.strideRadius * 0.2f) {
+                if (speedToTarget < type.strideRadius * 0.2f) {
                     target = pickTarget(archons);
                 }
             }

@@ -12,7 +12,7 @@ class Gardener extends Robot {
     void water(TreeInfo[] trees) throws GameActionException {
         if (rc.canWater()) {
             if (trees == null) {
-                trees = rc.senseNearbyTrees(info.bodyRadius + info.strideRadius + 0.01f, rc.getTeam());
+                trees = rc.senseNearbyTrees(type.bodyRadius + type.strideRadius + 0.01f, rc.getTeam());
             }
 
             TreeInfo minHealthTree = null;
@@ -29,7 +29,7 @@ class Gardener extends Robot {
     }
 
     boolean likelyValidTarget(MapLocation target, float freeRadius) throws GameActionException {
-        if (spawnPos.isWithinDistance(target, info.bodyRadius * 8)) {
+        if (spawnPos.isWithinDistance(target, type.bodyRadius * 8)) {
             return false;
         }
 
@@ -49,12 +49,12 @@ class Gardener extends Robot {
             // Pick a new target
             // Generate a random direction
             Direction dir = randomDirection();
-            target = clampToMap(rc.getLocation().add(dir, info.strideRadius * 5), freeRadius);
+            target = clampToMap(rc.getLocation().add(dir, type.strideRadius * 5), freeRadius);
 
             if (rnd.nextFloat() < 0.5) {
                 // Ensure it is far away from the spawn pos
                 for (int i = 0; i < 4; i++) {
-                    target = clampToMap(spawnPos.add(spawnPos.directionTo(target), Math.max(spawnPos.distanceTo(target), info.bodyRadius * 8)), freeRadius);
+                    target = clampToMap(spawnPos.add(spawnPos.directionTo(target), Math.max(spawnPos.distanceTo(target), type.bodyRadius * 8)), freeRadius);
                 }
             }
 
@@ -73,7 +73,7 @@ class Gardener extends Robot {
             return;
         }
 
-        TreeInfo[] trees = rc.senseNearbyTrees(info.sensorRadius, Team.NEUTRAL);
+        TreeInfo[] trees = rc.senseNearbyTrees(type.sensorRadius, Team.NEUTRAL);
         float totalScore = 0f;
         for (TreeInfo tree : trees) {
             // Add a small constant to make it favorable to just chop down trees for space
@@ -226,7 +226,7 @@ class Gardener extends Robot {
             MapLocation up = nodePosition(x, y + 1);
             MapLocation down = nodePosition(x, y - 1);
             boolean canBuildAdditionalTreesHere = !rc.isCircleOccupiedExceptByThisRobot(up, GameConstants.BULLET_TREE_RADIUS) || !rc.isCircleOccupiedExceptByThisRobot(down, GameConstants.BULLET_TREE_RADIUS);
-            if (!saveForUnits && rc.hasTreeBuildRequirements() && rc.isBuildReady() && !rc.hasMoved() && !rc.isCircleOccupiedExceptByThisRobot(snapped, info.bodyRadius)) {
+            if (!saveForUnits && rc.hasTreeBuildRequirements() && rc.isBuildReady() && !rc.hasMoved() && !rc.isCircleOccupiedExceptByThisRobot(snapped, type.bodyRadius)) {
                 if (canBuildAdditionalTreesHere) {
                     // Move to the snapped node position
                     System.out.println("Trying to move to plant trees");
@@ -356,7 +356,7 @@ class Gardener extends Robot {
 
                 Direction dir = new Direction(2 * (float) Math.PI * i / 6f);
                 MapLocation origPos = settledLocation != null ? settledLocation : rc.getLocation();
-                MapLocation plantPos = origPos.add(dir, info.bodyRadius + info.strideRadius + GameConstants.BULLET_TREE_RADIUS);
+                MapLocation plantPos = origPos.add(dir, type.bodyRadius + type.strideRadius + GameConstants.BULLET_TREE_RADIUS);
                 if (rc.isCircleOccupiedExceptByThisRobot(plantPos, GameConstants.BULLET_TREE_RADIUS + 0.01f) || !onMap(plantPos, GameConstants.BULLET_TREE_RADIUS + 0.01f)) {
                     TreeInfo tree = rc.senseTreeAtLocation(plantPos);
                     if (tries > 0 && ((tree != null && tree.team != rc.getTeam()) || (tree == null && rc.senseNearbyTrees(plantPos, GameConstants.BULLET_TREE_RADIUS + 0.01f, Team.NEUTRAL).length > 0))) {
@@ -371,7 +371,7 @@ class Gardener extends Robot {
                 }
 
 
-                MapLocation moveToPos = origPos.add(dir, info.strideRadius - 0.02f);
+                MapLocation moveToPos = origPos.add(dir, type.strideRadius - 0.02f);
 
                 /*if (rc.canMove(moveToPos)) {
                     rc.move(moveToPos);
@@ -564,7 +564,7 @@ class Gardener extends Robot {
         // The code you want your robot to perform every round should be in this loop
 
         MapLocation target = rc.getLocation();
-        float desiredRadius = info.bodyRadius + 2.01f * GameConstants.BULLET_TREE_RADIUS;
+        float desiredRadius = type.bodyRadius + 2.01f * GameConstants.BULLET_TREE_RADIUS;
         int moveFailCounter = 0;
         boolean hasSettled = false;
         int unsettledTime = 0;
@@ -585,7 +585,7 @@ class Gardener extends Robot {
                     x = Math.max(Math.min(x, bestPlantationX + 3), bestPlantationX);
                     target = nodePosition(x, bestPlantationY + 1);
                 } else {
-                    TreeInfo[] trees = rc.senseNearbyTrees(info.sensorRadius, rc.getTeam());
+                    TreeInfo[] trees = rc.senseNearbyTrees(type.sensorRadius, rc.getTeam());
                     TreeInfo minHealthTree = null;
                     float bestScore = -1000000;
                     for (TreeInfo tree : trees) {
@@ -604,12 +604,12 @@ class Gardener extends Robot {
             }
 
             // TODO: & no enemies nearby
-            if ((moveFailCounter > 5 || speedToTarget < info.strideRadius * 0.2f) && bestPlantationX != -1) {
+            if ((moveFailCounter > 5 || speedToTarget < type.strideRadius * 0.2f) && bestPlantationX != -1) {
                 blacklistX.add(bestPlantationX);
                 blacklistY.add(bestPlantationY);
             }
 
-            boolean invalidTarget = true; // (moveFailCounter > 5 || speedToTarget < info.strideRadius * 0.2f || !likelyValidTarget(target, desiredRadius)) && !hasSettled;
+            boolean invalidTarget = true; // (moveFailCounter > 5 || speedToTarget < type.strideRadius * 0.2f || !likelyValidTarget(target, desiredRadius)) && !hasSettled;
             boolean canSeeTarget = target.distanceSquaredTo(rc.getLocation()) < 0.01f || rc.canSenseAllOfCircle(target, desiredRadius);
 
             if (!hasSettled) {
@@ -650,7 +650,7 @@ class Gardener extends Robot {
             }*/
 
             if (!hasSettled) {
-                BulletInfo[] bullets = rc.senseNearbyBullets(info.strideRadius + info.bodyRadius + 3f);
+                BulletInfo[] bullets = rc.senseNearbyBullets(type.strideRadius + type.bodyRadius + 3f);
                 RobotInfo[] units = rc.senseNearbyRobots();
 
                 if (!rc.hasMoved()) {
