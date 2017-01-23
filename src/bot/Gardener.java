@@ -115,10 +115,10 @@ class Gardener extends Robot {
         for (int tries = 0; tries < 2 && tryAgain; tries++) {
             tryAgain = false;
 
-            for (int i = 0; i < 9; i++) {
+            for (int i = 0; i < 6; i++) {
                 if (rc.hasMoved()) break;
 
-                Direction dir = new Direction(2 * (float) Math.PI * i / 9f);
+                Direction dir = new Direction(2 * (float) Math.PI * i / 6f);
                 MapLocation origPos = settledLocation != null ? settledLocation : rc.getLocation();
                 MapLocation plantPos = origPos.add(dir, info.bodyRadius + info.strideRadius + GameConstants.BULLET_TREE_RADIUS);
                 if (rc.isCircleOccupiedExceptByThisRobot(plantPos, GameConstants.BULLET_TREE_RADIUS + 0.01f) || !onMap(plantPos, GameConstants.BULLET_TREE_RADIUS + 0.01f)) {
@@ -137,12 +137,12 @@ class Gardener extends Robot {
 
                 MapLocation moveToPos = origPos.add(dir, info.strideRadius - 0.02f);
 
-                if (rc.canMove(moveToPos)) {
+                /*if (rc.canMove(moveToPos)) {
                     rc.move(moveToPos);
                 } else if (tries == 0) {
                     tryAgain = true;
                     continue;
-                }
+                }*/
 
                 if (rc.canPlantTree(dir)) {
                     rc.plantTree(dir);
@@ -150,13 +150,13 @@ class Gardener extends Robot {
                     settledLocation = origPos;
                 }
 
-                yieldAndDoBackgroundTasks();
+                /*yieldAndDoBackgroundTasks();
                 for (int t = 0; t < 5 && !rc.canMove(origPos); t++) yieldAndDoBackgroundTasks();
 
                 // Move back
                 if (rc.canMove(origPos)) {
                     rc.move(origPos);
-                }
+                }*/
             }
         }
 
@@ -225,8 +225,8 @@ class Gardener extends Robot {
             if ((!hasBuiltScout || Math.pow(rc.getTreeCount() + 1, 0.9) > buildTargetCount) && !saveForTank && rc.isBuildReady() && rc.hasRobotBuildRequirements(buildTarget)) {
                 saveForTank = true;
                 boolean built = false;
-                for (int i = 0; i < 9; i++) {
-                    Direction dir = new Direction(2 * (float) Math.PI * i / 9f);
+                for (int i = 0; i < 6; i++) {
+                    Direction dir = new Direction(2 * (float) Math.PI * i / 6f);
                     if (rc.canBuildRobot(buildTarget, dir) && turnsLeft > STOP_SPENDING_AT_TIME) {
                         rc.buildRobot(buildTarget, dir);
                         rc.broadcast(buildTarget.ordinal(), buildTargetCount + 1);

@@ -36,7 +36,7 @@ class Archon extends Robot {
             }
 
             boolean gardenersSeemToBeBlocked = rc.readBroadcast(GARDENER_CAN_PROBABLY_BUILD) > gardenerCount * 20 + 10;
-            if ((gardenersSeemToBeBlocked || gardenerCount < 1 || rc.getTreeCount() > 6 * gardenerCount || rc.getTeamBullets() > RobotType.TANK.bulletCost + 100) && !saveForTank) {
+            if ((gardenersSeemToBeBlocked || gardenerCount < 1 || rc.getTreeCount() > 4 * gardenerCount || rc.getTeamBullets() > RobotType.TANK.bulletCost + 100) && !saveForTank) {
                 // Generate a random direction
                 Direction dir = randomDirection();
                 if (rc.canHireGardener(dir) && turnsLeft > STOP_SPENDING_AT_TIME) {
