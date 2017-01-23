@@ -24,6 +24,8 @@ abstract class Robot {
     static final int HAS_SEEN = 1000;
     static final int PATHFINDING = 3000;
     static final int PATHFINDING_RESULT_TO_ENEMY_ARCHON = 4000;
+    static final int PATHFINDING_TREE = 5000;
+    static final int HIGH_PRIORITY = 6000;
 
     static final int[] dx = new int[]{1, 0, -1, 0};
     static final int[] dy = new int[]{0, 1, 0, -1};
@@ -108,6 +110,24 @@ abstract class Robot {
             return true;
         }
         return false;
+    }
+
+    /**
+     * Adds the ID to a global shared set of all high priority entities
+     *
+     * @param id ID of the entity, assumed to be in the range 0...32000.
+     * @throws GameActionException
+     */
+    void markAsHighPriority(int id) throws GameActionException {
+        // Note that the right shift by id will only use the last 5 bits
+        // and thus this will pick out the id'th bit in the broadcast array when starting
+        // from the offset HAS_SEEN
+        // Broadcast that index but with the bit set
+        rc.broadcast(HIGH_PRIORITY + (id >> 5), rc.readBroadcast(HAS_SEEN + (id >> 5)) | (1 << id));
+    }
+
+    boolean isHighPriority (int id) throws GameActionException {
+        return ((rc.readBroadcast(HIGH_PRIORITY + (id >> 5)) >> id) & 1) != 0;
     }
 
     boolean tryMove(MapLocation to) throws GameActionException {
@@ -222,12 +242,28 @@ abstract class Robot {
         return rc.readBroadcast(PATHFINDING + index);
     }
 
+    boolean isNodeReserved (int x, int y) throws GameActionException {
+        int cx = x / PATHFINDING_CHUNK_SIZE;
+        int cy = y / PATHFINDING_CHUNK_SIZE;
+        int index = cy * (PATHFINDING_WORLD_WIDTH / PATHFINDING_CHUNK_SIZE) + cx;
+        return ((rc.readBroadcast(PATHFINDING_TREE + index) >> ((y % PATHFINDING_CHUNK_SIZE) * PATHFINDING_CHUNK_SIZE + (x % PATHFINDING_CHUNK_SIZE))) & 1) != 0;
+    }
+
+    void reserveNode (int x, int y) throws GameActionException {
+        int cx = x / PATHFINDING_CHUNK_SIZE;
+        int cy = y / PATHFINDING_CHUNK_SIZE;
+        int index = cy * (PATHFINDING_WORLD_WIDTH / PATHFINDING_CHUNK_SIZE) + cx;
+        int val = rc.readBroadcast(PATHFINDING_TREE + index);
+        rc.setIndicatorDot(nodePosition(x, y), 0, 0, 255);
+        rc.broadcast(PATHFINDING_TREE + index, val | 1 << ((y % PATHFINDING_CHUNK_SIZE) * PATHFINDING_CHUNK_SIZE + (x % PATHFINDING_CHUNK_SIZE)));
+    }
+
     /** Returns node index for the closest node */
     static int snapToNode (MapLocation loc) {
-        MapLocation relativePos = rc.getLocation().translate(-explorationOrigin.x, -explorationOrigin.y);
-        int cx = (int)Math.floor(relativePos.x / PATHFINDING_NODE_SIZE);
-        int cy = (int)Math.floor(relativePos.y / PATHFINDING_NODE_SIZE);
-        return cy * PATHFINDING_WORLD_WIDTH + cx;
+        MapLocation relativePos = loc.translate(-explorationOrigin.x, -explorationOrigin.y);
+        int x = (int)Math.floor(relativePos.x / PATHFINDING_NODE_SIZE);
+        int y = (int)Math.floor(relativePos.y / PATHFINDING_NODE_SIZE);
+        return y * PATHFINDING_WORLD_WIDTH + x;
     }
 
     /** Returns a bitpacked value where bit 0 indicates if the node is blocked and bit 1 indicates if the node chunk has been fully explored yet */
@@ -1401,7 +1437,21 @@ abstract class Robot {
     void moveToAvoidBullets(MapLocation secondaryTarget, BulletInfo[] bullets, RobotInfo[] units) throws GameActionException {
         if (rc.hasMoved()) return;
 
-        if (bullets.length == 0 && rc.getType() != RobotType.LUMBERJACK) {
+        MapLocation reservedNodeLocation = null;
+        if (info != RobotType.GARDENER) {
+            // Test a random node inside the body radius
+            MapLocation rndPos = rc.getLocation().add(rnd.nextFloat() * (float)Math.PI * 2, rnd.nextFloat() * (info.bodyRadius + PATHFINDING_NODE_SIZE * 0.5f));
+
+            int index = snapToNode(rndPos);
+            int x = index % PATHFINDING_WORLD_WIDTH;
+            int y = index / PATHFINDING_WORLD_WIDTH;
+
+            if (isNodeReserved(x, y)) {
+                reservedNodeLocation = nodePosition(x, y);
+            }
+        }
+
+        if (bullets.length == 0 && rc.getType() != RobotType.LUMBERJACK && reservedNodeLocation == null) {
             Direction desiredDir = rc.getLocation().directionTo(secondaryTarget);
             float desiredStride = Math.min(rc.getLocation().distanceTo(secondaryTarget), info.strideRadius);
 
@@ -1526,7 +1576,7 @@ abstract class Robot {
 
             iterationsDone += 1;
             if (rc.canMove(loc)) {
-                float score = getDefensiveBulletAvoidanceScore(loc, bulletX, bulletY, bulletDx, bulletDy,
+                float score = getDefensiveBulletAvoidanceScore(loc, reservedNodeLocation, bulletX, bulletY, bulletDx, bulletDy,
                         bulletDamage, bulletSpeed, units, secondaryTarget);
                 if (score > bestScore) {
                     bestScore = score;
@@ -1544,10 +1594,10 @@ abstract class Robot {
         }
     }
 
-    float getDefensiveBulletAvoidanceScore(MapLocation loc,
+    float getDefensiveBulletAvoidanceScore(MapLocation loc, MapLocation reservedNodeLoc,
                                            float[] bulletX, float[] bulletY, float[] bulletDx, float[] bulletDy,
                                            float[] bulletDamage, float[] bulletSpeed,
-                                           RobotInfo[] units, MapLocation target) {
+                                           RobotInfo[] units, MapLocation target) throws GameActionException {
         Team myTeam = rc.getTeam();
 
         float score = 0f;
@@ -1566,6 +1616,11 @@ abstract class Robot {
                     score -= 10 * Math.exp(-loc.distanceTo(tree.location) * 0.5);
                 }
             }
+        }
+
+        // Move away from reserved nodes if there are no enemies or bullets nearby
+        if (reservedNodeLoc != null && bulletX.length == 0 && info != RobotType.GARDENER) {
+            score += 2f * loc.distanceTo(reservedNodeLoc);
         }
 
         if (!ignoreTarget && target != null) {

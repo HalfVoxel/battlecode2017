@@ -10,7 +10,7 @@ class Lumberjack extends Robot {
     private HashMap<Integer, Integer> badTrees = new HashMap<Integer, Integer>();
     private float chopScore = 0;
 
-    TreeInfo findBestTreeToChop(boolean mustBeChopable) {
+    TreeInfo findBestTreeToChop(boolean mustBeChopable) throws GameActionException {
         TreeInfo[] trees;
         if (mustBeChopable)
             trees = rc.senseNearbyTrees(3f);
@@ -27,9 +27,15 @@ class Lumberjack extends Robot {
             if (tree.team != rc.getTeam()) {
                 float turnsToChopDown = (tree.health / GameConstants.LUMBERJACK_CHOP_DAMAGE) + (float)Math.sqrt(Math.max(3f, rc.getLocation().distanceTo(tree.location)) / info.strideRadius) + 1f;
                 float score = ((tree.containedRobot != null ? tree.containedRobot.bulletCost * 1.5f : 0) + tree.containedBullets + 1) / turnsToChopDown;
+
+                if (isHighPriority(tree.ID)) {
+                    score += 50;
+                }
+
                 if (tree.getTeam() == rc.getTeam().opponent()) {
                     score *= 10;
                 }
+
                 if (score > bestScore) {
                     bestScore = score;
                     bestTree = tree;
