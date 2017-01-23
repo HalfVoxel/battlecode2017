@@ -110,7 +110,7 @@ def printResult(result):
 def sigint(signal, frame):
     updateSeed(0)
     for p in active_commands:
-        p.terminate()
+        p.kill()
 
     sys.exit(0)
 
