@@ -154,8 +154,9 @@ class Archon extends Robot {
         centerOffsetX /= PATHFINDING_NODE_SIZE;
         centerOffsetY /= PATHFINDING_NODE_SIZE;
 
+        int timeLimit = 5000;
         while (true) {
-            if (Clock.getBytecodesLeft() < 1600) {
+            if (Clock.getBytecodesLeft() < timeLimit) {
                 searchTime += Clock.getBytecodeNum() - w0;
                 return;
             }
