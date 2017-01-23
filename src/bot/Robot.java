@@ -215,7 +215,7 @@ abstract class Robot {
         return target;
     }
 
-    int pathfindingChunkDataForNode(int nodeX, int nodeY) throws GameActionException {
+    static int pathfindingChunkDataForNode(int nodeX, int nodeY) throws GameActionException {
         int cx = nodeX / PATHFINDING_CHUNK_SIZE;
         int cy = nodeY / PATHFINDING_CHUNK_SIZE;
         int index = cy * (PATHFINDING_WORLD_WIDTH / PATHFINDING_CHUNK_SIZE) + cx;
@@ -223,7 +223,7 @@ abstract class Robot {
     }
 
     /** Returns node index for the closest node */
-    int snapToNode (MapLocation loc) {
+    static int snapToNode (MapLocation loc) {
         MapLocation relativePos = rc.getLocation().translate(-explorationOrigin.x, -explorationOrigin.y);
         int cx = (int)Math.floor(relativePos.x / PATHFINDING_NODE_SIZE);
         int cy = (int)Math.floor(relativePos.y / PATHFINDING_NODE_SIZE);
@@ -231,14 +231,14 @@ abstract class Robot {
     }
 
     /** Returns a bitpacked value where bit 0 indicates if the node is blocked and bit 1 indicates if the node chunk has been fully explored yet */
-    int nodeInfo (int x, int y) throws GameActionException {
+    static int nodeInfo (int x, int y) throws GameActionException {
         int chunk = pathfindingChunkDataForNode(x, y);
         int blocked = (chunk >> ((y % PATHFINDING_CHUNK_SIZE) * PATHFINDING_CHUNK_SIZE + (x % PATHFINDING_CHUNK_SIZE))) & 1;
         int fullyExplored = (chunk >>> 30) & 0x2;
         return fullyExplored | blocked;
     }
 
-    MapLocation nodePosition (int x, int y) {
+    static MapLocation nodePosition (int x, int y) {
         return explorationOrigin.translate((x + 0.5f) * PATHFINDING_NODE_SIZE, (y + 0.5f) * PATHFINDING_NODE_SIZE);
     }
 
