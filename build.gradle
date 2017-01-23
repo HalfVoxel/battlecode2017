@@ -6,10 +6,6 @@
 // all the tools needed to build player code!
 apply plugin: 'java'
 
-// The Scala plugin expands upon the Java plugin, allowing us to compile
-// Scala source files.
-apply plugin: 'scala'
-
 // These plugins allow for this build script to be compatible with IDEs.
 apply plugin: 'idea'
 apply plugin: 'eclipse'
@@ -24,12 +20,12 @@ targetCompatibility = 1.8
 // We override Gradle's defaults for project directory layout.
 sourceSets {
     main {
-        scala.srcDirs = ["src"]
+        java.srcDirs = ["src"]
         output.classesDir = "$buildDir/classes"
     }
 
     test {
-        scala.srcDirs = ["test"]
+        java.srcDirs = ["test"]
         output.classesDir = "$buildDir/tests"
     }
 }
@@ -40,7 +36,7 @@ repositories {
         url "http://battlecode-maven.s3-website-us-east-1.amazonaws.com/"
     }
 
-    // Use the JCenter repo to resolve Scala dependencies.
+    // Use the JCenter repo to resolve dependencies.
     jcenter()
 }
 
@@ -62,11 +58,6 @@ dependencies {
 
     // The Battlecode client.
     client group: 'org.battlecode', name: clientName, version: '2017.+'
-
-    // Scala!
-    compile group: 'org.scala-lang', name: 'scala-library', version: '2.11.7'
-    compile group: 'org.scala-lang', name: 'scala-compiler', version: '2.11.7'
-    compile group: 'org.scala-lang', name: 'scala-reflect', version: '2.11.7'
 }
 
 // Eclipse specific setup to enable docs and sources, and configure layout.
@@ -162,9 +153,8 @@ task listPlayers {
     group 'battlecode'
 
     doLast {
-        (sourceSets.main.allJava + sourceSets.main.allScala).each {
-            if (it.getName().equals('RobotPlayer.java')
-                || it.getName().equals('RobotPlayer.scala')) {
+        sourceSets.main.allJava.each {
+            if (it.getName().equals('RobotPlayer.java')) {
                 URI base = new File(project.projectDir, 'src').toURI()
                 URI full = it.toURI()
                 String path = base.relativize(full).toString()
@@ -202,7 +192,7 @@ task jarForUpload(type: Jar) {
     description 'Assembles source code into an archive, ready to be uploaded to the Battlecode site.'
     group 'battlecode'
 
-    from sourceSets.main.scala.srcDirs
+    from sourceSets.main.java.srcDirs
     destinationDir = project.projectDir
     archiveName = 'battlecode-player-upload.jar'
 }
