@@ -10,17 +10,6 @@ class Archon extends Robot {
         rc.broadcast(HIGH_PRIORITY_TARGET_OFFSET, -1000);
         int STOP_SPENDING_AT_TIME = 100;
 
-        // Set the exploration origin if it has not been set already
-        if (readBroadcastPosition(EXPLORATION_ORIGIN).equals(new MapLocation(0, 0))) {
-            System.out.println("Set exploration origin");
-            broadcast(EXPLORATION_ORIGIN, rc.getLocation());
-
-            rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (0 + 1), mapEdges0);
-            rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (1 + 1), mapEdges1);
-            rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (2 + 1), mapEdges2);
-            rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (3 + 1), mapEdges3);
-        }
-
         System.out.println("I'm an archon! ");
         rc.broadcast(RobotType.ARCHON.ordinal(), rc.getInitialArchonLocations(rc.getTeam()).length);
 
@@ -97,8 +86,7 @@ class Archon extends Robot {
             }
         }
 
-        MapLocation origin = readBroadcastPosition(EXPLORATION_ORIGIN).translate(-PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2, -PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2);
-        MapLocation relativePos = seed.translate(-origin.x, -origin.y);
+        MapLocation relativePos = seed.translate(-explorationOrigin.x, -explorationOrigin.y);
         int seedx = (int) Math.floor(relativePos.x / PATHFINDING_NODE_SIZE);
         int seedy = (int) Math.floor(relativePos.y / PATHFINDING_NODE_SIZE);
         int index = seedy * PATHFINDING_WORLD_WIDTH + seedx;
@@ -122,12 +110,10 @@ class Archon extends Robot {
             }
         }
 
-        MapLocation origin = readBroadcastPosition(EXPLORATION_ORIGIN).translate(-PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2, -PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2);
-
         int w0 = Clock.getBytecodeNum();
 
-        float centerOffsetX = origin.x - (mapEdges0 + mapEdges2) * 0.5f;
-        float centerOffsetY = origin.y - (mapEdges1 + mapEdges3) * 0.5f;
+        float centerOffsetX = explorationOrigin.x - (mapEdges0 + mapEdges2) * 0.5f;
+        float centerOffsetY = explorationOrigin.y - (mapEdges1 + mapEdges3) * 0.5f;
         double mapRadius = Math.min(mapEdges0 - mapEdges2, mapEdges1 - mapEdges3) * 0.5f;
         mapRadius /= PATHFINDING_NODE_SIZE;
         centerOffsetX /= PATHFINDING_NODE_SIZE;
@@ -205,8 +191,8 @@ class Archon extends Robot {
                                 queue.addLast(nindex);
                                 costs[nindex] = costs[node] + 1;
                             } else {
-                                float wx = origin.x + nx * PATHFINDING_NODE_SIZE;
-                                float wy = origin.y + ny * PATHFINDING_NODE_SIZE;
+                                float wx = explorationOrigin.x + nx * PATHFINDING_NODE_SIZE;
+                                float wy = explorationOrigin.y + ny * PATHFINDING_NODE_SIZE;
                                 // Inlined onMap call
                                 if (wx <= mapEdges0 && wy <= mapEdges1 && wx >= mapEdges2 && wy >= mapEdges3) {
                                     queue.addLast(nindex);
@@ -250,18 +236,16 @@ class Archon extends Robot {
         int w1 = Clock.getBytecodesLeft();
         int t1 = rc.getRoundNum();
 
-        MapLocation origin = readBroadcastPosition(EXPLORATION_ORIGIN).translate(-PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2, -PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2);
-
         assert (PATHFINDING_CHUNK_SIZE == 4);
 
         for (int cy = 0; cy < PATHFINDING_WORLD_WIDTH / PATHFINDING_CHUNK_SIZE; cy++) {
-            float wy = origin.y + (cy + 0.5f) * PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE;
+            float wy = explorationOrigin.y + (cy + 0.5f) * PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE;
 
             // Don't bother broadcasting information for tiles outside the map
             if (!onMapY(wy, -PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE * 0.5f)) continue;
 
             for (int cx = 0; cx < PATHFINDING_WORLD_WIDTH / PATHFINDING_CHUNK_SIZE; cx++) {
-                float wx = origin.x + (cx + 0.5f) * PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE;
+                float wx = explorationOrigin.x + (cx + 0.5f) * PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE;
 
                 if (!onMapX(wx, -PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE * 0.5f)) continue;
 
@@ -284,13 +268,11 @@ class Archon extends Robot {
     }
 
     void debug_graph() throws GameActionException {
-        MapLocation origin = readBroadcastPosition(EXPLORATION_ORIGIN).translate(-PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2, -PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2);
-
         for (int y = 0; y < PATHFINDING_WORLD_WIDTH; y++) {
             for (int x = 0; x < PATHFINDING_WORLD_WIDTH; x++) {
                 int index = y * PATHFINDING_WORLD_WIDTH + x;
                 if (explored[index] == pathfindingIndex) {
-                    MapLocation loc = origin.translate((x + 0.5f) * PATHFINDING_NODE_SIZE, (y + 0.5f) * PATHFINDING_NODE_SIZE);
+                    MapLocation loc = explorationOrigin.translate((x + 0.5f) * PATHFINDING_NODE_SIZE, (y + 0.5f) * PATHFINDING_NODE_SIZE);
                     int chunk = pathfindingChunkDataForNode(x, y);
                     boolean blocked = ((chunk >> ((y % PATHFINDING_CHUNK_SIZE) * PATHFINDING_CHUNK_SIZE + (x % PATHFINDING_CHUNK_SIZE))) & 1) != 0;
                     boolean fullyExplored = (chunk >>> 31) != 0;
@@ -307,13 +289,11 @@ class Archon extends Robot {
     }
 
     void debug_search() throws GameActionException {
-        MapLocation origin = readBroadcastPosition(EXPLORATION_ORIGIN).translate(-PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2, -PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2);
-
         for (int y = 0; y < PATHFINDING_WORLD_WIDTH; y++) {
             for (int x = 0; x < PATHFINDING_WORLD_WIDTH; x++) {
                 int index = y * PATHFINDING_WORLD_WIDTH + x;
                 if (explored[index] == pathfindingIndex) {
-                    MapLocation loc = origin.translate((x + 0.5f) * PATHFINDING_NODE_SIZE, (y + 0.5f) * PATHFINDING_NODE_SIZE);
+                    MapLocation loc = explorationOrigin.translate((x + 0.5f) * PATHFINDING_NODE_SIZE, (y + 0.5f) * PATHFINDING_NODE_SIZE);
                     debug_setIndicatorDot(loc, costs[index] / 120f);
                 }
             }

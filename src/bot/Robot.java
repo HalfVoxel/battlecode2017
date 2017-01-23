@@ -27,7 +27,7 @@ abstract class Robot {
     static final int[] dy = new int[]{0, 1, 0, -1};
 
     private static final int EXPLORATION_OFFSET = 100;
-    static final float PATHFINDING_NODE_SIZE = 2.0f;
+    static final float PATHFINDING_NODE_SIZE = 2.01f;
     static final int PATHFINDING_CHUNK_SIZE = 4;
     static final int PATHFINDING_WORLD_WIDTH = 100;
     private static final float PATHFINDING_CHUNK_RADIUS = PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE * 0.707106781f + 0.001f;
@@ -44,6 +44,8 @@ abstract class Robot {
     private Map<Integer, Float> bulletHitDistance = new HashMap<>();
     private Map<Integer, MapLocation> unitLastLocation = new HashMap();
 
+    static MapLocation explorationOrigin;
+
     void init() throws GameActionException {
         info = rc.getType();
         spawnPos = rc.getLocation();
@@ -53,6 +55,20 @@ abstract class Robot {
         mapEdges1 = Math.min(spawnPos.y, 500f) + GameConstants.MAP_MAX_WIDTH;
         mapEdges2 = Math.max(spawnPos.x - GameConstants.MAP_MAX_WIDTH, 0f);
         mapEdges3 = Math.max(spawnPos.y - GameConstants.MAP_MAX_WIDTH, 0f);
+
+        // Set the exploration origin if it has not been set already
+        if (readBroadcastLong(EXPLORATION_ORIGIN) == 0L) {
+            System.out.println("Set exploration origin");
+            explorationOrigin = rc.getLocation().translate(-PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2, -PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2);
+            broadcast(EXPLORATION_ORIGIN, explorationOrigin);
+
+            rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (0 + 1), mapEdges0);
+            rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (1 + 1), mapEdges1);
+            rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (2 + 1), mapEdges2);
+            rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (3 + 1), mapEdges3);
+        } else {
+            explorationOrigin = readBroadcastPosition(EXPLORATION_ORIGIN);
+        }
 
         onStartOfTick();
     }
@@ -173,8 +189,7 @@ abstract class Robot {
     }
 
     MapLocation directionToEnemyArchon(MapLocation loc) throws GameActionException {
-        MapLocation origin = readBroadcastPosition(EXPLORATION_ORIGIN).translate(-PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2, -PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2);
-        MapLocation relativePos = loc.translate(-origin.x, -origin.y);
+        MapLocation relativePos = loc.translate(-explorationOrigin.x, -explorationOrigin.y);
         int nx = (int)Math.floor(relativePos.x / PATHFINDING_NODE_SIZE);
         int ny = (int)Math.floor(relativePos.y / PATHFINDING_NODE_SIZE);
 
@@ -194,7 +209,7 @@ abstract class Robot {
 
         int tx = nx + dx[dir];
         int ty = ny + dy[dir];
-        MapLocation target = origin.translate((tx + 0.5f) * PATHFINDING_NODE_SIZE, (ty + 0.5f) * PATHFINDING_NODE_SIZE);
+        MapLocation target = explorationOrigin.translate((tx + 0.5f) * PATHFINDING_NODE_SIZE, (ty + 0.5f) * PATHFINDING_NODE_SIZE);
         return target;
     }
 
@@ -205,12 +220,31 @@ abstract class Robot {
         return rc.readBroadcast(PATHFINDING + index);
     }
 
+    /** Returns node index for the closest node */
+    int snapToNode (MapLocation loc) {
+        MapLocation relativePos = rc.getLocation().translate(-explorationOrigin.x, -explorationOrigin.y);
+        int cx = (int)Math.floor(relativePos.x / PATHFINDING_NODE_SIZE);
+        int cy = (int)Math.floor(relativePos.y / PATHFINDING_NODE_SIZE);
+        return cy * PATHFINDING_WORLD_WIDTH + cx;
+    }
+
+    /** Returns a bitpacked value where bit 0 indicates if the node is blocked and bit 1 indicates if the node chunk has been fully explored yet */
+    int nodeInfo (int x, int y) throws GameActionException {
+        int chunk = pathfindingChunkDataForNode(x, y);
+        int blocked = (chunk >> ((y % PATHFINDING_CHUNK_SIZE) * PATHFINDING_CHUNK_SIZE + (x % PATHFINDING_CHUNK_SIZE))) & 1;
+        int fullyExplored = (chunk >>> 30) & 0x2;
+        return fullyExplored | blocked;
+    }
+
+    MapLocation nodePosition (int x, int y) {
+        return explorationOrigin.translate((x + 0.5f) * PATHFINDING_NODE_SIZE, (y + 0.5f) * PATHFINDING_NODE_SIZE);
+    }
+
     void broadcastExploration() throws GameActionException {
         if (!doChunkJob()) return;
 
         // Determine chunk
-        MapLocation origin = readBroadcastPosition(EXPLORATION_ORIGIN).translate(-PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2, -PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2);
-        MapLocation relativePos = rc.getLocation().translate(-origin.x, -origin.y);
+        MapLocation relativePos = rc.getLocation().translate(-explorationOrigin.x, -explorationOrigin.y);
         int cx = (int)Math.floor(relativePos.x / PATHFINDING_NODE_SIZE);
         int cy = (int)Math.floor(relativePos.y / PATHFINDING_NODE_SIZE);
         if (cx < 0 || cy < 0 || cx >= PATHFINDING_WORLD_WIDTH || cy >= PATHFINDING_WORLD_WIDTH) {
@@ -242,7 +276,7 @@ abstract class Robot {
                 if ((chunkInfo & (1 << 31)) == 0 || outdated) {
                     // Chunk is not explored yet
 
-                    MapLocation chunkCenter = origin.translate((nx + 0.5f) * PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE, (ny + 0.5f) * PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE);
+                    MapLocation chunkCenter = explorationOrigin.translate((nx + 0.5f) * PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE, (ny + 0.5f) * PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE);
 
                     if (rc.canSenseAllOfCircle(chunkCenter, PATHFINDING_CHUNK_RADIUS) || (jobChunkCenter == null && dx == 0 && dy == 0)) {
                         // Start a new job
@@ -276,8 +310,6 @@ abstract class Robot {
         // Check if we can still see the whole chunk
         //if (!rc.canSenseAllOfCircle(jobChunkCenter, PATHFINDING_CHUNK_RADIUS)) return true;
 
-        MapLocation origin = readBroadcastPosition(EXPLORATION_ORIGIN).translate(-PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2, -PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2);
-
         int startingTime = Clock.getBytecodeNum();
 
         boolean alreadyFullyExplored = (jobChunkInfo & (1 << 31)) != 0;
@@ -300,7 +332,7 @@ abstract class Robot {
 
             boolean traversable = true;
 
-            MapLocation nodeCenter = origin.translate(((x + 0.5f) + jobChunkNx * PATHFINDING_CHUNK_SIZE) * PATHFINDING_NODE_SIZE, ((y + 0.5f) + jobChunkNy * PATHFINDING_CHUNK_SIZE) * PATHFINDING_NODE_SIZE);
+            MapLocation nodeCenter = explorationOrigin.translate(((x + 0.5f) + jobChunkNx * PATHFINDING_CHUNK_SIZE) * PATHFINDING_NODE_SIZE, ((y + 0.5f) + jobChunkNy * PATHFINDING_CHUNK_SIZE) * PATHFINDING_NODE_SIZE);
             if (!onMap(nodeCenter, PATHFINDING_NODE_SIZE * 0.5f)) {
                 traversable = false;
             } else {
@@ -357,7 +389,6 @@ abstract class Robot {
     MapLocation findBestUnexploredChunk() throws GameActionException {
         long exploredChunks = readBroadcastLong(EXPLORATION_EXPLORED);
         long chunksOutsideMap = readBroadcastLong(EXPLORATION_OUTSIDE_MAP);
-        MapLocation origin = readBroadcastPosition(EXPLORATION_ORIGIN);
 
         while (true) {
             // Consider chunks that have not been explored yet and are not outside the map
@@ -375,7 +406,7 @@ abstract class Robot {
                     // Ignore chunks that we can never reach or that are already explored
                     if ((chunksToConsider & (1L << index)) != 0) {
                         // Chunk position
-                        MapLocation chunkPosition = new MapLocation(origin.x + (x - 4 + 0.5f) * PATHFINDING_NODE_SIZE, origin.y + (y - 4 + 0.5f) * PATHFINDING_NODE_SIZE);
+                        MapLocation chunkPosition = new MapLocation(explorationOrigin.x + (x - 4 + 0.5f) * PATHFINDING_NODE_SIZE, explorationOrigin.y + (y - 4 + 0.5f) * PATHFINDING_NODE_SIZE);
                         float score = 1f / chunkPosition.distanceTo(rc.getLocation());
 
 						/*try {
