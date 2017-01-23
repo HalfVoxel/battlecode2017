@@ -32,7 +32,7 @@ class Tank extends Robot {
             System.out.println("Not heading for nearby target " + bestTarget + " (" + bestPriority + ")");
         }
 
-        if (true) {
+        if (false) {
             MapLocation c = rc.getLocation();
             for (int i = 0; i < 5; i++) {
                 MapLocation next = directionToEnemyArchon(c);
