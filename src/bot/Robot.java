@@ -1524,8 +1524,8 @@ abstract class Robot {
                 movesToConsider.remove(0);
             }
 
+            iterationsDone += 1;
             if (rc.canMove(loc)) {
-                iterationsDone += 1;
                 float score = getDefensiveBulletAvoidanceScore(loc, bulletX, bulletY, bulletDx, bulletDy,
                         bulletDamage, bulletSpeed, units, secondaryTarget);
                 if (score > bestScore) {
