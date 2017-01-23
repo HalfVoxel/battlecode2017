@@ -1443,6 +1443,15 @@ abstract class Robot {
     int fallbackMovementDirection = 1;
     float fallbackDirectionLimit = 0.5f;
     int movementBlockedTicks = 0;
+    MapLocation previousBestMove;
+
+    float[] bulletX = new float[100];
+    float[] bulletY = new float[100];
+    float[] bulletDx = new float[100];
+    float[] bulletDy = new float[100];
+    float[] bulletDamage = new float[100];
+    float[] bulletSpeed = new float[100];
+    MapLocation[] movesToConsider = new MapLocation[100];
 
     void moveToAvoidBullets(MapLocation secondaryTarget, BulletInfo[] bullets, RobotInfo[] units) throws GameActionException {
         if (rc.hasMoved()) return;
@@ -1506,61 +1515,45 @@ abstract class Robot {
         }
 
         MapLocation myLocation = rc.getLocation();
-
-        List<MapLocation> movesToConsider = new ArrayList<>();
-        RobotInfo closestEnemy = null;
-        float disToClosestEnemy = 1000000f;
+        int numMovesToConsider = 0;
 
         if (secondaryTarget != null && myLocation.distanceTo(secondaryTarget) > 0) {
-            movesToConsider.add(myLocation.add(myLocation.directionTo(secondaryTarget), Math.min(myLocation.distanceTo(secondaryTarget), info.strideRadius)));
+            movesToConsider[numMovesToConsider++] = myLocation.add(myLocation.directionTo(secondaryTarget), Math.min(myLocation.distanceTo(secondaryTarget), info.strideRadius));
             if(rc.getType() == RobotType.LUMBERJACK) {
-                movesToConsider.add(myLocation);
+                movesToConsider[numMovesToConsider++] = myLocation;
             }
-
         } else {
-            movesToConsider.add(myLocation);
+            movesToConsider[numMovesToConsider++] = myLocation;
         }
 
-        for (RobotInfo robot : units) {
-            float dist = myLocation.distanceTo(robot.location);
-            if (dist < disToClosestEnemy) {
-                disToClosestEnemy = dist;
-                closestEnemy = robot;
+        if (units.length > 0) {
+            Direction dir = myLocation.directionTo(units[0].location);
+            movesToConsider[numMovesToConsider++] = myLocation.add(dir.opposite(), info.strideRadius);
+        }
+
+        if (previousBestMove != null && Math.hypot(previousBestMove.x, previousBestMove.y) > 0.01f) {
+            MapLocation move = previousBestMove.translate(rc.getLocation().x, rc.getLocation().y);
+            movesToConsider[numMovesToConsider++] = move;
+            rc.setIndicatorLine(rc.getLocation(), move, 255, 0, 0);
+        }
+
+        int bulletsToConsider = Math.min(bullets.length, bulletX.length);
+        // Discard bullets that cannot hit us and move the bullets that can hit us to the front of the array
+        // The first bulletsToConsider bullets will can potentially hit us after the loop is done
+        for (int i = 0; i < bulletsToConsider; i++) {
+            if (!bulletCanHitUs(myLocation, bullets[i])) {
+                bulletsToConsider--;
+                bullets[i] = bullets[bulletsToConsider];
+                i--;
+            } else {
+                BulletInfo bullet = bullets[i];
+                bulletX[i] = bullet.location.x;
+                bulletY[i] = bullet.location.y;
+                bulletDx[i] = bullet.dir.getDeltaX(1);
+                bulletDy[i] = bullet.dir.getDeltaY(1);
+                bulletDamage[i] = bullet.damage;
+                bulletSpeed[i] = bullet.speed;
             }
-        }
-
-        if (closestEnemy != null) {
-            Direction dir = myLocation.directionTo(closestEnemy.location);
-            movesToConsider.add(myLocation.add(dir.opposite(), info.strideRadius));
-        }
-
-        boolean[] isDangerous = new boolean[bullets.length];
-        int numDangerous = 0;
-        for (int i = 0; i < bullets.length; i += 1) {
-            if (bulletCanHitUs(rc.getLocation(), bullets[i])) {
-                isDangerous[i] = true;
-                numDangerous += 1;
-            } else
-                isDangerous[i] = false;
-        }
-        float[] bulletX = new float[numDangerous];
-        float[] bulletY = new float[numDangerous];
-        float[] bulletDx = new float[numDangerous];
-        float[] bulletDy = new float[numDangerous];
-        float[] bulletDamage = new float[numDangerous];
-        float[] bulletSpeed = new float[numDangerous];
-        int j = 0;
-        for (int i = 0; i < bullets.length; i += 1) {
-            if (!isDangerous[i])
-                continue;
-            BulletInfo bullet = bullets[i];
-            bulletX[j] = bullet.location.x;
-            bulletY[j] = bullet.location.y;
-            bulletDx[j] = bullet.getDir().getDeltaX(1);
-            bulletDy[j] = bullet.getDir().getDeltaY(1);
-            bulletDamage[j] = bullet.getDamage();
-            bulletSpeed[j] = bullet.getSpeed();
-            j += 1;
         }
 
         float bestScore = -1000000f;
@@ -1570,7 +1563,9 @@ abstract class Robot {
         int maxIterations = bullets.length == 0 ? 5 : 1000;
         while ((Clock.getBytecodesLeft() > 3000 && iterationsDone < maxIterations) || iterationsDone < 2) {
             MapLocation loc;
-            if (movesToConsider.isEmpty()) {
+            if (iterationsDone < numMovesToConsider) {
+                loc = movesToConsider[iterationsDone];
+            } else {
                 Direction dir = randomDirection();
                 float r = rnd.nextFloat();
                 if (r < 0.5f)
@@ -1579,9 +1574,6 @@ abstract class Robot {
                     loc = myLocation.add(dir, info.strideRadius * 0.5f);
                 else
                     loc = myLocation.add(dir, 0.2f);
-            } else {
-                loc = movesToConsider.get(0);
-                movesToConsider.remove(0);
             }
 
             iterationsDone += 1;
@@ -1592,14 +1584,12 @@ abstract class Robot {
                     bestScore = score;
                     bestMove = loc;
                 }
-                //if(rc.getType() == RobotType.LUMBERJACK)
-                //    System.out.println(loc + ": " + score);
             }
         }
-        //System.out.println(iterationsDone + " iterations done");
 
         // We need to check again that the move is legal, in case we exceeded the byte code limit
         if (bestMove != null && rc.canMove(bestMove)) {
+            previousBestMove = bestMove.translate(-rc.getLocation().x, -rc.getLocation().y);
             rc.move(bestMove);
         }
     }
