@@ -1580,7 +1580,7 @@ abstract class Robot {
 
             iterationsDone += 1;
             if (rc.canMove(loc)) {
-                float score = getDefensiveBulletAvoidanceScore(loc, reservedNodeLocation, bulletX, bulletY, bulletDx, bulletDy,
+                float score = getDefensiveBulletAvoidanceScore(loc, reservedNodeLocation, bulletsToConsider, bulletX, bulletY, bulletDx, bulletDy,
                         bulletDamage, bulletSpeed, units, secondaryTarget);
                 if (score > bestScore) {
                     bestScore = score;
@@ -1596,7 +1596,7 @@ abstract class Robot {
         }
     }
 
-    float getDefensiveBulletAvoidanceScore(MapLocation loc, MapLocation reservedNodeLoc,
+    float getDefensiveBulletAvoidanceScore(MapLocation loc, MapLocation reservedNodeLoc, int numBullets,
                                            float[] bulletX, float[] bulletY, float[] bulletDx, float[] bulletDy,
                                            float[] bulletDamage, float[] bulletSpeed,
                                            RobotInfo[] units, MapLocation target) throws GameActionException {
@@ -1698,7 +1698,7 @@ abstract class Robot {
             }
         }
 
-        score -= 1000f * getEstimatedDamageAtPosition(loc.x, loc.y, bulletX.length, bulletX, bulletY, bulletDx, bulletDy, bulletDamage, bulletSpeed, null);
+        score -= 1000f * getEstimatedDamageAtPosition(loc.x, loc.y, numBullets, bulletX, bulletY, bulletDx, bulletDy, bulletDamage, bulletSpeed, null);
 
         return score;
     }
