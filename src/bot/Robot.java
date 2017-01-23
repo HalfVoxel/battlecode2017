@@ -6,7 +6,9 @@ import java.util.*;
 
 abstract class Robot {
     static RobotController rc = null;
-    static RobotType info = null;
+
+    /** rc.getType, should ideally be called 'type' but that is unfortunately a keyword */
+    static RobotType type = null;
     MapLocation spawnPos = null;
     Random rnd = new Random(SEED);
     int lastAttackedEnemyID = -1;
@@ -51,7 +53,7 @@ abstract class Robot {
     static MapLocation explorationOrigin;
 
     void init() throws GameActionException {
-        info = rc.getType();
+        type = rc.getType();
         spawnPos = rc.getLocation();
 
         // Conservative map edges
@@ -144,7 +146,7 @@ abstract class Robot {
      * @throws GameActionException
      */
     boolean tryMove(Direction dir) throws GameActionException {
-        return tryMove(dir, 20, 3, info.strideRadius);
+        return tryMove(dir, 20, 3, type.strideRadius);
     }
 
     /**
@@ -550,7 +552,7 @@ abstract class Robot {
         Team enemy = rc.getTeam().opponent();
 
         if (nearbyEnemies == null) {
-            nearbyEnemies = rc.senseNearbyRobots(info.sensorRadius, enemy);
+            nearbyEnemies = rc.senseNearbyRobots(type.sensorRadius, enemy);
         }
 
         int priority = 0;
@@ -658,11 +660,11 @@ abstract class Robot {
         }
 
         // Clear gardener and high priority target if we can see those positions but we cannot see any hostile units
-        if (!anyHostiles && lastAttackingEnemySpotted != -1000 && rc.getLocation().isWithinDistance(readBroadcastPosition(HIGH_PRIORITY_TARGET_OFFSET + 1), info.sensorRadius * 0.7f)) {
+        if (!anyHostiles && lastAttackingEnemySpotted != -1000 && rc.getLocation().isWithinDistance(readBroadcastPosition(HIGH_PRIORITY_TARGET_OFFSET + 1), type.sensorRadius * 0.7f)) {
             rc.broadcast(HIGH_PRIORITY_TARGET_OFFSET, -1000);
         }
 
-        if (!anyGardeners && lastGardenerSpotted != -1000 && rc.getLocation().isWithinDistance(readBroadcastPosition(GARDENER_OFFSET + 1), info.sensorRadius * 0.7f)) {
+        if (!anyGardeners && lastGardenerSpotted != -1000 && rc.getLocation().isWithinDistance(readBroadcastPosition(GARDENER_OFFSET + 1), type.sensorRadius * 0.7f)) {
             rc.broadcast(GARDENER_OFFSET, -1000);
         }*/
     }
@@ -688,10 +690,10 @@ abstract class Robot {
     void updateLiveness() throws GameActionException {
         float countAsDeadLimit = rc.getType() == RobotType.SCOUT ? 4 : 10;
         if (countingAsAlive && rc.getHealth() <= countAsDeadLimit) {
-            rc.broadcast(info.ordinal(), spawnedCount(info) - 1);
+            rc.broadcast(type.ordinal(), spawnedCount(type) - 1);
             countingAsAlive = false;
         } else if (!countingAsAlive && rc.getHealth() > countAsDeadLimit) {
-            rc.broadcast(info.ordinal(), spawnedCount(info) + 1);
+            rc.broadcast(type.ordinal(), spawnedCount(type) + 1);
             countingAsAlive = true;
         }
     }
@@ -706,7 +708,7 @@ abstract class Robot {
 
     void shakeNearbyTrees() throws GameActionException {
         if (rc.canShake()) {
-            TreeInfo[] trees = rc.senseNearbyTrees(info.bodyRadius + GameConstants.INTERACTION_DIST_FROM_EDGE - 0.001f);
+            TreeInfo[] trees = rc.senseNearbyTrees(type.bodyRadius + GameConstants.INTERACTION_DIST_FROM_EDGE - 0.001f);
             TreeInfo bestTree = null;
             for (TreeInfo tree : trees) {
                 // Make sure it is not the tree of an opponent
@@ -741,10 +743,10 @@ abstract class Robot {
         for (int i = 0; i < 4; i++) {
             if ((mapEdgesDetermined & (1 << i)) == 0) {
                 float angle = i * (float)Math.PI / 2f;
-                if (!rc.onTheMap(rc.getLocation().add(angle, info.sensorRadius * 0.99f))) {
+                if (!rc.onTheMap(rc.getLocation().add(angle, type.sensorRadius * 0.99f))) {
                     // Found map edge
                     float mn = 0f;
-                    float mx = info.sensorRadius * 0.99f;
+                    float mx = type.sensorRadius * 0.99f;
                     while (mx - mn > 0.002f) {
                         float mid = (mn + mx) / 2;
                         if (rc.onTheMap(rc.getLocation().add(angle, mid))) {
@@ -851,7 +853,7 @@ abstract class Robot {
                 bestRobotsTried.add(bestRobot.ID);
 
                 BodyInfo firstUnitHit = linecast(bestRobot.location);
-                if (rc.getLocation().distanceTo(bestRobot.location) < 2 * info.sensorRadius && teamOf(firstUnitHit) == rc.getTeam().opponent() && turnsLeft > STOP_SPENDING_AT_TIME) {
+                if (rc.getLocation().distanceTo(bestRobot.location) < 2 * type.sensorRadius && teamOf(firstUnitHit) == rc.getTeam().opponent() && turnsLeft > STOP_SPENDING_AT_TIME) {
                     Direction dir = rc.getLocation().directionTo(bestRobot.location);
                     if (rc.canFirePentadShot() && rc.getTeamBullets() > 300 && friendlyRobots.length < hostileRobots.length && (friendlyRobots.length == 0 || hostileRobots.length >= 2)) {
                         // ...Then fire a bullet in the direction of the enemy.
@@ -1318,7 +1320,7 @@ abstract class Robot {
     float treeScore(TreeInfo tree, MapLocation fromPos) {
         float turnsToChopDown = 1f;
         turnsToChopDown += (tree.health / GameConstants.LUMBERJACK_CHOP_DAMAGE);
-        if (fromPos != null) turnsToChopDown += Math.sqrt(fromPos.distanceTo(tree.location) / info.strideRadius);
+        if (fromPos != null) turnsToChopDown += Math.sqrt(fromPos.distanceTo(tree.location) / type.strideRadius);
 
         float score = ((tree.containedRobot != null ? tree.containedRobot.bulletCost * 1.5f : 0) + 1) / turnsToChopDown;
         return score;
@@ -1389,9 +1391,9 @@ abstract class Robot {
         MapLocation a = rc.getLocation();
         Direction dir = a.directionTo(b);
         float dist = a.distanceTo(b);
-        dist = Math.min(dist, info.sensorRadius * 0.99f);
+        dist = Math.min(dist, type.sensorRadius * 0.99f);
 
-        float offset = Math.min(info.bodyRadius + 0.001f, dist);
+        float offset = Math.min(type.bodyRadius + 0.001f, dist);
         a = a.add(dir, offset);
         dist -= offset;
 
@@ -1418,9 +1420,9 @@ abstract class Robot {
         MapLocation a = rc.getLocation();
         Direction dir = a.directionTo(b);
         float dist = a.distanceTo(b);
-        dist = Math.min(dist, info.sensorRadius * 0.99f);
+        dist = Math.min(dist, type.sensorRadius * 0.99f);
 
-        float offset = Math.min(info.bodyRadius + 0.001f, dist);
+        float offset = Math.min(type.bodyRadius + 0.001f, dist);
         a = a.add(dir, offset);
         dist -= offset;
 
@@ -1457,9 +1459,9 @@ abstract class Robot {
         if (rc.hasMoved()) return;
 
         MapLocation reservedNodeLocation = null;
-        if (info != RobotType.GARDENER) {
+        if (type != RobotType.GARDENER) {
             // Test a random node inside the body radius
-            MapLocation rndPos = rc.getLocation().add(rnd.nextFloat() * (float)Math.PI * 2, rnd.nextFloat() * (info.bodyRadius + PATHFINDING_NODE_SIZE * 0.5f));
+            MapLocation rndPos = rc.getLocation().add(rnd.nextFloat() * (float)Math.PI * 2, rnd.nextFloat() * (type.bodyRadius + PATHFINDING_NODE_SIZE * 0.5f));
 
             int index = snapToNode(rndPos);
             int x = index % PATHFINDING_WORLD_WIDTH;
@@ -1470,9 +1472,9 @@ abstract class Robot {
             }
         }
 
-        if (bullets.length == 0 && info != RobotType.LUMBERJACK && info != RobotType.ARCHON && reservedNodeLocation == null) {
+        if (bullets.length == 0 && type != RobotType.LUMBERJACK && type != RobotType.ARCHON && reservedNodeLocation == null) {
             Direction desiredDir = rc.getLocation().directionTo(secondaryTarget);
-            float desiredStride = Math.min(rc.getLocation().distanceTo(secondaryTarget), info.strideRadius);
+            float desiredStride = Math.min(rc.getLocation().distanceTo(secondaryTarget), type.strideRadius);
 
             // Already at target
             if (desiredDir == null) return;
@@ -1482,7 +1484,7 @@ abstract class Robot {
             for (int i = 0; i < steps; i++) {
                 float angle = i * radiansPerStep;
                 Direction dir = desiredDir.rotateLeftRads(angle);
-                //rc.setIndicatorLine(rc.getLocation(), rc.getLocation().add(dir, info.strideRadius), 200, fallbackMovementDirection > 0 ? 255 : 0, 200);
+                //rc.setIndicatorLine(rc.getLocation(), rc.getLocation().add(dir, type.strideRadius), 200, fallbackMovementDirection > 0 ? 255 : 0, 200);
                 if (rc.canMove(dir, desiredStride)) {
                     if (angle <= Math.PI*0.5f + 0.001f) {
                         fallbackDirectionLimit = 0.5f;
@@ -1518,7 +1520,7 @@ abstract class Robot {
         int numMovesToConsider = 0;
 
         if (secondaryTarget != null && myLocation.distanceTo(secondaryTarget) > 0) {
-            movesToConsider[numMovesToConsider++] = myLocation.add(myLocation.directionTo(secondaryTarget), Math.min(myLocation.distanceTo(secondaryTarget), info.strideRadius));
+            movesToConsider[numMovesToConsider++] = myLocation.add(myLocation.directionTo(secondaryTarget), Math.min(myLocation.distanceTo(secondaryTarget), type.strideRadius));
             if(rc.getType() == RobotType.LUMBERJACK) {
                 movesToConsider[numMovesToConsider++] = myLocation;
             }
@@ -1528,7 +1530,7 @@ abstract class Robot {
 
         if (units.length > 0) {
             Direction dir = myLocation.directionTo(units[0].location);
-            movesToConsider[numMovesToConsider++] = myLocation.add(dir.opposite(), info.strideRadius);
+            movesToConsider[numMovesToConsider++] = myLocation.add(dir.opposite(), type.strideRadius);
         }
 
         if (previousBestMove != null && Math.hypot(previousBestMove.x, previousBestMove.y) > 0.01f) {
@@ -1569,9 +1571,9 @@ abstract class Robot {
                 Direction dir = randomDirection();
                 float r = rnd.nextFloat();
                 if (r < 0.5f)
-                    loc = myLocation.add(dir, info.strideRadius);
+                    loc = myLocation.add(dir, type.strideRadius);
                 else if (r < 0.7f)
-                    loc = myLocation.add(dir, info.strideRadius * 0.5f);
+                    loc = myLocation.add(dir, type.strideRadius * 0.5f);
                 else
                     loc = myLocation.add(dir, 0.2f);
             }
@@ -1602,8 +1604,9 @@ abstract class Robot {
 
         float score = 0f;
         boolean ignoreTarget = false;
-        if (rc.getType() == RobotType.ARCHON) {
-            TreeInfo[] trees = rc.senseNearbyTrees(info.sensorRadius);
+
+        if (type == RobotType.ARCHON) {
+            TreeInfo[] trees = rc.senseNearbyTrees(type.sensorRadius);
             for (TreeInfo tree : trees) {
                 if (tree.getTeam() == Team.NEUTRAL) {
                     if (tree.containedBullets > 0) {
@@ -1617,6 +1620,7 @@ abstract class Robot {
                 }
             }
 
+            // Avoid the edge of the map (easy for units to get stuck if the archon blocks them)
             float distx = 10f;
             float disty = 10f;
             distx = Math.min(distx, mapEdges0 - loc.x);
@@ -1627,7 +1631,7 @@ abstract class Robot {
         }
 
         // Move away from reserved nodes if there are no enemies or bullets nearby
-        if (reservedNodeLoc != null && bulletX.length == 0 && info != RobotType.GARDENER) {
+        if (reservedNodeLoc != null && bulletX.length == 0 && type != RobotType.GARDENER) {
             score += 2f * loc.distanceTo(reservedNodeLoc);
         }
 
@@ -1635,12 +1639,12 @@ abstract class Robot {
             score -= 1.15f * loc.distanceTo(target);
         }
 
-        if (rc.getType() == RobotType.LUMBERJACK) {
+        if (type == RobotType.LUMBERJACK) {
             TreeInfo[] trees = rc.senseNearbyTrees();
             for (TreeInfo tree : trees) {
-                if (tree.getTeam() == Team.NEUTRAL) {
+                if (tree.team == Team.NEUTRAL) {
                     score += Math.sqrt((tree.containedRobot != null ? tree.containedRobot.bulletCost * 1.5f : 0) + tree.containedBullets + 1) / (loc.distanceTo(tree.location) + 1);
-                } else if (tree.getTeam() == myTeam) {
+                } else if (tree.team == myTeam) {
                     score -= 1f / (loc.distanceTo(tree.location));
                 } else{
                     score += 4f / (loc.distanceTo(tree.location));
@@ -1652,11 +1656,11 @@ abstract class Robot {
                     if (unit.ID == rc.getID())
                         continue;
                     score -= 2f / (dis + 1);
-                    if (dis < GameConstants.LUMBERJACK_STRIKE_RADIUS + 1f + unit.getType().bodyRadius) {
+                    if (dis < GameConstants.LUMBERJACK_STRIKE_RADIUS + 1f + unit.type.bodyRadius) {
                         score -= 100;
                     }
                 } else {
-                    if (unit.getType() != RobotType.LUMBERJACK) {
+                    if (unit.type != RobotType.LUMBERJACK) {
                         //System.out.println("Applied bonus: " + (400000f / (dis + 1)));
                         score += 10000f / (dis + 1);
                         if (dis < GameConstants.LUMBERJACK_STRIKE_RADIUS) {
@@ -1670,7 +1674,7 @@ abstract class Robot {
                 if (unit.team == myTeam) {
                     if (unit.ID == rc.getID())
                         continue;
-                    if (unit.getType() == RobotType.ARCHON || unit.getType() == RobotType.TANK)
+                    if (unit.type == RobotType.ARCHON || unit.type == RobotType.TANK)
                         score -= 1 / (unit.location.distanceTo(loc) + 1);
                     else
                         score -= 0.5 / (unit.location.distanceTo(loc) + 1);
@@ -1704,7 +1708,7 @@ abstract class Robot {
      */
     boolean bulletCanHitUs(MapLocation loc, BulletInfo bullet) {
         float dmg = 0f;
-        float radius = info.bodyRadius + info.strideRadius;
+        float radius = type.bodyRadius + type.strideRadius;
         float sqrRadius = radius * radius;
         // Current bullet position
         float prevX = bullet.location.x - loc.x;
@@ -1736,7 +1740,7 @@ abstract class Robot {
     float getEstimatedDamageAtPosition(float locx, float locy, int numBullets, float[] bulletX, float[] bulletY
             , float[] bulletDx, float[] bulletDy, float[] bulletDamage, float[] bulletSpeed, float[] bulletImpactDistances) {
         float dmg = 0f;
-        float radius = info.bodyRadius;
+        float radius = type.bodyRadius;
         float sqrRadius = radius * radius;
 
         for (int i = 0; i < numBullets; i++) {

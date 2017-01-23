@@ -3,7 +3,6 @@ package bot;
 import battlecode.common.*;
 
 import java.util.HashMap;
-import java.util.Map;
 
 class Lumberjack extends Robot {
 
@@ -25,7 +24,7 @@ class Lumberjack extends Robot {
             if (mustBeChopable && !rc.canChop(tree.ID))
                 continue;
             if (tree.team != rc.getTeam()) {
-                float turnsToChopDown = (tree.health / GameConstants.LUMBERJACK_CHOP_DAMAGE) + (float)Math.sqrt(Math.max(3f, rc.getLocation().distanceTo(tree.location)) / info.strideRadius) + 1f;
+                float turnsToChopDown = (tree.health / GameConstants.LUMBERJACK_CHOP_DAMAGE) + (float)Math.sqrt(Math.max(3f, rc.getLocation().distanceTo(tree.location)) / type.strideRadius) + 1f;
                 float score = ((tree.containedRobot != null ? tree.containedRobot.bulletCost * 1.5f : 0) + tree.containedBullets + 1) / turnsToChopDown;
 
                 if (isHighPriority(tree.ID)) {
@@ -58,7 +57,7 @@ class Lumberjack extends Robot {
     MapLocation pickTarget(MapLocation[] fallBackPositions) throws GameActionException {
         int lastAttackingEnemySpotted = rc.readBroadcast(HIGH_PRIORITY_TARGET_OFFSET);
         MapLocation highPriorityTargetPos = readBroadcastPosition(HIGH_PRIORITY_TARGET_OFFSET + 1);
-        if (rc.getRoundNum() < lastAttackingEnemySpotted + 50 && rc.getLocation().distanceTo(highPriorityTargetPos) < info.strideRadius * 20) {
+        if (rc.getRoundNum() < lastAttackingEnemySpotted + 50 && rc.getLocation().distanceTo(highPriorityTargetPos) < type.strideRadius * 20) {
             // Defend!
             return highPriorityTargetPos;
         }
@@ -67,7 +66,7 @@ class Lumberjack extends Robot {
             return fallBackPositions[rnd.nextInt(fallBackPositions.length)];
         } else {
             Direction dir = randomDirection();
-            return clampToMap(rc.getLocation().add(dir, info.strideRadius * 10), info.sensorRadius * 0.8f);
+            return clampToMap(rc.getLocation().add(dir, type.strideRadius * 10), type.sensorRadius * 0.8f);
         }
     }
 
@@ -81,7 +80,7 @@ class Lumberjack extends Robot {
             TreeInfo bestTree = findBestTreeToChop(false);
             BulletInfo[] bullets = rc.senseNearbyBullets(8f);
             if (bullets.length > 5)
-                bullets = rc.senseNearbyBullets(info.strideRadius + info.bodyRadius + 3f);
+                bullets = rc.senseNearbyBullets(type.strideRadius + type.bodyRadius + 3f);
             RobotInfo[] enemyRobots = rc.senseNearbyRobots(-1, enemy);
             MapLocation target = bestTree == null ? pickTarget(archons) : bestTree.location;
             moveToAvoidBullets(target, bullets, enemyRobots);
@@ -112,8 +111,8 @@ class Lumberjack extends Robot {
                 for (TreeInfo tree : treesInStrikeRange) {
                     if (!rc.canStrike())
                         System.out.println("Can't strike tree!!");
-                    float turnsToChopDown = (tree.health / GameConstants.LUMBERJACK_CHOP_DAMAGE) + (float)Math.sqrt(Math.max(3f, rc.getLocation().distanceTo(tree.location)) / info.strideRadius) + 1f;
-                    float score = ((tree.containedRobot != null ? tree.containedRobot.bulletCost * 1.5f : 0) + tree.containedBullets + (float)Math.sqrt(rc.getLocation().distanceTo(tree.location) / info.strideRadius) + 1) / turnsToChopDown;
+                    float turnsToChopDown = (tree.health / GameConstants.LUMBERJACK_CHOP_DAMAGE) + (float)Math.sqrt(Math.max(3f, rc.getLocation().distanceTo(tree.location)) / type.strideRadius) + 1f;
+                    float score = ((tree.containedRobot != null ? tree.containedRobot.bulletCost * 1.5f : 0) + tree.containedBullets + (float)Math.sqrt(rc.getLocation().distanceTo(tree.location) / type.strideRadius) + 1) / turnsToChopDown;
                     if ((tree.containedRobot != null || tree.containedBullets > 0) && tree.getHealth() <= 10)
                         score -= 10000;
                     if (tree.getTeam() == rc.getTeam().opponent()) {
@@ -148,7 +147,7 @@ class Lumberjack extends Robot {
                 if (opponentValue > myValue)
                     rc.strike();
                 MapLocation enemyLocation = robots[0].getLocation();
-                BulletInfo[] bullets = rc.senseNearbyBullets(info.strideRadius + info.bodyRadius + 3f);
+                BulletInfo[] bullets = rc.senseNearbyBullets(type.strideRadius + type.bodyRadius + 3f);
                 RobotInfo[] enemyRobots = rc.senseNearbyRobots(-1, enemy);
                 moveToAvoidBullets(enemyLocation, bullets, enemyRobots);
             }
@@ -162,7 +161,7 @@ class Lumberjack extends Robot {
                     MapLocation myLocation = rc.getLocation();
                     MapLocation enemyLocation = robots[0].getLocation();
                     Direction toEnemy = myLocation.directionTo(enemyLocation);
-                    BulletInfo[] bullets = rc.senseNearbyBullets(info.strideRadius + info.bodyRadius + 3f);
+                    BulletInfo[] bullets = rc.senseNearbyBullets(type.strideRadius + type.bodyRadius + 3f);
                     RobotInfo[] enemyRobots = rc.senseNearbyRobots(-1, enemy);
                     moveToAvoidBullets(enemyLocation, bullets, enemyRobots);//tryMove(toEnemy);
                     success = true;
@@ -180,7 +179,7 @@ class Lumberjack extends Robot {
                         TreeInfo[] treesInStrikeRange = rc.senseNearbyTrees(RobotType.LUMBERJACK.bodyRadius + GameConstants.LUMBERJACK_STRIKE_RADIUS);
                         for (TreeInfo tree : treesInStrikeRange) {
                             float turnsToChopDown = (tree.health / GameConstants.LUMBERJACK_CHOP_DAMAGE) + 1f;
-                            float score = ((tree.containedRobot != null ? tree.containedRobot.bulletCost * 1.5f : 0) + tree.containedBullets + (float) Math.sqrt(rc.getLocation().distanceTo(tree.location) / info.strideRadius) + 1) / turnsToChopDown;
+                            float score = ((tree.containedRobot != null ? tree.containedRobot.bulletCost * 1.5f : 0) + tree.containedBullets + (float) Math.sqrt(rc.getLocation().distanceTo(tree.location) / type.strideRadius) + 1) / turnsToChopDown;
                             if ((tree.containedRobot != null || tree.containedBullets > 0) && tree.getHealth() <= 10)
                                 score -= 10000;
                             if (tree.getTeam() == rc.getTeam().opponent()) {
@@ -209,7 +208,7 @@ class Lumberjack extends Robot {
                             done = true;
                             success = true;
                         } else if (!rc.hasMoved()) {
-                            BulletInfo[] bullets = rc.senseNearbyBullets(info.strideRadius + info.bodyRadius + 3f);
+                            BulletInfo[] bullets = rc.senseNearbyBullets(type.strideRadius + type.bodyRadius + 3f);
                             RobotInfo[] enemyRobots = rc.senseNearbyRobots(-1, enemy);
                             moveToAvoidBullets(bestTree.location, bullets, enemyRobots);
                             rc.setIndicatorLine(rc.getLocation(), bestTree.location, 0, 0, 0);
@@ -223,7 +222,7 @@ class Lumberjack extends Robot {
 
                 if (!success) {
                     //tryMove(randomDirection());
-                    BulletInfo[] bullets = rc.senseNearbyBullets(info.strideRadius + info.bodyRadius + 3f);
+                    BulletInfo[] bullets = rc.senseNearbyBullets(type.strideRadius + type.bodyRadius + 3f);
                     RobotInfo[] enemyRobots = rc.senseNearbyRobots(-1, enemy);
                     moveToAvoidBullets(null, bullets, enemyRobots);
                 }

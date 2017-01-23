@@ -2,9 +2,6 @@ package bot;
 
 import battlecode.common.*;
 
-import java.util.Random;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -20,10 +17,10 @@ class Scout extends Robot {
 
     private MapLocation pickTarget() throws GameActionException {
         Direction dir = randomDirection();
-        MapLocation target = rc.getLocation().add(dir, info.sensorRadius - 1f);
+        MapLocation target = rc.getLocation().add(dir, type.sensorRadius - 1f);
         if (!rc.onTheMap(target)) {
             dir = randomDirection();
-            target = clampToMap(rc.getLocation().add(dir, info.sensorRadius - 1f));
+            target = clampToMap(rc.getLocation().add(dir, type.sensorRadius - 1f));
         }
         return target;
     }
@@ -173,17 +170,17 @@ class Scout extends Robot {
             int numMovesToConsider = 0;
 
             if (myLocation.distanceTo(target) > 0) {
-                movesToConsider[numMovesToConsider++] = myLocation.add(myLocation.directionTo(target), info.strideRadius);
+                movesToConsider[numMovesToConsider++] = myLocation.add(myLocation.directionTo(target), type.strideRadius);
             }
 
             if (robots.length > 0) {
                 Direction dir = myLocation.directionTo(robots[0].location);
-                movesToConsider[numMovesToConsider++] = myLocation.add(dir.opposite(), info.strideRadius);
+                movesToConsider[numMovesToConsider++] = myLocation.add(dir.opposite(), type.strideRadius);
             }
 
             if(bestTree != null){
                 Direction dir = myLocation.directionTo(bestTree.location);
-                movesToConsider[numMovesToConsider++] = myLocation.add(dir, info.strideRadius);
+                movesToConsider[numMovesToConsider++] = myLocation.add(dir, type.strideRadius);
             }
 
             if (previousBestMove != null) {
@@ -205,9 +202,9 @@ class Scout extends Robot {
                     Direction dir = randomDirection();
                     int r = rnd.nextInt(10);
                     if (r < 8)
-                        loc = myLocation.add(dir, info.strideRadius);
+                        loc = myLocation.add(dir, type.strideRadius);
                     else if (r < 9)
-                        loc = myLocation.add(dir, info.strideRadius * 0.5f);
+                        loc = myLocation.add(dir, type.strideRadius * 0.5f);
                     else
                         loc = myLocation.add(dir, 0.2f);
                 }
