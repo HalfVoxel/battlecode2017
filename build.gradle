@@ -113,6 +113,14 @@ task unpackClient(type: Copy, dependsOn: configurations.client) {
     into 'client/'
 }
 
+allprojects {
+    gradle.projectsEvaluated {
+        tasks.withType(JavaCompile) {
+            options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation"
+        }
+    }
+}
+
 build.group = 'battlecode'
 build.dependsOn('unpackClient')
 
