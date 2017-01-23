@@ -46,7 +46,7 @@ abstract class Robot {
     static float mapEdges0, mapEdges1, mapEdges2, mapEdges3;
     boolean countingAsAlive = true;
     private Map<Integer, Float> bulletHitDistance = new HashMap<>();
-    private Map<Integer, MapLocation> unitLastLocation = new HashMap();
+    private Map<Integer, MapLocation> unitLastLocation = new HashMap<>();
 
     static MapLocation explorationOrigin;
 
