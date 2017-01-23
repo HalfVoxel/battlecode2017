@@ -391,7 +391,7 @@ abstract class Robot {
                     // will just contain the last information that was up to date
                     if (!alreadyFullyExplored) {
                         jobNodeSkips++;
-                        rc.setIndicatorDot(nodeCenter, 0, 40, 0);
+                        //rc.setIndicatorDot(nodeCenter, 0, 40, 0);
                     }
                     continue;
                 }
@@ -405,10 +405,10 @@ abstract class Robot {
             jobChunkInfo &= ~(1 << jobChunkNodeIndex);
 
             if (traversable) {
-                rc.setIndicatorDot(nodeCenter, 40, 200, 10);
+                //rc.setIndicatorDot(nodeCenter, 40, 200, 10);
             } else {
                 jobChunkInfo |= 1 << jobChunkNodeIndex;
-                rc.setIndicatorDot(nodeCenter, 200, 40, 10);
+                //rc.setIndicatorDot(nodeCenter, 200, 40, 10);
             }
         }
 
