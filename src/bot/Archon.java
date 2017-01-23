@@ -100,14 +100,46 @@ class Archon extends Robot {
     static int searchTime3 = 0;
     static int searchTime4 = 0;
 
-    void pathfinding() throws GameActionException {
-        if (explored == null) {
-            // Pathfinding not started yet
-            resetPathfinding();
+    void addPathfindingSeeds() throws GameActionException{
+        boolean addedAny = false;
+        for(int i = 0; i < NUMBER_OF_TARGETS; ++i){
+            int offset = TARGET_OFFSET + 10*i;
+            int timeSpotted = rc.readBroadcast(offset);
+            float priority = rc.readBroadcast(offset + 1) / (rc.getRoundNum() - timeSpotted + 5.0f);
+            System.out.println("Target number " + i);
+            System.out.println("Time spotted: " + timeSpotted);
+            System.out.println("Priority: " + priority);
+            MapLocation loc = readBroadcastPosition(offset+2);
+            System.out.println("Location: " + loc);
+            if(priority > 0.5 && timeSpotted > rc.getRoundNum() - 300){
+                addPathfindingseed(loc);
+                addedAny = true;
+            }
+        }
+        if(!addedAny){
             MapLocation[] archons = rc.getInitialArchonLocations(rc.getTeam().opponent());
             for (MapLocation archon : archons) {
                 addPathfindingseed(archon);
             }
+        }
+        /*MapLocation[] archons = rc.getInitialArchonLocations(rc.getTeam().opponent());
+        int lastAttackingEnemySpotted = rc.readBroadcast(HIGH_PRIORITY_TARGET_OFFSET);
+        MapLocation highPriorityTargetPos = readBroadcastPosition(HIGH_PRIORITY_TARGET_OFFSET + 1);
+        if (rc.getRoundNum() < lastAttackingEnemySpotted + 50) {
+            addPathfindingseed(highPriorityTargetPos);
+        }
+        else {
+            for (MapLocation archon : archons) {
+                addPathfindingseed(archon);
+            }
+        }*/
+    }
+
+    void pathfinding() throws GameActionException {
+        if (explored == null) {
+            // Pathfinding not started yet
+            resetPathfinding();
+            addPathfindingSeeds();
         }
 
         int w0 = Clock.getBytecodeNum();
@@ -225,10 +257,7 @@ class Archon extends Robot {
 
         {
             resetPathfinding();
-            MapLocation[] archons = rc.getInitialArchonLocations(rc.getTeam().opponent());
-            for (MapLocation archon : archons) {
-                addPathfindingseed(archon);
-            }
+            addPathfindingSeeds();
         }
     }
 

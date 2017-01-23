@@ -14,6 +14,26 @@ class Tank extends Robot {
             return highPriorityTargetPos;
         }
 
+        MapLocation bestTarget = null;
+        float bestPriority = 0.0f;
+
+        for(int i = 0; i < NUMBER_OF_TARGETS; ++i){
+            int offset = TARGET_OFFSET + 10*i;
+            int timeSpotted = rc.readBroadcast(offset);
+            float lastEventPriority = rc.readBroadcast(offset + 1) / (rc.getRoundNum()-timeSpotted+5.0f);
+            MapLocation loc = readBroadcastPosition(offset+2);
+            if(loc.distanceTo(rc.getLocation()) < 15f && lastEventPriority > bestPriority) {
+                bestPriority = lastEventPriority;
+                bestTarget = loc;
+            }
+        }
+        if(bestTarget != null && bestPriority > 0.5) {
+            System.out.println("Heading for nearby target!");
+            return bestTarget;
+        } else if(bestPriority > 0){
+            System.out.println("Not heading for nearby target " + bestTarget + " (" + bestPriority + ")");
+        }
+
         if (true) {
             MapLocation c = rc.getLocation();
             for (int i = 0; i < 5; i++) {

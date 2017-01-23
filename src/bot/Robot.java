@@ -19,6 +19,8 @@ abstract class Robot {
     static final int TREE_OFFSET = 30;
     static final int GARDENER_CAN_PROBABLY_BUILD = 40;
     static final int PRIMARY_UNIT = 50;
+    static final int TARGET_OFFSET = 60;
+    static final int NUMBER_OF_TARGETS = 4;
     static final int HAS_SEEN = 1000;
     static final int PATHFINDING = 3000;
     static final int PATHFINDING_RESULT_TO_ENEMY_ARCHON = 4000;
@@ -177,8 +179,8 @@ abstract class Robot {
         updateLiveness();
         if (Clock.getBytecodesLeft() > 1000) determineMapSize();
         if (Clock.getBytecodesLeft() > 1000 || rc.getType() == RobotType.GARDENER) shakeNearbyTrees();
+        if (Clock.getBytecodesLeft() > 200) broadcastExploration();
         if (Clock.getBytecodesLeft() > 1000) broadcastEnemyLocations(null);
-        if (Clock.getBytecodesLeft() > 1000) broadcastExploration();
 
         if (rc.getRoundNum() != roundAtStart) {
             System.out.println("Error! Did not finish within the bytecode limit");
@@ -505,7 +507,76 @@ abstract class Robot {
             nearbyEnemies = rc.senseNearbyRobots(info.sensorRadius, enemy);
         }
 
-        int lastAttackingEnemySpotted = rc.readBroadcast(HIGH_PRIORITY_TARGET_OFFSET);
+        int priority = 0;
+        float friendlyMilitaryUnits = 0;
+        float friendlyUnits = 0;
+        float maxScore = 0;
+        MapLocation maxScoreLocation = null;
+        RobotInfo[] robots = rc.senseNearbyRobots();
+        for(RobotInfo robot : robots){
+            if(robot.getTeam() == enemy){
+                float score = 0;
+                switch(robot.type){
+                    case ARCHON: score = 0; break;
+                    case GARDENER: score = 150; break;
+                    case LUMBERJACK: score = 30; break;
+                    case SCOUT: score = 10; break;
+                    case SOLDIER: score = 50; break;
+                    case TANK: score = 140; break;
+                    default: break;
+                }
+                if(score > maxScore){
+                    maxScore = score;
+                    maxScoreLocation = robot.location;
+                }
+                priority += score;
+            }
+            else{
+                friendlyUnits += 1;
+                if(robot.type != RobotType.ARCHON && robot.type != RobotType.GARDENER){
+                    friendlyMilitaryUnits += 1;
+                }
+            }
+        }
+        priority /= Math.sqrt(friendlyMilitaryUnits + 2);
+        if(maxScoreLocation != null) {
+            int index = -1;
+            boolean isBetter = true;
+            for(int i = 0; i < NUMBER_OF_TARGETS; ++i){
+                int offset = TARGET_OFFSET + 10*i;
+                int timeSpotted = rc.readBroadcast(offset);
+                int lastEventPriority = rc.readBroadcast(offset + 1);
+                MapLocation loc = readBroadcastPosition(offset+2);
+                if(lastEventPriority / (20 + rc.getRoundNum() - timeSpotted) < priority / 20 && loc.distanceTo(maxScoreLocation) < 20f) {
+                    index = i;
+                    rc.broadcast(offset + 1, 0);
+                }
+                if(lastEventPriority / (20 + rc.getRoundNum() - timeSpotted) >= priority / 20 && loc.distanceTo(maxScoreLocation) < 20f) {
+                    isBetter = false;
+                }
+                if(lastEventPriority == 0){
+                    index = i;
+                }
+            }
+            if(isBetter && index != -1) {
+                int offset = TARGET_OFFSET + 10*index;
+                rc.broadcast(offset, rc.getRoundNum());
+                rc.broadcast(offset + 1, priority);
+                broadcast(offset + 2, maxScoreLocation);
+            }
+        }
+        for(int i = 0; i < NUMBER_OF_TARGETS; ++i){
+            int offset = TARGET_OFFSET + 10*i;
+            int timeSpotted = rc.readBroadcast(offset);
+            int lastEventPriority = rc.readBroadcast(offset + 1);
+            MapLocation loc = readBroadcastPosition(offset+2);
+            if(loc.distanceTo(rc.getLocation()) < 4f && 2*priority < lastEventPriority) {
+                rc.broadcast(offset + 1, 2*priority);
+            }
+        }
+
+
+        /*int lastAttackingEnemySpotted = rc.readBroadcast(HIGH_PRIORITY_TARGET_OFFSET);
         int lastGardenerSpotted = rc.readBroadcast(GARDENER_OFFSET);
 
         boolean anyHostiles = false;
@@ -521,8 +592,7 @@ abstract class Robot {
 
                     // Keep the same target for at least 5 ticks
                     if (
-                            (rc.getRoundNum() > previousTick + 5/* && (rc.getType() == RobotType.GARDENER || (rc.getType() == RobotType.ARCHON && rc.getHealth() < rc.getType().maxHealth * 0.5f)) ||
-                                    (rc.getRoundNum() > previousTick + 8))*/)) {
+                            (rc.getRoundNum() > previousTick + 5)) {
                         rc.broadcast(HIGH_PRIORITY_TARGET_OFFSET, rc.getRoundNum());
                         broadcast(HIGH_PRIORITY_TARGET_OFFSET + 1, robot.location);
                     }
@@ -548,7 +618,7 @@ abstract class Robot {
 
         if (!anyGardeners && lastGardenerSpotted != -1000 && rc.getLocation().isWithinDistance(readBroadcastPosition(GARDENER_OFFSET + 1), info.sensorRadius * 0.7f)) {
             rc.broadcast(GARDENER_OFFSET, -1000);
-        }
+        }*/
     }
 
     void broadcast(int channel, MapLocation pos) throws GameActionException {
