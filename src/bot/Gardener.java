@@ -106,7 +106,7 @@ class Gardener extends Robot {
         }
     }
 
-    void tryBuildUnits (Direction fixedDir) throws GameActionException {
+    boolean tryBuildUnits (Direction fixedDir, boolean doBuild) throws GameActionException {
         boolean saveForTank = false;
         int turnsLeft = rc.getRoundLimit() - rc.getRoundNum();
         int scoutCount = spawnedCount(RobotType.SCOUT);
@@ -121,13 +121,18 @@ class Gardener extends Robot {
         RobotType buildTarget;
         if (scoutCount == 0 || (scoutCount == 1 && rc.getTreeCount() >= 3) || (scoutCount == 2 && rc.getTreeCount() >= 6))
             buildTarget = RobotType.SCOUT;
-
         else
             buildTarget = RobotType.SOLDIER;
         int buildTargetCount = buildTarget == RobotType.SCOUT ? scoutCount : soldierCount;
-        if ((!hasBuiltScout || Math.pow(rc.getTreeCount() + 1, 0.9) > buildTargetCount) && !saveForTank && rc.isBuildReady() && rc.hasRobotBuildRequirements(buildTarget)) {
+        boolean shouldBuild = (!hasBuiltScout || Math.pow(rc.getTreeCount() + 1, 0.9) > buildTargetCount);
+
+        if (!doBuild) {
+            return shouldBuild || saveForTank;
+        }
+
+        boolean built = false;
+        if (shouldBuild && !saveForTank && rc.isBuildReady() && rc.hasRobotBuildRequirements(buildTarget)) {
             saveForTank = true;
-            boolean built = false;
             if (fixedDir != null) {
                 if (rc.canBuildRobot(buildTarget, fixedDir) && turnsLeft > STOP_SPENDING_AT_TIME) {
                     rc.buildRobot(buildTarget, fixedDir);
@@ -167,9 +172,12 @@ class Gardener extends Robot {
                     rc.buildRobot(RobotType.TANK, dir);
                     tankCount += 1;
                     rc.broadcast(RobotType.TANK.ordinal(), tankCount);
+                    built = true;
                 }
             }
         }
+
+        return built;
     }
 
     int moveDir = 1;
@@ -213,10 +221,12 @@ class Gardener extends Robot {
 
             rc.setIndicatorDot(snapped, 200, 100, 100);
 
+            boolean saveForUnits = tryBuildUnits(null, false);
+
             MapLocation up = nodePosition(x, y + 1);
             MapLocation down = nodePosition(x, y - 1);
             boolean canBuildAdditionalTreesHere = !rc.isCircleOccupiedExceptByThisRobot(up, GameConstants.BULLET_TREE_RADIUS) || !rc.isCircleOccupiedExceptByThisRobot(down, GameConstants.BULLET_TREE_RADIUS);
-            if (rc.hasTreeBuildRequirements() && rc.isBuildReady() && !rc.hasMoved() && !rc.isCircleOccupiedExceptByThisRobot(snapped, info.bodyRadius)) {
+            if (!saveForUnits && rc.hasTreeBuildRequirements() && rc.isBuildReady() && !rc.hasMoved() && !rc.isCircleOccupiedExceptByThisRobot(snapped, info.bodyRadius)) {
                 if (canBuildAdditionalTreesHere) {
                     // Move to the snapped node position
                     System.out.println("Trying to move to plant trees");
@@ -285,7 +295,7 @@ class Gardener extends Robot {
                 // Don't build units in the middle of a plantation row
                 // only do it when the units have a chance to get out
                 if (treeUp == null || treeDown == null) {
-                    tryBuildUnits(new Direction(moveDir == 1 ? 0 : (float)Math.PI));
+                    tryBuildUnits(new Direction(moveDir == 1 ? 0 : (float)Math.PI), true);
                 }
 
                 if (!canBuildAdditionalTreesHere && plantationMaxX - plantationMinX < 4 && onMap(nodePosition(x + moveDir, y), PATHFINDING_NODE_SIZE * 0.5f)) {
@@ -603,7 +613,7 @@ class Gardener extends Robot {
             boolean canSeeTarget = target.distanceSquaredTo(rc.getLocation()) < 0.01f || rc.canSenseAllOfCircle(target, desiredRadius);
 
             if (!hasSettled) {
-                tryBuildUnits(null);
+                tryBuildUnits(null, true);
             }
 
             /*if (invalidTarget && movesWithTarget > 3) {
