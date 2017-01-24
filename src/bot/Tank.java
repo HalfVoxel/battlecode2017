@@ -12,25 +12,8 @@ class Tank extends Robot {
             return highPriorityTargetPos;
         }
 
-        MapLocation bestTarget = null;
-        float bestPriority = 0.0f;
-
-        for(int i = 0; i < NUMBER_OF_TARGETS; ++i){
-            int offset = TARGET_OFFSET + 10*i;
-            int timeSpotted = rc.readBroadcast(offset);
-            float lastEventPriority = rc.readBroadcast(offset + 1) / (rc.getRoundNum()-timeSpotted+5.0f);
-            MapLocation loc = readBroadcastPosition(offset+2);
-            if(loc.distanceTo(rc.getLocation()) < 15f && lastEventPriority > bestPriority) {
-                bestPriority = lastEventPriority;
-                bestTarget = loc;
-            }
-        }
-        if(bestTarget != null && bestPriority > 0.5) {
-            System.out.println("Heading for nearby target!");
-            return bestTarget;
-        } else if(bestPriority > 0){
-            System.out.println("Not heading for nearby target " + bestTarget + " (" + bestPriority + ")");
-        }
+        MapLocation bestTarget = getHighPriorityTarget();
+        if (bestTarget != null) return bestTarget;
 
         if (false) {
             MapLocation c = rc.getLocation();
@@ -56,6 +39,30 @@ class Tank extends Robot {
         }
     }
 
+    MapLocation getHighPriorityTarget () throws GameActionException {
+        MapLocation bestTarget = null;
+        float bestPriority = 0.0f;
+
+        for(int i = 0; i < NUMBER_OF_TARGETS; ++i){
+            int offset = TARGET_OFFSET + 10*i;
+            int timeSpotted = rc.readBroadcast(offset);
+            float lastEventPriority = rc.readBroadcast(offset + 1) / (rc.getRoundNum()-timeSpotted+5.0f);
+            MapLocation loc = readBroadcastPosition(offset+2);
+            if(loc.distanceTo(rc.getLocation()) < 15f && lastEventPriority > bestPriority) {
+                bestPriority = lastEventPriority;
+                bestTarget = loc;
+            }
+        }
+        if(bestTarget != null && bestPriority > 0.5) {
+            System.out.println("Heading for nearby target!");
+            return bestTarget;
+        } else if(bestPriority > 0){
+            System.out.println("Not heading for nearby target " + bestTarget + " (" + bestPriority + ")");
+        }
+
+        return null;
+    }
+
     @Override
     public void run() throws GameActionException {
         System.out.println("I'm an tank!");
@@ -72,6 +79,8 @@ class Tank extends Robot {
             int ind = rnd.nextInt(archons.length);
             target = archons[ind];
         }
+
+        int ticksMovingInTheWrongDirection = 0;
 
         // The code you want your robot to perform every round should be in this loop
         while (true) {
@@ -124,8 +133,17 @@ class Tank extends Robot {
                 speedToTarget *= 0.5f;
                 speedToTarget += 0.5f * (d1 - d2);
 
-                if (speedToTarget < type.strideRadius * 0.2f) {
-                    //target = pickTarget(archons);
+                if (getHighPriorityTarget() != null) {
+                    pickTarget(archons);
+                } else {
+                    if (speedToTarget < type.strideRadius * 0.2f) {
+                        ticksMovingInTheWrongDirection++;
+                        if (ticksMovingInTheWrongDirection > 40) {
+                            target = pickTarget(archons);
+                        }
+                    } else {
+                        ticksMovingInTheWrongDirection = 0;
+                    }
                 }
             }
 
