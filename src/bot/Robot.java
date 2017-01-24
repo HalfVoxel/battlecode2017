@@ -1487,16 +1487,18 @@ abstract class Robot {
     }
 
     Direction lastBugDir;
-    MapLocation[] minDists = new MapLocation[40];
-    int minDistIndex = 0;
+    MapLocation[] positionHistory = new MapLocation[40];
+    int positionHistoryIndex = 0;
     int bugTiebreaker = 0;
     void distBug (MapLocation target) throws GameActionException {
         final float step = 0.2f;
 
-        if (lastBugDir == null) lastBugDir = rc.getLocation().directionTo(target);
+        float distanceToTarget = rc.getLocation().distanceTo(target);
 
         // Already at target
-        if (lastBugDir == null) return;
+        if (distanceToTarget <= 0.00001f) return;
+
+        if (lastBugDir == null) lastBugDir = rc.getLocation().directionTo(target);
 
         final float dtheta = 6;
         final int steps = (int)(360 / dtheta);
@@ -1515,7 +1517,7 @@ abstract class Robot {
             }
 
             // No obstacle nearby, just move to the target
-            if (!any && !target.equals(rc.getLocation())) {
+            if (!any) {
                 lastBugDir = rc.getLocation().directionTo(target);
             }
         } else {
@@ -1539,19 +1541,18 @@ abstract class Robot {
             }
         }
 
-        float distanceToTarget = rc.getLocation().distanceTo(target);
         if (rc.getRoundNum() % 3 == 0) {
-            minDists[minDistIndex] = rc.getLocation();
-            minDistIndex = (minDistIndex + 1) % minDists.length;
+            positionHistory[positionHistoryIndex] = rc.getLocation();
+            positionHistoryIndex = (positionHistoryIndex + 1) % positionHistory.length;
         }
 
         float historicalMinDist = distanceToTarget;
-        for (int i = 0; i < minDists.length; i++) if (minDists[i] != null) {
-            rc.setIndicatorDot(minDists[i], 0, 0, 0);
-            historicalMinDist = Math.min(historicalMinDist, minDists[i].distanceTo(target));
+        for (int i = 0; i < positionHistory.length; i++) if (positionHistory[i] != null) {
+            //rc.setIndicatorDot(positionHistory[i], 0, 0, 0);
+            historicalMinDist = Math.min(historicalMinDist, positionHistory[i].distanceTo(target));
         }
 
-        if (!target.equals(rc.getLocation()) && rc.canMove(rc.getLocation().directionTo(target))) {
+        if (rc.canMove(rc.getLocation().directionTo(target))) {
             float hitDistance = linecastDistance(target);
 
             if (distanceToTarget - hitDistance < historicalMinDist - step) {
@@ -1562,7 +1563,7 @@ abstract class Robot {
         }
 
         rc.setIndicatorLine(rc.getLocation(), target, 0, 0, 0);
-        rc.setIndicatorLine(rc.getLocation(), rc.getLocation().add(lastBugDir, 5), 255, 255, 255);
+        //rc.setIndicatorLine(rc.getLocation(), rc.getLocation().add(lastBugDir, 5), 255, 255, 255);
 
         if (rc.canMove(lastBugDir)) {
             rc.move(lastBugDir);
