@@ -1515,7 +1515,7 @@ abstract class Robot {
             }
 
             // No obstacle nearby, just move to the target
-            if (!any) {
+            if (!any && !target.equals(rc.getLocation())) {
                 lastBugDir = rc.getLocation().directionTo(target);
             }
         } else {
