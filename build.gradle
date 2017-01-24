@@ -209,7 +209,7 @@ task jarForUpload(type: Jar) {
 // We should make sure to check for new dependencies frequently.
 configurations.all {
     // Check for updates every build.
-    resolutionStrategy.cacheDynamicVersionsFor 60, 'seconds'
+    resolutionStrategy.cacheDynamicVersionsFor 60, 'minutes'
 }
 
 
@@ -225,7 +225,7 @@ buildscript {
         classpath group: 'org.battlecode', name: 'battlecode-gradle-plugin', version: '2017.+'
     }
     configurations.all {
-        // Check for updates every build.
-        resolutionStrategy.cacheDynamicVersionsFor 60, 'seconds'
+        // Check for updates occasionally.
+        resolutionStrategy.cacheDynamicVersionsFor 60, 'minutes'
     }
 }
