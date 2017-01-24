@@ -112,10 +112,8 @@ class Gardener extends Robot {
     MapLocation plantTrees(MapLocation settledLocation) throws GameActionException {
         MapLocation myLocation = rc.getLocation();
         blockedByNeutralTrees = false;
-        boolean tryAgain = true;
 
-        for (int tries = 0; tries < 2 && tryAgain; tries++) {
-            tryAgain = false;
+        for (int tries = 0; tries < 2; tries++) {
 
             for (int i = 0; i < 6; i++) {
                 if (rc.hasMoved()) break;
@@ -137,7 +135,7 @@ class Gardener extends Robot {
                 }
 
 
-                MapLocation moveToPos = origPos.add(dir, type.strideRadius - 0.02f);
+                //MapLocation moveToPos = origPos.add(dir, type.strideRadius - 0.02f);
 
                 /*if (rc.canMove(moveToPos)) {
                     rc.move(moveToPos);
@@ -150,6 +148,7 @@ class Gardener extends Robot {
                     rc.plantTree(dir);
                     System.out.println("Planted tree");
                     settledLocation = origPos;
+                    return settledLocation;
                 }
 
                 /*yieldAndDoBackgroundTasks();
@@ -162,6 +161,22 @@ class Gardener extends Robot {
         }
 
         return settledLocation;
+    }
+
+    /** Marks nearby trees as high priority for woodcutters, marks nearby nodes as reserved so that other units will try to avoid them */
+    void reserveSettlingLocation(MapLocation loc) throws GameActionException {
+        // Just settled
+        // Mark all nearby trees as high priority for woodcutters to chop down
+        TreeInfo[] trees = rc.senseNearbyTrees(loc, type.bodyRadius + 2*GameConstants.BULLET_TREE_RADIUS + 0.01f, null);
+        for (TreeInfo tree : trees) markAsHighPriority(tree.ID);
+
+        int index = snapToNode(loc);
+        reserveNode(index % PATHFINDING_WORLD_WIDTH, index / PATHFINDING_WORLD_WIDTH);
+        for (int i = 0; i < 6; i++) {
+            Direction dir = new Direction(2 * (float)Math.PI * i / 6f);
+            int index2 = snapToNode(loc.add(dir, type.bodyRadius + GameConstants.BULLET_TREE_RADIUS));
+            reserveNode(index2 % PATHFINDING_WORLD_WIDTH, index2 / PATHFINDING_WORLD_WIDTH);
+        }
     }
 
     @Override
@@ -278,6 +293,10 @@ class Gardener extends Robot {
                 // At target
                 MapLocation settledLocation = plantTrees(hasSettled ? target : null);
                 if (settledLocation != null) {
+                    if (!hasSettled) {
+                        // Just settled
+                        reserveSettlingLocation(rc.getLocation());
+                    }
                     target = settledLocation;
                     hasSettled = true;
                 }
