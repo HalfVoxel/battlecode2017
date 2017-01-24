@@ -10,11 +10,10 @@ abstract class Robot {
     /** rc.getType, should ideally be called 'type' but that is unfortunately a keyword */
     static RobotType type = null;
     MapLocation spawnPos = null;
-    Random rnd = new Random(SEED);
+    Random rnd;
     int lastAttackedEnemyID = -1;
     int roundAtStart = 0;
 
-    static final int SEED = 0;
     static final int MAP_EDGE_BROADCAST_OFFSET = 10;
     static final int HIGH_PRIORITY_TARGET_OFFSET = 20;
     static final int GARDENER_OFFSET = 25;
@@ -53,6 +52,8 @@ abstract class Robot {
     static MapLocation explorationOrigin;
 
     void init() throws GameActionException {
+        rnd = new Random(System.getProperty("bc.testing.seed", "0").hashCode());
+        System.out.println("GOT SEED " + System.getProperty("bc.testing.seed", "0"));
         type = rc.getType();
         spawnPos = rc.getLocation();
 

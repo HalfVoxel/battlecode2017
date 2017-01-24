@@ -65,14 +65,7 @@ def execute(cmd, quiet):
     # return "\n".join(lines)
 
 
-def updateSeed(seed):
-    s = open("src/bot/Robot.java").read()
-    s = re.sub("SEED = [\d]+", "SEED = " + str(seed), s)
-    open("src/bot/Robot.java", "w").write(s)
-
-
 def run(teamA, teamB, maps, quiet, seed):
-    updateSeed(seed)
     gradleArgs = ["./gradlew", "run"]
 
     if teamA is not None:
@@ -83,6 +76,9 @@ def run(teamA, teamB, maps, quiet, seed):
 
     if maps is not None:
         gradleArgs.append("-Pmaps=" + ",".join(maps))
+
+    if seed is not None:
+        gradleArgs.append("-Pseed=" + str(seed))
 
     winRegex = re.compile(r"bot \(([AB])\) wins \(round (\d+)\)")
     reasonRegex = re.compile(r"Reason: The winning team won ([^\n\.]+)")
@@ -108,7 +104,6 @@ def printResult(result):
 
 # Make sure the seed is reset to 0 even if the user terminates the program
 def sigint(signal, frame):
-    updateSeed(0)
     for p in active_commands:
         p.kill()
 
@@ -162,7 +157,6 @@ if args.tournament:
         print("Team A has won " + str((teamAwins / totalCount) * 100) + "% of the time (" +
               str(teamAwins) + " of " + str(totalCount) + ")")
         print("Continuing with new seed...")
-        updateSeed(0)
 
 else:
     actualMap = maps[lowerMaps.index(args.map.lower())]
