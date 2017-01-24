@@ -212,7 +212,7 @@ abstract class Robot {
         onStartOfTick();
     }
 
-    MapLocation directionToEnemyArchon(MapLocation loc) throws GameActionException {
+    MapLocation nextPointOnPathToEnemyArchon(MapLocation loc) throws GameActionException {
         MapLocation relativePos = loc.translate(-explorationOrigin.x, -explorationOrigin.y);
         int nx = (int)Math.floor(relativePos.x / PATHFINDING_NODE_SIZE);
         int ny = (int)Math.floor(relativePos.y / PATHFINDING_NODE_SIZE);
@@ -1522,7 +1522,7 @@ abstract class Robot {
             }
         } else {
             if (bugTiebreaker == 0) {
-                Direction tieBreakerDirection = rc.getLocation().directionTo(directionToEnemyArchon(rc.getLocation()));
+                Direction tieBreakerDirection = rc.getLocation().directionTo(nextPointOnPathToEnemyArchon(rc.getLocation()));
                 if (tieBreakerDirection.rotateRightDegrees(90).degreesBetween(lastBugDir) > 90 && rnd.nextFloat() < 0.7f) {
                     // Rotate right
                     bugTiebreaker = 1;

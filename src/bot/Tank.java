@@ -18,7 +18,7 @@ class Tank extends Robot {
         if (false) {
             MapLocation c = rc.getLocation();
             for (int i = 0; i < 5; i++) {
-                MapLocation next = directionToEnemyArchon(c);
+                MapLocation next = nextPointOnPathToEnemyArchon(c);
                 rc.setIndicatorLine(c, next, 100, 100, 0);
                 c = next;
             }
@@ -27,7 +27,7 @@ class Tank extends Robot {
             if (linecast(c) == null) {
                 return c;
             } else {
-                return directionToEnemyArchon(rc.getLocation());
+                return nextPointOnPathToEnemyArchon(rc.getLocation());
             }
         }
 
