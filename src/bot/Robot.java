@@ -1731,6 +1731,8 @@ abstract class Robot {
                                            float[] bulletX, float[] bulletY, float[] bulletDx, float[] bulletDy,
                                            float[] bulletDamage, float[] bulletSpeed,
                                            RobotInfo[] units, MapLocation target) throws GameActionException {
+
+
         Team myTeam = rc.getTeam();
         float score = 0f;
         boolean ignoreTarget = false;
@@ -1785,7 +1787,7 @@ abstract class Robot {
                 if (unit.team == myTeam) {
                     if (unit.ID == rc.getID())
                         continue;
-                    score -= 2f / (dis + 1);
+                    score -= 6f / (dis + 1);
                     if (dis < GameConstants.LUMBERJACK_STRIKE_RADIUS + 1f + unit.type.bodyRadius) {
                         score -= 100;
                     }
