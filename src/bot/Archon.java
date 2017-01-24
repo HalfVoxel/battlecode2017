@@ -246,15 +246,15 @@ class Archon extends Robot {
         }
 
         searchTime += Clock.getBytecodeNum() - w0;
-        System.out.println("SEARCH TIME: " + searchTime + "\t" + searchTime2 + "\t" + searchTime3 + "\t" + searchTime4);
+        //System.out.println("SEARCH TIME: " + searchTime + "\t" + searchTime2 + "\t" + searchTime3 + "\t" + searchTime4);
         searchTime = 0;
         searchTime2 = 0;
         searchTime3 = 0;
         searchTime4 = 0;
-        yieldAndDoBackgroundTasks();
-        debug_graph();
-        yieldAndDoBackgroundTasks();
-        debug_search();
+        //yieldAndDoBackgroundTasks();
+        //debug_graph();
+        //yieldAndDoBackgroundTasks();
+        //debug_search();
 
         // Write pathfinding result
         broadcastPathfindingResult();
@@ -297,7 +297,7 @@ class Archon extends Robot {
         }
 
         int t = (rc.getRoundNum() - t1) * 20000 + w1 - Clock.getBytecodesLeft();
-        System.out.println("Broadcasting direction info took " + t);
+        //System.out.println("Broadcasting direction info took " + t);
     }
 
     void debug_graph() throws GameActionException {
