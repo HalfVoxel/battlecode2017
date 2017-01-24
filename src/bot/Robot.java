@@ -1390,6 +1390,44 @@ abstract class Robot {
     }
 
     /**
+     * Distance to first body on the line segment going from the edge of this robot to the specified location.
+     * Uses sampling so it is not perfectly accurate.
+     * Also uses the radius of the robot for collision detection.
+     */
+    float linecastDistance(MapLocation b) throws GameActionException {
+        MapLocation a = rc.getLocation();
+        Direction dir = a.directionTo(b);
+        float dist = a.distanceTo(b);
+        dist = Math.min(dist, type.sensorRadius * 0.99f - type.bodyRadius);
+
+        float offset = Math.min(type.bodyRadius + 0.001f, dist);
+        a = a.add(dir, offset);
+        dist -= offset;
+
+        if (dist <= 0) {
+            return 0f;
+        }
+
+        final float desiredDx = 0.5f;
+        int steps = (int)(dist / desiredDx);
+        float dx = dist / (float)steps;
+
+        float radius = type.bodyRadius;
+        for (int t = 1; t <= steps; t++) {
+            float d = t * dx;
+            MapLocation p = a.add(dir, d);
+            if (rc.isCircleOccupiedExceptByThisRobot(p, radius)) {
+                if (rc.isCircleOccupiedExceptByThisRobot(a.add(dir, d - 0.75f*dx), radius)) return d - 0.75f*dx;
+                if (rc.isCircleOccupiedExceptByThisRobot(a.add(dir, d - 0.5f*dx), radius)) return d - 0.5f*dx;
+                if (rc.isCircleOccupiedExceptByThisRobot(a.add(dir, d - 0.25f*dx), radius)) return d - 0.25f*dx;
+                return d;
+            }
+        }
+
+        return dist;
+    }
+
+    /**
      * First body on the line segment going from the edge of this robot to the specified location.
      * Uses sampling so it is not perfectly accurate.
      */
@@ -1448,6 +1486,89 @@ abstract class Robot {
         return null;
     }
 
+    Direction lastBugDir;
+    MapLocation[] minDists = new MapLocation[40];
+    int minDistIndex = 0;
+    int bugTiebreaker = 0;
+    void distBug (MapLocation target) throws GameActionException {
+        final float step = 0.2f;
+
+        if (lastBugDir == null) lastBugDir = rc.getLocation().directionTo(target);
+
+        // Already at target
+        if (lastBugDir == null) return;
+
+        final float dtheta = 6;
+        final int steps = (int)(360 / dtheta);
+
+        if (rc.canMove(lastBugDir) && bugTiebreaker != 0) {
+            // Turn as far as we can
+            boolean any = false;
+            for (int i = 0; i < steps; i++) {
+                Direction nextDir = lastBugDir.rotateLeftDegrees(bugTiebreaker*dtheta);
+                if (rc.canMove(nextDir)) {
+                    lastBugDir = nextDir;
+                } else {
+                    any = true;
+                    break;
+                }
+            }
+
+            // No obstacle nearby, just move to the target
+            if (!any) {
+                lastBugDir = rc.getLocation().directionTo(target);
+            }
+        } else {
+            if (bugTiebreaker == 0) {
+                Direction tieBreakerDirection = rc.getLocation().directionTo(directionToEnemyArchon(rc.getLocation()));
+                if (tieBreakerDirection.rotateRightDegrees(90).degreesBetween(lastBugDir) > 90 && rnd.nextFloat() < 0.7f) {
+                    // Rotate right
+                    bugTiebreaker = 1;
+                } else {
+                    // Rotate left
+                    bugTiebreaker = -1;
+                }
+            }
+
+            for (int i = 0; i < steps; i++) {
+                Direction nextDir = lastBugDir.rotateRightDegrees(bugTiebreaker*dtheta*i);
+                if (rc.canMove(nextDir)) {
+                    lastBugDir = nextDir;
+                    break;
+                }
+            }
+        }
+
+        float distanceToTarget = rc.getLocation().distanceTo(target);
+        if (rc.getRoundNum() % 3 == 0) {
+            minDists[minDistIndex] = rc.getLocation();
+            minDistIndex = (minDistIndex + 1) % minDists.length;
+        }
+
+        float historicalMinDist = distanceToTarget;
+        for (int i = 0; i < minDists.length; i++) if (minDists[i] != null) {
+            rc.setIndicatorDot(minDists[i], 0, 0, 0);
+            historicalMinDist = Math.min(historicalMinDist, minDists[i].distanceTo(target));
+        }
+
+        if (rc.canMove(rc.getLocation().directionTo(target))) {
+            float hitDistance = linecastDistance(target);
+
+            if (distanceToTarget - hitDistance < historicalMinDist - step) {
+                // Move straight to the target
+                lastBugDir = rc.getLocation().directionTo(target);
+                bugTiebreaker = 0;
+            }
+        }
+
+        rc.setIndicatorLine(rc.getLocation(), target, 0, 0, 0);
+        rc.setIndicatorLine(rc.getLocation(), rc.getLocation().add(lastBugDir, 5), 255, 255, 255);
+
+        if (rc.canMove(lastBugDir)) {
+            rc.move(lastBugDir);
+        }
+    }
+
     int fallbackMovementDirection = 1;
     float fallbackDirectionLimit = 0.5f;
     int movementBlockedTicks = 0;
@@ -1479,6 +1600,10 @@ abstract class Robot {
         }
 
         if (bullets.length == 0 && type != RobotType.LUMBERJACK && type != RobotType.ARCHON && reservedNodeLocation == null) {
+            distBug(secondaryTarget);
+
+            if (true) return;
+
             Direction desiredDir = rc.getLocation().directionTo(secondaryTarget);
             float desiredStride = Math.min(rc.getLocation().distanceTo(secondaryTarget), type.strideRadius);
 

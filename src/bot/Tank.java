@@ -125,7 +125,7 @@ class Tank extends Robot {
                 speedToTarget += 0.5f * (d1 - d2);
 
                 if (speedToTarget < type.strideRadius * 0.2f) {
-                    target = pickTarget(archons);
+                    //target = pickTarget(archons);
                 }
             }
 
