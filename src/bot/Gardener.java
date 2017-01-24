@@ -65,13 +65,12 @@ class Gardener extends Robot {
         return target;
     }
 
-    void buildLumberjackInDenseForests() throws GameActionException {
-        if (!rc.hasRobotBuildRequirements(RobotType.LUMBERJACK)) return;
+    boolean buildLumberjackInDenseForests() throws GameActionException {
         //if (spawnedCount(RobotType.LUMBERJACK) >= 2) return
 
         // Don't create lumberjacks too often (the previous one might not have had much time to chop down trees yet)
         if (rc.getRoundNum() < lastBuildLumberjackTime + 50) {
-            return;
+            return false;
         }
 
         TreeInfo[] trees = rc.senseNearbyTrees(type.sensorRadius, Team.NEUTRAL);
@@ -95,16 +94,19 @@ class Gardener extends Robot {
             createLumberjack = true;
         if (createLumberjack || turnsToBreakEven < 100 * modifier) {
             // Create a woodcutter
+            if (!rc.hasRobotBuildRequirements(RobotType.LUMBERJACK)) return true;
             for (int i = 0; i < 6; i++) {
                 Direction dir = randomDirection();
                 if (rc.canBuildRobot(RobotType.LUMBERJACK, dir)) {
                     rc.buildRobot(RobotType.LUMBERJACK, dir);
                     rc.broadcast(RobotType.LUMBERJACK.ordinal(), spawnedCount(RobotType.LUMBERJACK) + 1);
                     lastBuildLumberjackTime = rc.getRoundNum();
-                    return;
+                    return false;
                 }
             }
+            return true;
         }
+        return false;
     }
 
     MapLocation plantTrees(MapLocation settledLocation) throws GameActionException {
@@ -211,6 +213,10 @@ class Gardener extends Robot {
                 }
             }
 
+            boolean saveForLumberjack = false;
+            if (turnsLeft > STOP_SPENDING_AT_TIME)
+                saveForLumberjack = buildLumberjackInDenseForests();
+
             boolean invalidTarget = (moveFailCounter > 5 || speedToTarget < type.strideRadius * 0.2f || !likelyValidTarget(target, desiredRadius)) && !hasSettled;
             boolean canSeeTarget = target.distanceSquaredTo(rc.getLocation()) < 0.01f || rc.canSenseAllOfCircle(target, desiredRadius);
 
@@ -221,7 +227,8 @@ class Gardener extends Robot {
             else
                 buildTarget = RobotType.SOLDIER;
             int buildTargetCount = buildTarget == RobotType.SCOUT ? scoutCount : soldierCount;
-            if ((!hasBuiltScout || Math.pow(rc.getTreeCount() + 1, 0.9) > buildTargetCount) && !saveForTank && rc.isBuildReady() && rc.hasRobotBuildRequirements(buildTarget)) {
+            if ((!hasBuiltScout || Math.pow(rc.getTreeCount() + 1, 0.9) > buildTargetCount) && !saveForTank &&
+                    rc.isBuildReady() && rc.hasRobotBuildRequirements(buildTarget) && !saveForLumberjack) {
                 saveForTank = true;
                 boolean built = false;
                 for (int i = 0; i < 6; i++) {
@@ -255,9 +262,6 @@ class Gardener extends Robot {
 
             movesWithTarget++;
             rc.setIndicatorLine(rc.getLocation(), target, 255, 0, 0);
-
-            if (turnsLeft > STOP_SPENDING_AT_TIME)
-                buildLumberjackInDenseForests();
 
             if (rc.hasRobotBuildRequirements(RobotType.TANK) && saveForTank) {
                 for (int i = 0; i < 6; i++) {
