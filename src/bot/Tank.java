@@ -116,6 +116,14 @@ class Tank extends Robot {
                 boolean canSeeTarget = target.distanceSquaredTo(rc.getLocation()) < 10f;
                 if (canSeeTarget) {
                     target = pickTarget(archons);
+                    if(target == null){
+                        System.out.println("Error! pickTarget returned null!");
+                    }
+                }
+                if(target == null){
+                    System.out.println("Error! Target is null!");
+                    Clock.yield();
+                    Clock.yield();
                 }
 
                 float d1 = rc.getLocation().distanceTo(target);

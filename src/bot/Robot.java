@@ -1551,7 +1551,7 @@ abstract class Robot {
             historicalMinDist = Math.min(historicalMinDist, minDists[i].distanceTo(target));
         }
 
-        if (rc.canMove(rc.getLocation().directionTo(target))) {
+        if (!target.equals(rc.getLocation()) && rc.canMove(rc.getLocation().directionTo(target))) {
             float hitDistance = linecastDistance(target);
 
             if (distanceToTarget - hitDistance < historicalMinDist - step) {

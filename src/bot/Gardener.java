@@ -2,7 +2,8 @@ package bot;
 
 import battlecode.common.*;
 
-import java.util.ArrayList;
+import java.nio.channels.AcceptPendingException;
+import java.util.Random;
 
 class Gardener extends Robot {
 
@@ -106,244 +107,7 @@ class Gardener extends Robot {
         }
     }
 
-    boolean tryBuildUnits (Direction fixedDir, boolean doBuild) throws GameActionException {
-        boolean saveForTank = false;
-        int turnsLeft = rc.getRoundLimit() - rc.getRoundNum();
-        int scoutCount = spawnedCount(RobotType.SCOUT);
-        int soldierCount = spawnedCount(RobotType.SOLDIER);
-        int tankCount = spawnedCount(RobotType.TANK);
-        int gardenerCount = spawnedCount(RobotType.GARDENER);
-
-        if (rc.getTreeCount() > tankCount * 20 + 10 && rc.getTeamBullets() <= RobotType.TANK.bulletCost + 100 && gardenerCount > 1 && scoutCount > 2) {
-            saveForTank = true;
-        }
-
-        RobotType buildTarget;
-        if (scoutCount == 0 || (scoutCount == 1 && rc.getTreeCount() >= 3) || (scoutCount == 2 && rc.getTreeCount() >= 6))
-            buildTarget = RobotType.SCOUT;
-        else
-            buildTarget = RobotType.SOLDIER;
-        int buildTargetCount = buildTarget == RobotType.SCOUT ? scoutCount : soldierCount;
-        boolean shouldBuild = (!hasBuiltScout || Math.pow(rc.getTreeCount() + 1, 0.9) > buildTargetCount);
-
-        if (!doBuild) {
-            return shouldBuild || saveForTank;
-        }
-
-        boolean built = false;
-        if (shouldBuild && !saveForTank && rc.isBuildReady() && rc.hasRobotBuildRequirements(buildTarget)) {
-            saveForTank = true;
-            if (fixedDir != null) {
-                if (rc.canBuildRobot(buildTarget, fixedDir) && turnsLeft > STOP_SPENDING_AT_TIME) {
-                    rc.buildRobot(buildTarget, fixedDir);
-                    rc.broadcast(buildTarget.ordinal(), buildTargetCount + 1);
-                    rc.broadcast(GARDENER_CAN_PROBABLY_BUILD, 0);
-                    hasBuiltScout = true;
-                    built = true;
-                }
-            } else {
-                // Try a bunch of directions
-                for (int i = 0; i < 9; i++) {
-                    Direction dir = new Direction(2 * (float)Math.PI * i / 9f);
-                    if (rc.canBuildRobot(buildTarget, dir) && turnsLeft > STOP_SPENDING_AT_TIME) {
-                        rc.buildRobot(buildTarget, dir);
-                        rc.broadcast(buildTarget.ordinal(), buildTargetCount + 1);
-                        rc.broadcast(GARDENER_CAN_PROBABLY_BUILD, 0);
-                        hasBuiltScout = true;
-                        built = true;
-                        break;
-                    }
-                }
-            }
-
-            if (!built) {
-                // Noes! Could not build ANYWHERE!
-                rc.setIndicatorDot(rc.getLocation(), 255, 192, 203);
-                rc.broadcast(GARDENER_CAN_PROBABLY_BUILD, rc.readBroadcast(GARDENER_CAN_PROBABLY_BUILD) + 1);
-            }
-        } else {
-            rc.broadcast(GARDENER_CAN_PROBABLY_BUILD, 0);
-        }
-
-        if (rc.hasRobotBuildRequirements(RobotType.TANK) && saveForTank) {
-            for (int i = 0; i < 6; i++) {
-                Direction dir = new Direction(2 * (int) Math.PI * i / 6f);
-                if (rc.canBuildRobot(RobotType.TANK, dir) && turnsLeft > STOP_SPENDING_AT_TIME) {
-                    rc.buildRobot(RobotType.TANK, dir);
-                    tankCount += 1;
-                    rc.broadcast(RobotType.TANK.ordinal(), tankCount);
-                    built = true;
-                }
-            }
-        }
-
-        return built;
-    }
-
-    int moveDir = 1;
-
-    boolean reserved = false;
-
-    int plantationMinX = 0;
-    int plantationMaxX = 0;
-
     MapLocation plantTrees(MapLocation settledLocation) throws GameActionException {
-        // return plantTreesOld(settledLocation);
-
-        int nodeIndex = snapToNode(rc.getLocation());
-        int x = nodeIndex % PATHFINDING_WORLD_WIDTH;
-        int y = nodeIndex / PATHFINDING_WORLD_WIDTH;
-
-        if ((y == bestPlantationY + 1 && x >= bestPlantationX && x < bestPlantationX + 4) || reserved) {
-            // At target
-            if (!reserved) {
-                // Reserve nodes
-                reserved = true;
-
-                plantationMinX = x;
-                plantationMaxX = x;
-                reserveNode(x, bestPlantationY);
-                reserveNode(x, bestPlantationY + 1);
-                reserveNode(x, bestPlantationY + 2);
-            }
-
-            // Try to plant trees above and below
-            MapLocation snapped = nodePosition(x, y);
-            if (Math.abs(rc.getLocation().y - snapped.y) > 0.01f) {
-                if (rc.canMove(snapped) && !rc.hasMoved()) {
-                    System.out.println("Moved to the correct y coordinate");
-                    rc.move(snapped);
-                } else {
-                    System.out.println("Could not move to the correct y coordinate");
-                    return settledLocation;
-                }
-            }
-
-            rc.setIndicatorDot(snapped, 200, 100, 100);
-
-            boolean saveForUnits = tryBuildUnits(null, false);
-
-            MapLocation up = nodePosition(x, y + 1);
-            MapLocation down = nodePosition(x, y - 1);
-            boolean canBuildAdditionalTreesHere = !rc.isCircleOccupiedExceptByThisRobot(up, GameConstants.BULLET_TREE_RADIUS) || !rc.isCircleOccupiedExceptByThisRobot(down, GameConstants.BULLET_TREE_RADIUS);
-            if (!saveForUnits && rc.hasTreeBuildRequirements() && rc.isBuildReady() && !rc.hasMoved() && !rc.isCircleOccupiedExceptByThisRobot(snapped, type.bodyRadius)) {
-                if (canBuildAdditionalTreesHere) {
-                    // Move to the snapped node position
-                    System.out.println("Trying to move to plant trees");
-
-                    for (int i = 0; i < 3 && !rc.getLocation().isWithinDistance(snapped, 0.0001f); i++) {
-                        if (i > 0) yieldAndDoBackgroundTasks();
-
-                        if (rc.canMove(snapped)) {
-                            rc.move(snapped);
-                        } else {
-                            System.out.println("Move failed " + i);
-                        }
-                    }
-
-                    if (rc.getLocation().isWithinDistance(snapped, 0.001f)) {
-
-                        if (rc.canPlantTree(rc.getLocation().directionTo(up))) {
-                            rc.plantTree(rc.getLocation().directionTo(up));
-                        }
-
-                        if (rc.canPlantTree(rc.getLocation().directionTo(down))) {
-                            rc.plantTree(rc.getLocation().directionTo(down));
-                        }
-                    } else {
-                        System.out.println("Not close enough");
-                    }
-                }
-            }
-
-            MapLocation targetLoc = nodePosition(Math.min(Math.max(x + moveDir, plantationMinX), plantationMaxX), y);
-            rc.setIndicatorLine(nodePosition(plantationMinX, y).add((float)Math.PI*0.5f, 0.2f), nodePosition(plantationMaxX, y).add((float)Math.PI*0.5f, 0.2f), 255, 255, 200);
-            rc.setIndicatorLine(rc.getLocation(), targetLoc, 255, 255, 255);
-
-            // If we were blocked by a gardener:
-            //    clamp the plantation range
-            //    turn around
-            // elif we are at the end of the plantation range
-            //    try to expand the plantation in that direction
-            //    turn around
-            // elif we were blocked by something:
-            //    clamp the plantation range to only the next tile
-            //    turn around
-            boolean blocked = !rc.canMove(targetLoc);
-            RobotInfo blockingRobot = rc.senseRobotAtLocation(targetLoc);
-            if (blocked && ((blockingRobot != null && blockingRobot.type == RobotType.GARDENER) || !onMap(targetLoc, PATHFINDING_NODE_SIZE * 0.5f))) {
-                if (moveDir == 1) plantationMaxX = x;
-                else plantationMinX = x;
-
-                moveDir *= -1;
-                System.out.println("Flipping direction because blocked (1)");
-            } else if (rc.getLocation().isWithinDistance(targetLoc, 0.1f)) {
-                // Check if we can expand the plantation in that direction
-
-                boolean didExpand = false;
-
-                up = nodePosition(x + moveDir, y + 1);
-                down = nodePosition(x + moveDir, y - 1);
-                TreeInfo treeUp = rc.senseTreeAtLocation(up);
-                TreeInfo treeDown = rc.senseTreeAtLocation(down);
-
-                // Mark nearby trees as high priority (for woodcutters)
-                for (TreeInfo tree : rc.senseNearbyTrees(targetLoc, 2, null)) {
-                    markAsHighPriority(tree.ID);
-                }
-
-                // Don't build units in the middle of a plantation row
-                // only do it when the units have a chance to get out
-                if (treeUp == null || treeDown == null) {
-                    tryBuildUnits(new Direction(moveDir == 1 ? 0 : (float)Math.PI), true);
-                }
-
-                if (!canBuildAdditionalTreesHere && plantationMaxX - plantationMinX < 4 && onMap(nodePosition(x + moveDir, y), PATHFINDING_NODE_SIZE * 0.5f)) {
-                    didExpand = true;
-
-                    //if (treeUp == null || treeDown == treeUp.team == rc.getTeam() || treeDown)
-
-                    int reserveX = x + moveDir;
-                    if (moveDir == 1) {
-                        plantationMaxX = reserveX;
-                        System.out.println("Expanded plantation to +X");
-                    } else {
-                        plantationMinX = reserveX;
-                        System.out.println("Expanded plantation to -X");
-                    }
-
-                    reserveNode(reserveX, bestPlantationY);
-                    reserveNode(reserveX, bestPlantationY + 1);
-                    reserveNode(reserveX, bestPlantationY + 2);
-                }
-
-                if (!didExpand || blocked) {
-                    moveDir *= -1;
-                    System.out.println("Flipping direction because blocked|didExpand (2)");
-                }
-            } else if (blocked && (blockingRobot == null || blockingRobot.team == rc.getTeam())) {
-                if (moveDir == 1) plantationMaxX = Math.min(plantationMaxX, x + 1);
-                else plantationMinX = Math.max(plantationMinX, x - 1);
-
-                // Mark nearby trees as high priority (for woodcutters)
-                for (TreeInfo tree : rc.senseNearbyTrees(rc.getLocation(), 2, null)) {
-                    markAsHighPriority(tree.ID);
-                }
-                moveDir *= -1;
-                System.out.println("Flipping direction because blocked (3)");
-            }
-
-            if (rc.canMove(targetLoc) && !rc.hasMoved()) {
-                rc.move(targetLoc);
-            }
-
-            return rc.getLocation();
-        } else {
-            return settledLocation;
-        }
-    }
-
-    MapLocation plantTreesOld(MapLocation settledLocation) throws GameActionException {
         MapLocation myLocation = rc.getLocation();
         blockedByNeutralTrees = false;
         boolean tryAgain = true;
@@ -388,7 +152,6 @@ class Gardener extends Robot {
 
                 /*yieldAndDoBackgroundTasks();
                 for (int t = 0; t < 5 && !rc.canMove(origPos); t++) yieldAndDoBackgroundTasks();
-
                 // Move back
                 if (rc.canMove(origPos)) {
                     rc.move(origPos);
@@ -396,166 +159,8 @@ class Gardener extends Robot {
             }
         }
 
-        return rc.getLocation();
+        return settledLocation;
     }
-
-    static int bestPlantationX = -1;
-    static int bestPlantationY = -1;
-    static float bestPlantationScore = -1000;
-    static final int SEARCH_WIDTH = 7;
-    static float[][] outerScore = new float[SEARCH_WIDTH][SEARCH_WIDTH];
-    static float[][] innerScore = new float[SEARCH_WIDTH][SEARCH_WIDTH];
-    static boolean[][] blacklist = new boolean[SEARCH_WIDTH][SEARCH_WIDTH];
-    static ArrayList<Integer> blacklistX = new ArrayList<>();
-    static ArrayList<Integer> blacklistY = new ArrayList<>();
-
-    static int plantationSearchX;
-    static int plantationSearchY;
-    static int plantationPhase = 1;
-
-    void searchForPlantationLocation() throws GameActionException {
-        if (rc.getRoundNum() % 100 == 0) {
-            blacklistX.clear();
-            blacklistY.clear();
-        }
-
-        if (plantationPhase == 1) {
-            plantationPhase = 2;
-            searchForPlantationLocationPhase1();
-        } else {
-            plantationPhase = 1;
-            searchForPlantationLocationPhase2();
-        }
-    }
-
-    void searchForPlantationLocationPhase1 () throws GameActionException {
-        int nindex = snapToNode(rc.getLocation());
-        plantationSearchX = nindex % PATHFINDING_WORLD_WIDTH - SEARCH_WIDTH / 2;
-        plantationSearchY = nindex / PATHFINDING_WORLD_WIDTH - SEARCH_WIDTH / 2;
-
-        bestPlantationScore = -1000;
-
-
-//            rc.setIndicatorLine(nodePosition(x, y), nodePosition(x + 3, y), 0, 0, 0);
-//            rc.setIndicatorLine(nodePosition(x + 3, y), nodePosition(x + 3, y + 2), 0, 0, 0);
-//            rc.setIndicatorLine(nodePosition(x + 3, y + 2), nodePosition(x, y + 2), 0, 0, 0);
-//            rc.setIndicatorLine(nodePosition(x, y + 2), nodePosition(x, y), 0, 0, 0);
-
-
-        for (int dy = 0; dy < SEARCH_WIDTH; dy++) {
-            float[] inner = innerScore[dy];
-            float[] outer = outerScore[dy];
-            for (int dx = 0; dx < SEARCH_WIDTH; dx++) {
-                int x = plantationSearchX + dx;
-                int y = plantationSearchY + dy;
-                int node = nodeInfo(x, y);
-                boolean blocked = (node & 1) != 0;
-                boolean fullyExplored = (node & 2) != 0;
-
-                blacklist[dy][dx] = false;
-
-                if (blocked) {
-                    inner[dx] = -5;
-                    outer[dx] = -1;
-
-                    MapLocation loc = nodePosition(x, y);
-                    if (rc.canSenseAllOfCircle(loc, PATHFINDING_NODE_SIZE * 0.5f)) {
-                        TreeInfo tree = rc.senseTreeAtLocation(loc);
-                        if (tree != null && tree.team == rc.getTeam()) {
-                            outer[dx] += 2f;
-                            inner[dx] -= 5f;
-                        }
-                    }
-                } else if (fullyExplored) {
-                    outer[dx] = inner[dx] = 1f;
-                } else {
-                    // Might be blocked or it might not be
-                    outer[dx] = inner[dx] = 0f;
-                }
-            }
-        }
-
-        for (int i = 0; i < blacklistX.size(); i++) {
-            int dx = blacklistX.get(i) - plantationSearchX;
-            int dy = blacklistY.get(i) - plantationSearchY;
-            if (dx >= 0 && dx < SEARCH_WIDTH && dy >= 0 && dy < SEARCH_WIDTH) {
-                blacklist[dy][dx] = true;
-            }
-        }
-    }
-
-    void searchForPlantationLocationPhase2 () throws GameActionException {
-        MapLocation[] archons = rc.getInitialArchonLocations(rc.getTeam().opponent());
-        MapLocation[] ourArchons = rc.getInitialArchonLocations(rc.getTeam());
-        for (int dy = 0; dy < SEARCH_WIDTH - 2; dy++) {
-            float[] s0 = outerScore[dy];
-            float[] s1 = outerScore[dy + 1];
-            float[] s2 = outerScore[dy + 2];
-
-            float score;
-            float vp = 0;
-            float v0 = s0[0] + s1[0] + s2[0];
-            float v1 = s0[1] + s1[1] + s2[1];
-            float v2 = s0[2] + s1[2] + s2[2];
-
-            // Calculate score sum over a moving window (w*h = 4*3 nodes)
-            score = v0 + v1 + v2;
-            for (int dx = 0; dx < SEARCH_WIDTH - 3; dx++) {
-                if (blacklist[dy][dx]) continue;
-
-                // Try to have this as the top left corner of a plantation
-                int x = plantationSearchX + dx;
-                int y = plantationSearchY + dy;
-
-                float v3 = s0[dx + 3] + s1[dx + 3] + s2[dx + 3];
-                score = score + v3 - vp;
-
-                vp = v0;
-                v0 = v1;
-                v1 = v2;
-                v2 = v3;
-
-                MapLocation p0 = nodePosition(x + 1, y + 1);
-                for (MapLocation archon : archons) {
-                    float dist = p0.distanceTo(archon);
-                    if (dist < PATHFINDING_NODE_SIZE * 3) {
-                        score -= 20;
-                    }
-                    score -= 30f / (1 + 0.2f * dist);
-                }
-
-                for (MapLocation archon : ourArchons) {
-                    float dist = p0.distanceTo(archon);
-                    if (dist < PATHFINDING_NODE_SIZE * 3) {
-                        score -= 10;
-                    }
-                    score -= 5f / (1 + 0.2f * dist);
-                }
-
-                // Check if the whole region is on the map
-                if (!onMapX(p0.x - PATHFINDING_NODE_SIZE * 1.5f, 0) || !onMapX(p0.x + PATHFINDING_NODE_SIZE * 2.5f, 0) || !onMapY(p0.y, PATHFINDING_NODE_SIZE * 1.5f)) {
-                    continue;
-                }
-
-                //System.out.println("Final score: " + score + " Best: " + bestPlantationScore);
-
-                if (score > bestPlantationScore) {
-                    bestPlantationScore = score;
-                    bestPlantationX = x;
-                    bestPlantationY = y;
-                }
-            }
-        }
-
-        for (int dx = 0; dx < 4; dx++) {
-            for (int dy = 0; dy < 3; dy++) {
-                rc.setIndicatorDot(nodePosition(bestPlantationX + dx, bestPlantationY + dy), 0, 255, 150);
-            }
-        }
-    }
-
-    boolean hasBuiltScout = false;
-    static final int STOP_SPENDING_AT_TIME = 100;
 
     @Override
     public void run() throws GameActionException {
@@ -566,8 +171,10 @@ class Gardener extends Robot {
         MapLocation target = rc.getLocation();
         float desiredRadius = type.bodyRadius + 2.01f * GameConstants.BULLET_TREE_RADIUS;
         int moveFailCounter = 0;
+        boolean hasBuiltScout = false;
         boolean hasSettled = false;
         int unsettledTime = 0;
+        int STOP_SPENDING_AT_TIME = 100;
         int movesWithTarget = 0;
         float speedToTarget = 0f;
 
@@ -575,54 +182,76 @@ class Gardener extends Robot {
 
         while (true) {
             int turnsLeft = rc.getRoundLimit() - rc.getRoundNum();
+            boolean saveForTank = false;
+            int tankCount = spawnedCount(RobotType.TANK);
+            int gardenerCount = spawnedCount(RobotType.GARDENER);
+            int scoutCount = spawnedCount(RobotType.SCOUT);
+            int soldierCount = spawnedCount(RobotType.SOLDIER);
+
+            if (rc.getTreeCount() > tankCount * 20 + 10 && rc.getTeamBullets() <= RobotType.TANK.bulletCost + 100 && gardenerCount > 1 && scoutCount > 2) {
+                saveForTank = true;
+            }
 
             if (!hasSettled) {
-                searchForPlantationLocation();
-
                 unsettledTime += 1;
-                if (bestPlantationX != -1) {
-                    int x = snapToNode(rc.getLocation()) % PATHFINDING_WORLD_WIDTH;
-                    x = Math.max(Math.min(x, bestPlantationX + 3), bestPlantationX);
-                    target = nodePosition(x, bestPlantationY + 1);
-                } else {
-                    TreeInfo[] trees = rc.senseNearbyTrees(type.sensorRadius, rc.getTeam());
-                    TreeInfo minHealthTree = null;
-                    float bestScore = -1000000;
-                    for (TreeInfo tree : trees) {
-                        float score = (50f - tree.health) / tree.location.distanceTo(rc.getLocation());
-                        if (minHealthTree == null || score > bestScore) {
-                            // This probably means the tree isn't tended to by anyone else
-                            minHealthTree = tree;
-                            bestScore = score;
-                        }
+                TreeInfo[] trees = rc.senseNearbyTrees(type.sensorRadius, rc.getTeam());
+                TreeInfo minHealthTree = null;
+                float bestScore = -1000000;
+                for (TreeInfo tree : trees) {
+                    float score = (50f - tree.health) / tree.location.distanceTo(rc.getLocation());
+                    if (minHealthTree == null || score > bestScore) {
+                        // This probably means the tree isn't tended to by anyone else
+                        minHealthTree = tree;
+                        bestScore = score;
                     }
-                    if (minHealthTree != null) {
-                        tryMove(rc.getLocation().directionTo(minHealthTree.location));
-                        target = rc.getLocation();
-                    }
+                }
+                if (minHealthTree != null) {
+                    tryMove(rc.getLocation().directionTo(minHealthTree.location));
+                    target = rc.getLocation();
                 }
             }
 
-            // TODO: & no enemies nearby
-            if ((moveFailCounter > 5 || speedToTarget < type.strideRadius * 0.2f) && bestPlantationX != -1) {
-                blacklistX.add(bestPlantationX);
-                blacklistY.add(bestPlantationY);
-            }
-
-            boolean invalidTarget = true; // (moveFailCounter > 5 || speedToTarget < type.strideRadius * 0.2f || !likelyValidTarget(target, desiredRadius)) && !hasSettled;
+            boolean invalidTarget = (moveFailCounter > 5 || speedToTarget < type.strideRadius * 0.2f || !likelyValidTarget(target, desiredRadius)) && !hasSettled;
             boolean canSeeTarget = target.distanceSquaredTo(rc.getLocation()) < 0.01f || rc.canSenseAllOfCircle(target, desiredRadius);
 
-            if (!hasSettled) {
-                tryBuildUnits(null, true);
+            RobotType buildTarget;
+            if (scoutCount == 0)
+                buildTarget = RobotType.SCOUT;
+
+            else
+                buildTarget = RobotType.SOLDIER;
+            int buildTargetCount = buildTarget == RobotType.SCOUT ? scoutCount : soldierCount;
+            if ((!hasBuiltScout || Math.pow(rc.getTreeCount() + 1, 0.9) > buildTargetCount) && !saveForTank && rc.isBuildReady() && rc.hasRobotBuildRequirements(buildTarget)) {
+                saveForTank = true;
+                boolean built = false;
+                for (int i = 0; i < 6; i++) {
+                    Direction dir = new Direction(2 * (float) Math.PI * i / 6f);
+                    if (rc.canBuildRobot(buildTarget, dir) && turnsLeft > STOP_SPENDING_AT_TIME) {
+                        rc.buildRobot(buildTarget, dir);
+                        rc.broadcast(buildTarget.ordinal(), buildTargetCount + 1);
+                        rc.broadcast(GARDENER_CAN_PROBABLY_BUILD, 0);
+                        hasBuiltScout = true;
+                        built = true;
+                        break;
+                    }
+                }
+
+                if (!built) {
+                    // Noes! Could not build ANYWHERE!
+                    rc.setIndicatorDot(rc.getLocation(), 255, 192, 203);
+                    rc.broadcast(GARDENER_CAN_PROBABLY_BUILD, rc.readBroadcast(GARDENER_CAN_PROBABLY_BUILD) + 1);
+                }
+            } else {
+                rc.broadcast(GARDENER_CAN_PROBABLY_BUILD, 0);
             }
 
-            /*if (invalidTarget && movesWithTarget > 3) {
+            if (invalidTarget && movesWithTarget > 3) {
                 target = pickTarget(desiredRadius);
                 //System.out.println("Picked new target " + target)
                 moveFailCounter = 0;
                 movesWithTarget = 0;
                 rc.setIndicatorDot(target, 255, 0, 0);
-            }*/
+            }
 
             movesWithTarget++;
             rc.setIndicatorLine(rc.getLocation(), target, 255, 0, 0);
@@ -630,15 +259,18 @@ class Gardener extends Robot {
             if (turnsLeft > STOP_SPENDING_AT_TIME)
                 buildLumberjackInDenseForests();
 
-
-
-            MapLocation settledLocation = plantTrees(hasSettled ? target : null);
-            if (settledLocation != null) {
-                target = settledLocation;
-                hasSettled = true;
+            if (rc.hasRobotBuildRequirements(RobotType.TANK) && saveForTank) {
+                for (int i = 0; i < 6; i++) {
+                    Direction dir = new Direction(2 * (int) Math.PI * i / 6f);
+                    if (rc.canBuildRobot(RobotType.TANK, dir) && turnsLeft > STOP_SPENDING_AT_TIME) {
+                        rc.buildRobot(RobotType.TANK, dir);
+                        tankCount += 1;
+                        rc.broadcast(RobotType.TANK.ordinal(), tankCount);
+                    }
+                }
             }
 
-            /*if (canSeeTarget && ((!invalidTarget && rc.getLocation().distanceSquaredTo(target) < 2f) || unsettledTime > 30) && !saveForTank && turnsLeft > STOP_SPENDING_AT_TIME && rc.hasTreeBuildRequirements() && rc.isBuildReady()) {
+            if (canSeeTarget && ((!invalidTarget && rc.getLocation().distanceSquaredTo(target) < 2f) || unsettledTime > 30) && !saveForTank && turnsLeft > STOP_SPENDING_AT_TIME && rc.hasTreeBuildRequirements() && rc.isBuildReady()) {
                 // At target
                 MapLocation settledLocation = plantTrees(hasSettled ? target : null);
                 if (settledLocation != null) {
@@ -647,7 +279,7 @@ class Gardener extends Robot {
                 }
 
                 //System.out.println("Lost all trees around me, moving again")
-            }*/
+            }
 
             if (!hasSettled) {
                 BulletInfo[] bullets = rc.senseNearbyBullets(type.strideRadius + type.bodyRadius + 3f);
