@@ -1816,15 +1816,20 @@ abstract class Robot {
                         score -= 0.5 / (unit.location.distanceTo(loc) + 1);
                 } else {
                     switch (unit.type) {
-                        case SCOUT:
-                        case SOLDIER:
-                        case TANK:
-                            score -= 2f / (loc.distanceSquaredTo(unit.location) + 1);
+                        case ARCHON:
+                            // Don't do anything
+                            break;
+                        case GARDENER:
+                            score += 3f / (loc.distanceSquaredTo(unit.location) + 1);
+                            break;
+                        default: // Scout/Soldier/Tank
+                            // Note: Potential should be positive for some point within the sensor radius otherwise we will just flee
+                            score += 0.09 - 2f / (loc.distanceSquaredTo(unit.location) + 1);
                             break;
                         case LUMBERJACK:
                             float dis = loc.distanceTo(unit.location);
-                            score -= 10f / (dis * dis + 1);
-                            score += 0.8f / (dis + 1);
+                            // Note: Potential should be positive for some point within the sensor radius otherwise we will just flee
+                            score += 0.3f - 10f / (dis * dis + 1);
                             if (dis < GameConstants.LUMBERJACK_STRIKE_RADIUS + 3f) {
                                 score -= 1000;
                             }
