@@ -161,9 +161,9 @@ abstract class Robot {
     void markAsHighPriority(int id) throws GameActionException {
         // Note that the right shift by id will only use the last 5 bits
         // and thus this will pick out the id'th bit in the broadcast array when starting
-        // from the offset HAS_SEEN
+        // from the offset HIGH_PRIORITY
         // Broadcast that index but with the bit set
-        rc.broadcast(HIGH_PRIORITY + (id >> 5), rc.readBroadcast(HAS_SEEN + (id >> 5)) | (1 << id));
+        rc.broadcast(HIGH_PRIORITY + (id >> 5), rc.readBroadcast(HIGH_PRIORITY + (id >> 5)) | (1 << id));
     }
 
     boolean isHighPriority(int id) throws GameActionException {
