@@ -1826,10 +1826,14 @@ abstract class Robot {
                             // Don't do anything
                             break;
                         case GARDENER:
+                            score += 2f / (loc.distanceSquaredTo(unit.location) + 1);
                             break;
                         default: // Scout/Soldier/Tank
                             // Note: Potential should be positive for some point within the sensor radius otherwise we will just flee
-                            score -= 2f / (loc.distanceSquaredTo(unit.location) + 1);
+                            if(isCoward)
+                                score -= 2f / (loc.distanceSquaredTo(unit.location) + 1);
+                            else
+                                score += 1f / (loc.distanceSquaredTo(unit.location) + 1);
                             break;
                         case LUMBERJACK:
                             float dis = loc.distanceTo(unit.location);

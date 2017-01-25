@@ -147,7 +147,7 @@ class Tank extends Robot {
                 }
             }
 
-            boolean targetArchons = rc.getTeamBullets() > 1000 || rc.getRoundNum() > 1000 || (rc.getRoundNum() > 300 && archons.length == 1);
+            boolean targetArchons = rc.getTeamBullets() > 1000 || rc.getRoundNum() > 1000 || (rc.getRoundNum() > 600 && archons.length == 1);
             fireAtNearbyRobot(friendlyRobots, robots, targetArchons);
             if (!rc.hasAttacked()) {
                 int nearbyGardeners = 0;
