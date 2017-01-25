@@ -7,8 +7,6 @@ import java.util.Map;
 
 class Scout extends Robot {
 
-    private Map<Integer, Float> treeLifeMap = new HashMap<>();
-
     private boolean highPriorityTargetExists() throws GameActionException {
         int lastAttackingEnemySpotted = rc.readBroadcast(HIGH_PRIORITY_TARGET_OFFSET);
         int lastGardenerSpotted = rc.readBroadcast(HIGH_PRIORITY_TARGET_OFFSET);
@@ -25,10 +23,10 @@ class Scout extends Robot {
         return target;
     }
 
-    private float getPositionScore(MapLocation loc, MapLocation[] enemyArchons, RobotInfo[] units, int numBullets,
+    private float getPositionScore(MapLocation loc, RobotInfo[] units, int numBullets,
                                    float[] bulletX, float[] bulletY, float[] bulletDx, float[] bulletDy,
                                    float[] bulletDamage, float[] bulletSpeed, float[] bulletImpactDistances,
-                                   TreeInfo bestTree, MapLocation target) throws GameActionException {
+                                   TreeInfo bestTree, MapLocation target) {
         Team myTeam = rc.getTeam();
 
         float score = 0f;
@@ -77,7 +75,6 @@ class Scout extends Robot {
         }
 
         score -= 1000f * getEstimatedDamageAtPosition(loc.x, loc.y, numBullets, bulletX, bulletY, bulletDx, bulletDy, bulletDamage, bulletSpeed, bulletImpactDistances);
-        ;
 
         return score;
     }
@@ -211,7 +208,7 @@ class Scout extends Robot {
 
                 if (rc.canMove(loc)) {
                     int bytecodesBefore = Clock.getBytecodesLeft();
-                    float score = getPositionScore(loc, archons, allRobots,
+                    float score = getPositionScore(loc, allRobots,
                             bulletsToConsider, bulletX, bulletY, bulletDx, bulletDy, bulletDamage, bulletSpeed, bulletImpactDistances, bestTree, target);
                     if (score > bestScore) {
                         bestScore = score;

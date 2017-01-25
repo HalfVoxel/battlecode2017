@@ -106,9 +106,9 @@ class Archon extends Robot {
         }
     }
 
-    private static CustomQueue queue = new CustomQueue();
-    private static CustomQueue secondaryQueue = new CustomQueue();
-    private static CustomQueue tertiaryQueue = new CustomQueue();
+    private static final CustomQueue queue = new CustomQueue();
+    private static final CustomQueue secondaryQueue = new CustomQueue();
+    private static final CustomQueue tertiaryQueue = new CustomQueue();
 
     private static int[] explored = null;
     private static int[] costs = null;
@@ -120,7 +120,7 @@ class Archon extends Robot {
         pathfindingIndex++;
     }
 
-    void addPathfindingseed(MapLocation seed) throws GameActionException {
+    void addPathfindingseed(MapLocation seed) {
         if (explored == null) {
             // This will take some time
             explored = new int[PATHFINDING_WORLD_WIDTH * PATHFINDING_WORLD_WIDTH];
@@ -228,9 +228,6 @@ class Archon extends Robot {
                 break;
             }
 
-            int x = node % PATHFINDING_WORLD_WIDTH;
-            int y = node / PATHFINDING_WORLD_WIDTH;
-
             searchTime4 += Clock.getBytecodeNum() - w2;
 
             //rc.setIndicatorDot(origin.translate((x + 0.5f) * PATHFINDING_NODE_SIZE, (y + 0.5f) * PATHFINDING_NODE_SIZE), 255, 255, 255);
@@ -319,9 +316,6 @@ class Archon extends Robot {
     }
 
     void broadcastPathfindingResult() throws GameActionException {
-        int w1 = Clock.getBytecodesLeft();
-        int t1 = rc.getRoundNum();
-
         assert (PATHFINDING_CHUNK_SIZE == 4);
 
         for (int cy = 0; cy < PATHFINDING_WORLD_WIDTH / PATHFINDING_CHUNK_SIZE; cy++) {
@@ -348,9 +342,6 @@ class Archon extends Robot {
                 rc.broadcast(PATHFINDING_RESULT_TO_ENEMY_ARCHON + cy * (PATHFINDING_WORLD_WIDTH / PATHFINDING_CHUNK_SIZE) + cx, data);
             }
         }
-
-        int t = (rc.getRoundNum() - t1) * 20000 + w1 - Clock.getBytecodesLeft();
-        //System.out.println("Broadcasting direction info took " + t);
     }
 
     void debug_graph() throws GameActionException {

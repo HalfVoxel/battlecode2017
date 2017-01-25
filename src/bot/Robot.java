@@ -11,13 +11,11 @@ abstract class Robot {
     static RobotType type = null;
     MapLocation spawnPos = null;
     static Random rnd;
-    int lastAttackedEnemyID = -1;
     int roundAtStart = 0;
 
     static final int MAP_EDGE_BROADCAST_OFFSET = 10;
     static final int HIGH_PRIORITY_TARGET_OFFSET = 20;
     static final int GARDENER_OFFSET = 25;
-    static final int TREE_OFFSET = 30;
     static final int GARDENER_CAN_PROBABLY_BUILD = 40;
     static final int PRIMARY_UNIT = 50;
     static final int TARGET_OFFSET = 60;
@@ -38,7 +36,7 @@ abstract class Robot {
     static final int PATHFINDING_WORLD_WIDTH = 100;
     private static final float PATHFINDING_CHUNK_RADIUS = PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE * 0.707106781f + 0.001f;
 
-    static final int EXPLORATION_ORIGIN = EXPLORATION_OFFSET + 0;
+    static final int EXPLORATION_ORIGIN = EXPLORATION_OFFSET;
     private static final int EXPLORATION_EXPLORED = EXPLORATION_OFFSET + 2;
     private static final int EXPLORATION_OUTSIDE_MAP = EXPLORATION_OFFSET + 4;
 
@@ -47,8 +45,8 @@ abstract class Robot {
     static int mapEdgesDetermined = 0;
     static float mapEdges0, mapEdges1, mapEdges2, mapEdges3;
     boolean countingAsAlive = true;
-    private Map<Integer, Float> bulletHitDistance = new HashMap<>();
-    private Map<Integer, MapLocation> unitLastLocation = new HashMap<>();
+    private final Map<Integer, Float> bulletHitDistance = new HashMap<>();
+    private final Map<Integer, MapLocation> unitLastLocation = new HashMap<>();
 
     static MapLocation explorationOrigin;
 
@@ -134,12 +132,6 @@ abstract class Robot {
         return ((rc.readBroadcast(HIGH_PRIORITY + (id >> 5)) >> id) & 1) != 0;
     }
 
-    boolean tryMove(MapLocation to) throws GameActionException {
-        float dist = rc.getLocation().distanceTo(to);
-        if (dist > 0) return tryMove(rc.getLocation().directionTo(to), 20, 3, dist);
-        else return true;
-    }
-
     /**
      * Attempts to move in a given direction, while avoiding small obstacles directly in the path.
      *
@@ -167,7 +159,6 @@ abstract class Robot {
             return true;
         }
         // Now try a bunch of similar angles
-        boolean moved = false;
         int currentCheck = 1;
         while (currentCheck <= checksPerSide) {
             // Try the offset of the left side
@@ -235,8 +226,7 @@ abstract class Robot {
 
         int tx = nx + dx[dir];
         int ty = ny + dy[dir];
-        MapLocation target = explorationOrigin.translate((tx + 0.5f) * PATHFINDING_NODE_SIZE, (ty + 0.5f) * PATHFINDING_NODE_SIZE);
-        return target;
+        return explorationOrigin.translate((tx + 0.5f) * PATHFINDING_NODE_SIZE, (ty + 0.5f) * PATHFINDING_NODE_SIZE);
     }
 
     static int pathfindingChunkDataForNode(int nodeX, int nodeY) throws GameActionException {
@@ -409,11 +399,8 @@ abstract class Robot {
             // Clear that bit
             jobChunkInfo &= ~(1 << jobChunkNodeIndex);
 
-            if (traversable) {
-                //rc.setIndicatorDot(nodeCenter, 40, 200, 10);
-            } else {
+            if (!traversable) {
                 jobChunkInfo |= 1 << jobChunkNodeIndex;
-                //rc.setIndicatorDot(nodeCenter, 200, 40, 10);
             }
         }
 
@@ -611,7 +598,7 @@ abstract class Robot {
         }
         for(int i = 0; i < NUMBER_OF_TARGETS; ++i){
             int offset = TARGET_OFFSET + 10*i;
-            int timeSpotted = rc.readBroadcast(offset);
+            //int timeSpotted = rc.readBroadcast(offset);
             int lastEventPriority = rc.readBroadcast(offset + 1);
             MapLocation loc = readBroadcastPosition(offset+2);
             if(loc.distanceTo(rc.getLocation()) < 4f && 2*priority < lastEventPriority) {
@@ -649,7 +636,7 @@ abstract class Robot {
         }
     }
 
-    void debug_setIndicatorDot(MapLocation pos, float value) throws GameActionException {
+    void debug_setIndicatorDot(MapLocation pos, float value) {
         float r = Math.max(Math.min(value * 3f, 1f), 0f);
         float g = Math.max(Math.min((value - 1 / 3f) * 3f, 1f), 0f);
         float b = Math.max(Math.min((value - 2 / 3f) * 3f, 1f), 0f);
@@ -802,7 +789,6 @@ abstract class Robot {
                         break;
                     }
                 }
-                lastAttackedEnemyID = bestRobot.getID();
                 bestRobotsTried.add(bestRobot.ID);
 
                 BodyInfo firstUnitHit = linecast(bestRobot.location);
@@ -849,8 +835,8 @@ abstract class Robot {
     }
 
     static final int SWEEP_DIRECTIONS = 30;
-    float[] directionScores = new float[SWEEP_DIRECTIONS];
-    float[] transparencies = new float[SWEEP_DIRECTIONS];
+    final float[] directionScores = new float[SWEEP_DIRECTIONS];
+    final float[] transparencies = new float[SWEEP_DIRECTIONS];
 
     void debug_directions() {
         for (int i = 0; i < SWEEP_DIRECTIONS; i++) {
@@ -1281,8 +1267,7 @@ abstract class Robot {
         turnsToChopDown += (tree.health / GameConstants.LUMBERJACK_CHOP_DAMAGE);
         if (fromPos != null) turnsToChopDown += Math.sqrt(fromPos.distanceTo(tree.location) / type.strideRadius);
 
-        float score = ((tree.containedRobot != null ? tree.containedRobot.bulletCost * 1.5f : 0) + 1) / turnsToChopDown;
-        return score;
+        return ((tree.containedRobot != null ? tree.containedRobot.bulletCost * 1.5f : 0) + 1) / turnsToChopDown;
     }
 
     static Team teamOf(BodyInfo b) {
@@ -1440,7 +1425,7 @@ abstract class Robot {
     }
 
     Direction lastBugDir;
-    MapLocation[] positionHistory = new MapLocation[40];
+    final MapLocation[] positionHistory = new MapLocation[40];
     int positionHistoryIndex = 0;
     int bugTiebreaker = 0;
     void distBug (MapLocation target) throws GameActionException {
@@ -1500,9 +1485,11 @@ abstract class Robot {
         }
 
         float historicalMinDist = distanceToTarget;
-        for (int i = 0; i < positionHistory.length; i++) if (positionHistory[i] != null) {
-            //rc.setIndicatorDot(positionHistory[i], 0, 0, 0);
-            historicalMinDist = Math.min(historicalMinDist, positionHistory[i].distanceTo(target));
+        for (MapLocation pos : positionHistory) {
+            if (pos != null) {
+                //rc.setIndicatorDot(positionHistory[i], 0, 0, 0);
+                historicalMinDist = Math.min(historicalMinDist, pos.distanceTo(target));
+            }
         }
 
         if (rc.canMove(rc.getLocation().directionTo(target))) {
@@ -1572,13 +1559,13 @@ abstract class Robot {
 
     MapLocation previousBestMove;
 
-    float[] bulletX = new float[100];
-    float[] bulletY = new float[100];
-    float[] bulletDx = new float[100];
-    float[] bulletDy = new float[100];
-    float[] bulletDamage = new float[100];
-    float[] bulletSpeed = new float[100];
-    MapLocation[] movesToConsider = new MapLocation[100];
+    final float[] bulletX = new float[100];
+    final float[] bulletY = new float[100];
+    final float[] bulletDx = new float[100];
+    final float[] bulletDy = new float[100];
+    final float[] bulletDamage = new float[100];
+    final float[] bulletSpeed = new float[100];
+    final MapLocation[] movesToConsider = new MapLocation[100];
 
     MapLocation moveToAvoidBullets(MapLocation secondaryTarget, BulletInfo[] bullets, RobotInfo[] units) throws GameActionException {
         if (rc.hasMoved()) return null;
@@ -1691,7 +1678,7 @@ abstract class Robot {
     float getDefensiveBulletAvoidanceScore(MapLocation loc, MapLocation reservedNodeLoc, int numBullets,
                                            float[] bulletX, float[] bulletY, float[] bulletDx, float[] bulletDy,
                                            float[] bulletDamage, float[] bulletSpeed,
-                                           RobotInfo[] units, MapLocation target) throws GameActionException {
+                                           RobotInfo[] units, MapLocation target) {
 
 
         Team myTeam = rc.getTeam();
@@ -1869,12 +1856,9 @@ abstract class Robot {
         // The bullet cannot possibly hit us
         if (sqrDistanceToLineOfTravel > sqrRadius)
             return false;
-        if (dot < 0 && sqrRadius - sqrDistanceToLineOfTravel < dot * dot) {
-            // The bullet has already passed us. Everything is ok!
-            return false;
-        }
 
-        return true;
+        // Finally make sure the bullet has not already passed us
+        return !(dot < 0 && sqrRadius - sqrDistanceToLineOfTravel < dot * dot);
     }
 
     /**

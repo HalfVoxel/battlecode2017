@@ -15,27 +15,29 @@ class Tank extends Robot {
         MapLocation bestTarget = getHighPriorityTarget();
         if (bestTarget != null) return bestTarget;
 
-        if (false) {
-            MapLocation c = rc.getLocation();
-            for (int i = 0; i < 5; i++) {
-                MapLocation next = nextPointOnPathToEnemyArchon(c);
-                rc.setIndicatorLine(c, next, 100, 100, 0);
-                c = next;
-            }
-
-            // Try to take a shorter path
-            if (linecast(c) == null) {
-                return c;
-            } else {
-                return nextPointOnPathToEnemyArchon(rc.getLocation());
-            }
-        }
+        // return pathfindingTarget();
 
         if (rnd.nextFloat() < 0.2) {
             return fallBackPositions[rnd.nextInt(fallBackPositions.length)];
         } else {
             Direction dir = randomDirection();
             return clampToMap(rc.getLocation().add(dir, type.strideRadius * 10), type.sensorRadius * 0.8f);
+        }
+    }
+
+    MapLocation pathfindingTarget () throws GameActionException {
+        MapLocation c = rc.getLocation();
+        for (int i = 0; i < 5; i++) {
+            MapLocation next = nextPointOnPathToEnemyArchon(c);
+            rc.setIndicatorLine(c, next, 100, 100, 0);
+            c = next;
+        }
+
+        // Try to take a shorter path
+        if (linecast(c) == null) {
+            return c;
+        } else {
+            return nextPointOnPathToEnemyArchon(rc.getLocation());
         }
     }
 
@@ -58,8 +60,6 @@ class Tank extends Robot {
         if(bestTarget != null && bestPriority > 0.02) {
             //System.out.println("Heading for nearby target " + bestTarget);
             return bestTarget;
-        } else if(bestPriority > 0){
-            //System.out.println("Not heading for nearby target " + bestTarget + " (" + bestPriority + ")");
         }
 
         return null;
@@ -86,7 +86,6 @@ class Tank extends Robot {
 
         // The code you want your robot to perform every round should be in this loop
         while (true) {
-            int turnsLeft = rc.getRoundLimit() - rc.getRoundNum();
             // See if there are any nearby enemy robots
             RobotInfo[] robots = rc.senseNearbyRobots(-1, enemy);
             RobotInfo[] friendlyRobots = rc.senseNearbyRobots(-1, rc.getTeam());

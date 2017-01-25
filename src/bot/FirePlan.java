@@ -5,8 +5,8 @@ import battlecode.common.GameActionException;
 import battlecode.common.RobotController;
 
 public class FirePlan {
-    Direction direction;
-    int bulletNumber;
+    final Direction direction;
+    final int bulletNumber;
 
     public FirePlan(Direction direction, int bulletNumber){
         this.direction = direction;

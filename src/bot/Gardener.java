@@ -2,19 +2,14 @@ package bot;
 
 import battlecode.common.*;
 
-import java.nio.channels.AcceptPendingException;
-import java.util.Random;
-
 class Gardener extends Robot {
 
     boolean blockedByNeutralTrees = false;
     int lastBuildLumberjackTime = -1000;
 
-    void water(TreeInfo[] trees) throws GameActionException {
+    void water() throws GameActionException {
         if (rc.canWater()) {
-            if (trees == null) {
-                trees = rc.senseNearbyTrees(type.bodyRadius + type.strideRadius + 0.01f, rc.getTeam());
-            }
+            TreeInfo[] trees = rc.senseNearbyTrees(type.bodyRadius + type.strideRadius + 0.01f, rc.getTeam());
 
             TreeInfo minHealthTree = null;
             for (TreeInfo tree : trees) {
@@ -36,15 +31,11 @@ class Gardener extends Robot {
 
         boolean canSeeTarget = target.distanceSquaredTo(rc.getLocation()) < 0.01f || rc.canSenseAllOfCircle(target.add(0, 0.001f), freeRadius);
 
-        if (canSeeTarget && (!onMap(target.add(0, 0.001f), freeRadius) || rc.isCircleOccupiedExceptByThisRobot(target.add(0, 0.001f), freeRadius))) {
-            return false;
-        }
-
-        return true;
+        return !canSeeTarget || (onMap(target.add(0, 0.001f), freeRadius) && !rc.isCircleOccupiedExceptByThisRobot(target.add(0, 0.001f), freeRadius));
     }
 
     MapLocation pickTarget(float freeRadius) throws GameActionException {
-        MapLocation target = null;
+        MapLocation target;
         int tests = 0;
         do {
             // Pick a new target
@@ -110,7 +101,6 @@ class Gardener extends Robot {
     }
 
     MapLocation plantTrees(MapLocation settledLocation) throws GameActionException {
-        MapLocation myLocation = rc.getLocation();
         blockedByNeutralTrees = false;
 
         for (int tries = 0; tries < 2; tries++) {
@@ -337,7 +327,7 @@ class Gardener extends Robot {
 			tryMove(randomDirection)
 			*/
             // Clock.yield() makes the robot wait until the next turn, then it will perform this loop again
-            water(null);
+            water();
             yieldAndDoBackgroundTasks();
         }
     }

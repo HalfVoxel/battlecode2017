@@ -6,7 +6,6 @@ import java.util.HashMap;
 
 class Lumberjack extends Robot {
 
-    private HashMap<Integer, Integer> badTrees = new HashMap<Integer, Integer>();
     private float chopScore = 0;
 
     TreeInfo findBestTreeToChop(boolean mustBeChopable) throws GameActionException {
@@ -81,7 +80,6 @@ class Lumberjack extends Robot {
             BulletInfo[] bullets = rc.senseNearbyBullets(8f);
             if (bullets.length > 5)
                 bullets = rc.senseNearbyBullets(type.strideRadius + type.bodyRadius + 3f);
-            RobotInfo[] enemyRobots = rc.senseNearbyRobots(-1, enemy);
             RobotInfo[] allRobots = rc.senseNearbyRobots();
             MapLocation target = bestTree == null ? pickTarget(archons) : bestTree.location;
             MapLocation moveTo = moveToAvoidBullets(target, bullets, allRobots);
