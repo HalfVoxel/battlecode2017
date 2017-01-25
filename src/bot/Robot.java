@@ -1574,6 +1574,50 @@ abstract class Robot {
     int fallbackMovementDirection = 1;
     float fallbackDirectionLimit = 0.5f;
     int movementBlockedTicks = 0;
+
+    /** Moves toward the target and turns to follow object contours if necessary */
+    void optimisticBug (MapLocation target, BulletInfo[] bullets, RobotInfo[] units) throws GameActionException {
+        Direction desiredDir = rc.getLocation().directionTo(target);
+        float desiredStride = Math.min(rc.getLocation().distanceTo(target), type.strideRadius);
+
+        // Already at target
+        if (desiredDir == null) return;
+
+        final int steps = 12;
+        float radiansPerStep = fallbackMovementDirection * fallbackDirectionLimit * (float)Math.PI / (float)steps;
+        for (int i = 0; i < steps; i++) {
+            float angle = i * radiansPerStep;
+            Direction dir = desiredDir.rotateLeftRads(angle);
+            //rc.setIndicatorLine(rc.getLocation(), rc.getLocation().add(dir, type.strideRadius), 200, fallbackMovementDirection > 0 ? 255 : 0, 200);
+            if (rc.canMove(dir, desiredStride)) {
+                if (angle <= Math.PI*0.5f + 0.001f) {
+                    fallbackDirectionLimit = 0.5f;
+                }
+                rc.move(dir, desiredStride);
+                movementBlockedTicks = 0;
+                break;
+            }
+        }
+
+        if (!rc.hasMoved()) {
+            // Failed to move while the limit was 0.5, then increase it to 1.0
+            // and move in the other direction.
+            if (fallbackDirectionLimit == 0.5f) {
+                fallbackDirectionLimit = 1f;
+                fallbackMovementDirection *= -1;
+                movementBlockedTicks = 0;
+                optimisticBug(target, bullets, units);
+            } else {
+                movementBlockedTicks += 1;
+                if (movementBlockedTicks > 6) {
+                    fallbackMovementDirection *= -1;
+                    movementBlockedTicks = 0;
+                    optimisticBug(target, bullets, units);
+                }
+            }
+        }
+    }
+
     MapLocation previousBestMove;
 
     float[] bulletX = new float[100];
@@ -1603,49 +1647,7 @@ abstract class Robot {
 
         if (bullets.length == 0 && type != RobotType.LUMBERJACK && type != RobotType.ARCHON && reservedNodeLocation == null) {
             distBug(secondaryTarget);
-
-            if (true) return;
-
-            Direction desiredDir = rc.getLocation().directionTo(secondaryTarget);
-            float desiredStride = Math.min(rc.getLocation().distanceTo(secondaryTarget), type.strideRadius);
-
-            // Already at target
-            if (desiredDir == null) return;
-
-            final int steps = 12;
-            float radiansPerStep = fallbackMovementDirection * fallbackDirectionLimit * (float)Math.PI / (float)steps;
-            for (int i = 0; i < steps; i++) {
-                float angle = i * radiansPerStep;
-                Direction dir = desiredDir.rotateLeftRads(angle);
-                //rc.setIndicatorLine(rc.getLocation(), rc.getLocation().add(dir, type.strideRadius), 200, fallbackMovementDirection > 0 ? 255 : 0, 200);
-                if (rc.canMove(dir, desiredStride)) {
-                    if (angle <= Math.PI*0.5f + 0.001f) {
-                        fallbackDirectionLimit = 0.5f;
-                    }
-                    rc.move(dir, desiredStride);
-                    movementBlockedTicks = 0;
-                    break;
-                }
-            }
-
-            if (!rc.hasMoved()) {
-                // Failed to move while the limit was 0.5, then increase it to 1.0
-                // and move in the other direction.
-                if (fallbackDirectionLimit == 0.5f) {
-                    fallbackDirectionLimit = 1f;
-                    fallbackMovementDirection *= -1;
-                    movementBlockedTicks = 0;
-                    moveToAvoidBullets(secondaryTarget, bullets, units);
-                } else {
-                    movementBlockedTicks += 1;
-                    if (movementBlockedTicks > 6) {
-                        fallbackMovementDirection *= -1;
-                        movementBlockedTicks = 0;
-                        moveToAvoidBullets(secondaryTarget, bullets, units);
-                    }
-                }
-            }
-
+            // optimisticBug(secondaryTarget)
             return;
         }
 
