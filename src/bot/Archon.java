@@ -15,8 +15,8 @@ class Archon extends Robot {
 
         int archonIndex = 0;
         MapLocation[] archonLocations = rc.getInitialArchonLocations(rc.getTeam());
-        for(int i=0; i < archonLocations.length; i++){
-            if(archonLocations[i].distanceTo(rc.getLocation()) < 2f){
+        for (int i = 0; i < archonLocations.length; i++) {
+            if (archonLocations[i].distanceTo(rc.getLocation()) < 2f) {
                 archonIndex = i;
             }
         }
@@ -35,44 +35,41 @@ class Archon extends Robot {
 
             float buildScore = 0f;
             RobotInfo[] robots = rc.senseNearbyRobots();
-            for(RobotInfo robot : robots){
-                if(robot.getTeam() == rc.getTeam()){
-                    if(robot.getType() == RobotType.GARDENER){
+            for (RobotInfo robot : robots) {
+                if (robot.getTeam() == rc.getTeam()) {
+                    if (robot.getType() == RobotType.GARDENER) {
                         buildScore -= 1f / (rc.getLocation().distanceTo(robot.location));
-                    }
-                    else{
+                    } else {
                         buildScore -= 0.5f / (rc.getLocation().distanceTo(robot.location));
                     }
-                }
-                else{
-                    if(robot.getType() != RobotType.GARDENER && robot.getType() != RobotType.ARCHON)
+                } else {
+                    if (robot.getType() != RobotType.GARDENER && robot.getType() != RobotType.ARCHON)
                         buildScore -= 2f / (rc.getLocation().distanceTo(robot.location));
                 }
             }
             TreeInfo[] trees = rc.senseNearbyTrees(7f);
-            for(TreeInfo tree : trees){
-                if(tree.getTeam() == rc.getTeam()){
+            for (TreeInfo tree : trees) {
+                if (tree.getTeam() == rc.getTeam()) {
                     buildScore -= 0.3f / (rc.getLocation().distanceTo(tree.location));
-                }
-                else{
-                    buildScore -= Math.pow(tree.getRadius(), 1.5)*0.1f / (rc.getLocation().distanceTo(tree.location));
+                } else {
+                    buildScore -= Math.pow(tree.getRadius(), 1.5) * 0.1f / (rc.getLocation().distanceTo(tree.location));
                 }
             }
             float bestBuildScore = -1000000f;
-            for(int i = 0; i < archonLocations.length; i += 1){
-                int roundNum = rc.readBroadcast(ARCHON_BUILD_SCORE + 2*i+1);
-                if(roundNum < rc.getRoundNum() - 2)
+            for (int i = 0; i < archonLocations.length; i += 1) {
+                int roundNum = rc.readBroadcast(ARCHON_BUILD_SCORE + 2 * i + 1);
+                if (roundNum < rc.getRoundNum() - 2)
                     continue;
-                if(i == archonIndex)
+                if (i == archonIndex)
                     continue;
-                bestBuildScore = Math.max(bestBuildScore, rc.readBroadcastFloat(ARCHON_BUILD_SCORE + 2*i));
+                bestBuildScore = Math.max(bestBuildScore, rc.readBroadcastFloat(ARCHON_BUILD_SCORE + 2 * i));
             }
-            boolean isGoodArchon = (buildScore >= bestBuildScore-0.5);
+            boolean isGoodArchon = (buildScore >= bestBuildScore - 0.5);
 
             boolean gardenersSeemToBeBlocked = rc.readBroadcast(GARDENER_CAN_PROBABLY_BUILD) > gardenerCount * 20 + 10;
             if (rc.hasRobotBuildRequirements(RobotType.GARDENER) && isGoodArchon && (gardenersSeemToBeBlocked || gardenerCount < 1 || rc.getTreeCount() > 4 * gardenerCount || rc.getTeamBullets() > RobotType.TANK.bulletCost + 100) && !saveForTank) {
                 boolean couldBuild = false;
-                for(int attempts = 0; attempts < 6; attempts += 1) {
+                for (int attempts = 0; attempts < 6; attempts += 1) {
                     // Generate a random direction
                     Direction dir = randomDirection();
                     if (rc.canHireGardener(dir) && turnsLeft > STOP_SPENDING_AT_TIME) {
@@ -87,16 +84,16 @@ class Archon extends Robot {
                         break;
                     }
                 }
-                if(!couldBuild)
+                if (!couldBuild)
                     buildScore -= 10000;
             }
-            rc.broadcastFloat(ARCHON_BUILD_SCORE + 2*archonIndex, buildScore);
-            rc.broadcast(ARCHON_BUILD_SCORE + 2*archonIndex+1, rc.getRoundNum());
+            rc.broadcastFloat(ARCHON_BUILD_SCORE + 2 * archonIndex, buildScore);
+            rc.broadcast(ARCHON_BUILD_SCORE + 2 * archonIndex + 1, rc.getRoundNum());
 
             BulletInfo[] bullets = rc.senseNearbyBullets(type.strideRadius + type.bodyRadius + 3f);
             RobotInfo[] units = rc.senseNearbyRobots();
             MapLocation moveTo = moveToAvoidBullets(null, bullets, units);
-            if(moveTo != null)
+            if (moveTo != null)
                 rc.move(moveTo);
             pathfinding();
 
@@ -143,8 +140,8 @@ class Archon extends Robot {
         }
 
         MapLocation relativePos = seed.translate(-explorationOrigin.x, -explorationOrigin.y);
-        int seedx = (int) Math.floor(relativePos.x / PATHFINDING_NODE_SIZE);
-        int seedy = (int) Math.floor(relativePos.y / PATHFINDING_NODE_SIZE);
+        int seedx = (int)Math.floor(relativePos.x / PATHFINDING_NODE_SIZE);
+        int seedy = (int)Math.floor(relativePos.y / PATHFINDING_NODE_SIZE);
         int index = seedy * PATHFINDING_WORLD_WIDTH + seedx;
         explored[index] = pathfindingIndex;
         costs[index] = 0;
@@ -156,23 +153,23 @@ class Archon extends Robot {
     static int searchTime3 = 0;
     static int searchTime4 = 0;
 
-    void addPathfindingSeeds() throws GameActionException{
+    void addPathfindingSeeds() throws GameActionException {
         boolean addedAny = false;
-        for(int i = 0; i < NUMBER_OF_TARGETS; ++i){
-            int offset = TARGET_OFFSET + 10*i;
+        for (int i = 0; i < NUMBER_OF_TARGETS; ++i) {
+            int offset = TARGET_OFFSET + 10 * i;
             int timeSpotted = rc.readBroadcast(offset);
             float priority = rc.readBroadcast(offset + 1) / (rc.getRoundNum() - timeSpotted + 5.0f);
             System.out.println("Target number " + i);
             System.out.println("Time spotted: " + timeSpotted);
             System.out.println("Priority: " + priority);
-            MapLocation loc = readBroadcastPosition(offset+2);
+            MapLocation loc = readBroadcastPosition(offset + 2);
             System.out.println("Location: " + loc);
-            if(priority > 0.5 && timeSpotted > rc.getRoundNum() - 300){
+            if (priority > 0.5 && timeSpotted > rc.getRoundNum() - 300) {
                 addPathfindingseed(loc);
                 addedAny = true;
             }
         }
-        if(!addedAny){
+        if (!addedAny) {
             MapLocation[] archons = rc.getInitialArchonLocations(rc.getTeam().opponent());
             for (MapLocation archon : archons) {
                 addPathfindingseed(archon);
@@ -250,7 +247,7 @@ class Archon extends Robot {
                     parents[nindex] = i;
                     searchTime2 += Clock.getBytecodeNum() - w1;
 
-                    switch(blocked | fullyExplored) {
+                    switch (blocked | fullyExplored) {
                         // blocked
                         case 1:
                         case 3:

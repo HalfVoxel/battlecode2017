@@ -175,7 +175,7 @@ class Scout extends Robot {
                 movesToConsider[numMovesToConsider++] = myLocation.add(dir.opposite(), type.strideRadius);
             }
 
-            if(bestTree != null){
+            if (bestTree != null) {
                 Direction dir = myLocation.directionTo(bestTree.location);
                 movesToConsider[numMovesToConsider++] = myLocation.add(dir, type.strideRadius);
             }

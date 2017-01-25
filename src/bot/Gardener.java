@@ -108,7 +108,7 @@ class Gardener extends Robot {
             for (int i = 0; i < 6; i++) {
                 if (rc.hasMoved()) break;
 
-                Direction dir = new Direction(2 * (float) Math.PI * i / 6f);
+                Direction dir = new Direction(2 * (float)Math.PI * i / 6f);
                 MapLocation origPos = settledLocation != null ? settledLocation : rc.getLocation();
                 MapLocation plantPos = origPos.add(dir, type.bodyRadius + type.strideRadius + GameConstants.BULLET_TREE_RADIUS);
                 if (rc.isCircleOccupiedExceptByThisRobot(plantPos, GameConstants.BULLET_TREE_RADIUS + 0.01f) || !onMap(plantPos, GameConstants.BULLET_TREE_RADIUS + 0.01f)) {
@@ -153,11 +153,13 @@ class Gardener extends Robot {
         return settledLocation;
     }
 
-    /** Marks nearby trees as high priority for woodcutters, marks nearby nodes as reserved so that other units will try to avoid them */
+    /**
+     * Marks nearby trees as high priority for woodcutters, marks nearby nodes as reserved so that other units will try to avoid them
+     */
     void reserveSettlingLocation(MapLocation loc) throws GameActionException {
         // Just settled
         // Mark all nearby trees as high priority for woodcutters to chop down
-        TreeInfo[] trees = rc.senseNearbyTrees(loc, type.bodyRadius + 2*GameConstants.BULLET_TREE_RADIUS + 0.01f, null);
+        TreeInfo[] trees = rc.senseNearbyTrees(loc, type.bodyRadius + 2 * GameConstants.BULLET_TREE_RADIUS + 0.01f, null);
         for (TreeInfo tree : trees) markAsHighPriority(tree.ID);
 
         int index = snapToNode(loc);
@@ -237,7 +239,7 @@ class Gardener extends Robot {
                 saveForTank = true;
                 boolean built = false;
                 for (int i = 0; i < 6; i++) {
-                    Direction dir = new Direction(2 * (float) Math.PI * i / 6f);
+                    Direction dir = new Direction(2 * (float)Math.PI * i / 6f);
                     if (rc.canBuildRobot(buildTarget, dir) && turnsLeft > STOP_SPENDING_AT_TIME) {
                         rc.buildRobot(buildTarget, dir);
                         rc.broadcast(buildTarget.ordinal(), buildTargetCount + 1);
@@ -270,7 +272,7 @@ class Gardener extends Robot {
 
             if (rc.hasRobotBuildRequirements(RobotType.TANK) && saveForTank) {
                 for (int i = 0; i < 6; i++) {
-                    Direction dir = new Direction(2 * (int) Math.PI * i / 6f);
+                    Direction dir = new Direction(2 * (int)Math.PI * i / 6f);
                     if (rc.canBuildRobot(RobotType.TANK, dir) && turnsLeft > STOP_SPENDING_AT_TIME) {
                         rc.buildRobot(RobotType.TANK, dir);
                         tankCount += 1;
@@ -301,7 +303,7 @@ class Gardener extends Robot {
                 if (!rc.hasMoved()) {
                     float d1 = rc.getLocation().distanceTo(target);
                     MapLocation moveTo = moveToAvoidBullets(target, bullets, units);
-                    if(moveTo != null)
+                    if (moveTo != null)
                         rc.move(moveTo);
                     float d2 = rc.getLocation().distanceTo(target);
                     speedToTarget *= 0.5f;

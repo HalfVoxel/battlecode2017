@@ -25,7 +25,7 @@ class Tank extends Robot {
         }
     }
 
-    MapLocation pathfindingTarget () throws GameActionException {
+    MapLocation pathfindingTarget() throws GameActionException {
         MapLocation c = rc.getLocation();
         for (int i = 0; i < 5; i++) {
             MapLocation next = nextPointOnPathToEnemyArchon(c);
@@ -41,23 +41,23 @@ class Tank extends Robot {
         }
     }
 
-    MapLocation getHighPriorityTarget () throws GameActionException {
+    MapLocation getHighPriorityTarget() throws GameActionException {
         MapLocation bestTarget = null;
         float bestPriority = 0.0f;
 
-        for(int i = 0; i < NUMBER_OF_TARGETS; ++i){
-            int offset = TARGET_OFFSET + 10*i;
+        for (int i = 0; i < NUMBER_OF_TARGETS; ++i) {
+            int offset = TARGET_OFFSET + 10 * i;
             int timeSpotted = rc.readBroadcast(offset);
-            MapLocation loc = readBroadcastPosition(offset+2);
-            float lastEventPriority = rc.readBroadcast(offset + 1) / (rc.getRoundNum()-timeSpotted+5.0f);
+            MapLocation loc = readBroadcastPosition(offset + 2);
+            float lastEventPriority = rc.readBroadcast(offset + 1) / (rc.getRoundNum() - timeSpotted + 5.0f);
             lastEventPriority /= loc.distanceSquaredTo(rc.getLocation()) + 10;
             //System.out.println("Target " + loc + " from frame " + timeSpotted + " has priority " + lastEventPriority);
-            if(loc.distanceTo(rc.getLocation()) < 30f && lastEventPriority > bestPriority) {
+            if (loc.distanceTo(rc.getLocation()) < 30f && lastEventPriority > bestPriority) {
                 bestPriority = lastEventPriority;
                 bestTarget = loc;
             }
         }
-        if(bestTarget != null && bestPriority > 0.02) {
+        if (bestTarget != null && bestPriority > 0.02) {
             //System.out.println("Heading for nearby target " + bestTarget);
             return bestTarget;
         }
@@ -120,12 +120,11 @@ class Tank extends Robot {
 
             if (bestRobot != null) {
                 MapLocation moveTo = moveToAvoidBullets(bestRobot.location, bullets, robots);
-                if(moveTo == null){
+                if (moveTo == null) {
                     FirePlan firePlan = fireAtNearbyRobot(friendlyRobots, robots, targetArchons);
-                    if(firePlan != null)
+                    if (firePlan != null)
                         firePlan.apply(rc);
-                }
-                else {
+                } else {
                     Direction preliminaryShootDirection = rc.getLocation().directionTo(bestRobot.location);
                     Direction moveToDirection = rc.getLocation().directionTo(moveTo);
                     if (moveToDirection == null)
@@ -142,7 +141,7 @@ class Tank extends Robot {
                         } else {
                             rc.move(moveTo);
                             firePlan = fireAtNearbyRobot(friendlyRobots, robots, targetArchons);
-                            if(firePlan != null){
+                            if (firePlan != null) {
                                 firePlan.apply(rc);
                             }
                         }
@@ -166,7 +165,7 @@ class Tank extends Robot {
 
                 float d1 = rc.getLocation().distanceTo(target);
                 MapLocation moveTo = moveToAvoidBullets(target, bullets, robots);
-                if(moveTo != null)
+                if (moveTo != null)
                     rc.move(moveTo);
                 float d2 = rc.getLocation().distanceTo(target);
                 speedToTarget *= 0.5f;
@@ -186,7 +185,7 @@ class Tank extends Robot {
                 }
             }
 
-            if(!rc.hasAttacked()){
+            if (!rc.hasAttacked()) {
                 fireAtNearbyRobot(friendlyRobots, robots, targetArchons);
             }
             if (!rc.hasAttacked()) {
