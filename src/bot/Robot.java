@@ -27,6 +27,7 @@ abstract class Robot {
     static final int PATHFINDING_RESULT_TO_ENEMY_ARCHON = 4000;
     static final int PATHFINDING_TREE = 5000;
     static final int HIGH_PRIORITY = 6000;
+    static final int ARCHON_BUILD_SCORE = 7001;
 
     static final int[] dx = new int[]{1, 0, -1, 0};
     static final int[] dy = new int[]{0, 1, 0, -1};
@@ -1806,6 +1807,37 @@ abstract class Robot {
                         if (dis < GameConstants.LUMBERJACK_STRIKE_RADIUS) {
                             score += 10000;
                         }
+                    }
+                }
+            }
+        } else if(type == RobotType.ARCHON) {
+            for (RobotInfo unit : units) {
+                if (unit.team == myTeam) {
+                    if (unit.ID == rc.getID())
+                        continue;
+                    if (unit.type == RobotType.ARCHON)
+                        score -= 10 / (unit.location.distanceTo(loc) + 1);
+                    else
+                        score -= 3 / (unit.location.distanceTo(loc) + 1);
+                } else {
+                    switch (unit.type) {
+                        case ARCHON:
+                            // Don't do anything
+                            break;
+                        case GARDENER:
+                            break;
+                        default: // Scout/Soldier/Tank
+                            // Note: Potential should be positive for some point within the sensor radius otherwise we will just flee
+                            score -= 2f / (loc.distanceSquaredTo(unit.location) + 1);
+                            break;
+                        case LUMBERJACK:
+                            float dis = loc.distanceTo(unit.location);
+                            // Note: Potential should be positive for some point within the sensor radius otherwise we will just flee
+                            score -= 10f / (dis * dis + 1);
+                            if (dis < GameConstants.LUMBERJACK_STRIKE_RADIUS + 3f) {
+                                score -= 1000;
+                            }
+                            break;
                     }
                 }
             }

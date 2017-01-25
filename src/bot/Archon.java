@@ -13,6 +13,15 @@ class Archon extends Robot {
         System.out.println("I'm an archon! ");
         rc.broadcast(RobotType.ARCHON.ordinal(), rc.getInitialArchonLocations(rc.getTeam()).length);
 
+        int archonIndex = 0;
+        MapLocation[] archonLocations = rc.getInitialArchonLocations(rc.getTeam());
+        for(int i=0; i < archonLocations.length; i++){
+            if(archonLocations[i].distanceTo(rc.getLocation()) < 2f){
+                archonIndex = i;
+            }
+        }
+        System.out.println("Archon index: " + archonIndex);
+
         // The code you want your robot to perform every round should be in this loop
         while (true) {
             int gardenerCount = spawnedCount(RobotType.GARDENER);
@@ -24,8 +33,45 @@ class Archon extends Robot {
                 saveForTank = true;
             }
 
+            float buildScore = 0f;
+            RobotInfo[] robots = rc.senseNearbyRobots();
+            for(RobotInfo robot : robots){
+                if(robot.getTeam() == rc.getTeam()){
+                    if(robot.getType() == RobotType.GARDENER){
+                        buildScore -= 1f / (rc.getLocation().distanceTo(robot.location));
+                    }
+                    else{
+                        buildScore -= 0.5f / (rc.getLocation().distanceTo(robot.location));
+                    }
+                }
+                else{
+                    if(robot.getType() != RobotType.GARDENER && robot.getType() != RobotType.ARCHON)
+                        buildScore -= 2f / (rc.getLocation().distanceTo(robot.location));
+                }
+            }
+            TreeInfo[] trees = rc.senseNearbyTrees(7f);
+            for(TreeInfo tree : trees){
+                if(tree.getTeam() == rc.getTeam()){
+                    buildScore -= 0.3f / (rc.getLocation().distanceTo(tree.location));
+                }
+                else{
+                    buildScore -= Math.pow(tree.getRadius(), 1.5)*0.1f / (rc.getLocation().distanceTo(tree.location));
+                }
+            }
+            float bestBuildScore = -1000000f;
+            for(int i = 0; i < archonLocations.length; i += 1){
+                int roundNum = rc.readBroadcast(ARCHON_BUILD_SCORE + 2*i+1);
+                if(roundNum < rc.getRoundNum() - 2)
+                    continue;
+                if(i == archonIndex)
+                    continue;
+                bestBuildScore = Math.max(bestBuildScore, rc.readBroadcastFloat(ARCHON_BUILD_SCORE + 2*i));
+            }
+            boolean isGoodArchon = (buildScore >= bestBuildScore-0.5);
+
             boolean gardenersSeemToBeBlocked = rc.readBroadcast(GARDENER_CAN_PROBABLY_BUILD) > gardenerCount * 20 + 10;
-            if ((gardenersSeemToBeBlocked || gardenerCount < 1 || rc.getTreeCount() > 4 * gardenerCount || rc.getTeamBullets() > RobotType.TANK.bulletCost + 100) && !saveForTank) {
+            if (rc.hasRobotBuildRequirements(RobotType.GARDENER) && isGoodArchon && (gardenersSeemToBeBlocked || gardenerCount < 1 || rc.getTreeCount() > 4 * gardenerCount || rc.getTeamBullets() > RobotType.TANK.bulletCost + 100) && !saveForTank) {
+                boolean couldBuild = false;
                 for(int attempts = 0; attempts < 6; attempts += 1) {
                     // Generate a random direction
                     Direction dir = randomDirection();
@@ -37,14 +83,19 @@ class Archon extends Robot {
                         }
 
                         rc.broadcast(GARDENER_CAN_PROBABLY_BUILD, 0);
+                        couldBuild = true;
                         break;
                     }
                 }
+                if(!couldBuild)
+                    buildScore -= 10000;
             }
+            rc.broadcastFloat(ARCHON_BUILD_SCORE + 2*archonIndex, buildScore);
+            rc.broadcast(ARCHON_BUILD_SCORE + 2*archonIndex+1, rc.getRoundNum());
 
             BulletInfo[] bullets = rc.senseNearbyBullets(type.strideRadius + type.bodyRadius + 3f);
             RobotInfo[] units = rc.senseNearbyRobots();
-            moveToAvoidBullets(rc.getLocation(), bullets, units);
+            moveToAvoidBullets(null, bullets, units);
             pathfinding();
 
             yieldAndDoBackgroundTasks();
