@@ -1745,6 +1745,7 @@ abstract class Robot {
         Team myTeam = rc.getTeam();
         float score = 0f;
         boolean ignoreTarget = false;
+        boolean isCoward = rc.getHealth() < type.maxHealth * 0.3f;
 
         if (type == RobotType.ARCHON) {
             TreeInfo[] trees = rc.senseNearbyTrees(type.sensorRadius);
@@ -1856,16 +1857,26 @@ abstract class Robot {
                             // Don't do anything
                             break;
                         case GARDENER:
-                            score += 3f / (loc.distanceSquaredTo(unit.location) + 1);
+                            score += 6f / (loc.distanceSquaredTo(unit.location) + 1);
                             break;
-                        default: // Scout/Soldier/Tank
-                            // Note: Potential should be positive for some point within the sensor radius otherwise we will just flee
-                            score += 0.09 - 2f / (loc.distanceSquaredTo(unit.location) + 1);
+                        case SCOUT:
+                            float dis = loc.distanceTo(unit.location);
+                            if(isCoward)
+                                score += 0.5 / (dis + 1) - 2f / (dis*dis + 1);
+                            else
+                                score += 1 / (dis + 1);
+                            break;
+                        default: // Soldier/Tank
+                            dis = loc.distanceTo(unit.location);
+                            if(isCoward)
+                                score += 1 / (dis + 1) - 7f / (dis*dis + 1);
+                            else
+                                score += 1.5 / (dis + 1) - 6f / (dis*dis + 1);
                             break;
                         case LUMBERJACK:
-                            float dis = loc.distanceTo(unit.location);
+                            dis = loc.distanceTo(unit.location);
                             // Note: Potential should be positive for some point within the sensor radius otherwise we will just flee
-                            score += 0.3f - 10f / (dis * dis + 1);
+                            score += 1.5 / (dis + 1) - 8f / (dis * dis + 1);
                             if (dis < GameConstants.LUMBERJACK_STRIKE_RADIUS + 3f) {
                                 score -= 1000;
                             }
