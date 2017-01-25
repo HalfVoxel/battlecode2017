@@ -2,8 +2,6 @@ package bot;
 
 import battlecode.common.*;
 
-import java.util.HashMap;
-
 import static battlecode.common.GameConstants.LUMBERJACK_STRIKE_RADIUS;
 
 class Lumberjack extends Robot {

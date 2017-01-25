@@ -2,9 +2,6 @@ package bot;
 
 import battlecode.common.*;
 
-import java.util.HashMap;
-import java.util.Map;
-
 class Scout extends Robot {
 
     private boolean highPriorityTargetExists() throws GameActionException {

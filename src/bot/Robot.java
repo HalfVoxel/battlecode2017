@@ -774,8 +774,7 @@ abstract class Robot {
     /**
      * Fire at any nearby robots if possible.
      *
-     * @param hostileRobots
-     * @return If there are any nearby gardeners (maybe move to different method?)
+     * @return Plan for firing. Call plan.apply to actually fire the bullets.
      * @throws GameActionException
      */
     FirePlan fireAtNearbyRobot(RobotInfo[] friendlyRobots, RobotInfo[] hostileRobots, boolean targetArchons) throws GameActionException {

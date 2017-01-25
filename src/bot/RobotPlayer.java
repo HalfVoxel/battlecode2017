@@ -33,6 +33,7 @@ public strictfp class RobotPlayer {
 
             robot.onAwake();
             robot.onStartOfTick();
+            //noinspection InfiniteLoopStatement
             while(true) {
                 robot.onUpdate();
             }

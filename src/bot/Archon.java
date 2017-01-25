@@ -12,7 +12,6 @@ class Archon extends Robot {
     public void onAwake() throws GameActionException {
         System.out.println("I'm an archon! ");
 
-        int archonIndex = 0;
         for (int i = 0; i < initialArchonLocations.length; i++) {
             if (initialArchonLocations[i].distanceTo(rc.getLocation()) < 2f) {
                 archonIndex = i;
@@ -359,7 +358,7 @@ class Archon extends Robot {
         }
     }
 
-    void debug_search() throws GameActionException {
+    void debug_search() {
         for (int y = 0; y < PATHFINDING_WORLD_WIDTH; y++) {
             for (int x = 0; x < PATHFINDING_WORLD_WIDTH; x++) {
                 int index = y * PATHFINDING_WORLD_WIDTH + x;
