@@ -26,7 +26,6 @@ abstract class Robot {
     static final int PRIMARY_UNIT = 50;
     static final int TARGET_OFFSET = 60;
     static final int NUMBER_OF_TARGETS = 4;
-    static final int HAS_SEEN = 1000;
     static final int PATHFINDING = 3000;
     static final int PATHFINDING_RESULT_TO_ENEMY_ARCHON = 4000;
     static final int PATHFINDING_TREE = 5000;
@@ -43,8 +42,6 @@ abstract class Robot {
     private static final float PATHFINDING_CHUNK_RADIUS = PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE * 0.707106781f + 0.001f;
 
     static final int EXPLORATION_ORIGIN = EXPLORATION_OFFSET;
-    private static final int EXPLORATION_EXPLORED = EXPLORATION_OFFSET + 2;
-    private static final int EXPLORATION_OUTSIDE_MAP = EXPLORATION_OFFSET + 4;
 
     static final int STOP_SPENDING_AT_TIME = 50;
 
@@ -82,8 +79,6 @@ abstract class Robot {
 
     /**
      * Called once at the start of the game (only for a single unit).
-     *
-     * @throws GameActionException
      */
     static void onStartOfGame() throws GameActionException {
         explorationOrigin = rc.getLocation().translate(-PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2, -PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2);
@@ -105,8 +100,6 @@ abstract class Robot {
     /**
      * Called once when the unit first starts to run code.
      * Executed just before the first call to onUpdate.
-     *
-     * @throws GameActionException
      */
     void onAwake() throws GameActionException {
     }
@@ -114,8 +107,6 @@ abstract class Robot {
     /**
      * Called repeatedly until the unit dies or the game ends.
      * A single invocation may take longer than one tick.
-     *
-     * @throws GameActionException
      */
     abstract void onUpdate() throws GameActionException;
 
@@ -133,30 +124,9 @@ abstract class Robot {
     }
 
     /**
-     * Adds the ID to a global shared set of all detected entities and returns if this was
-     * the first time that entity was detected.
-     *
-     * @param id ID of the entity, assumed to be in the range 0...32000.
-     * @return True if this was the first time this particular ID was detected. False otherwise.
-     * @throws GameActionException
-     */
-    boolean detect(int id) throws GameActionException {
-        // Note that the right shift by id will only use the last 5 bits
-        // and thus this will pick out the id'th bit in the broadcast array when starting
-        // from the offset HAS_SEEN
-        if (((rc.readBroadcast(HAS_SEEN + (id >> 5)) >> id) & 1) == 0) {
-            // Broadcast that index but with the bit set
-            rc.broadcast(HAS_SEEN + (id >> 5), rc.readBroadcast(HAS_SEEN + (id >> 5)) | (1 << id));
-            return true;
-        }
-        return false;
-    }
-
-    /**
      * Adds the ID to a global shared set of all high priority entities
      *
      * @param id ID of the entity, assumed to be in the range 0...32000.
-     * @throws GameActionException
      */
     void markAsHighPriority(int id) throws GameActionException {
         // Note that the right shift by id will only use the last 5 bits
@@ -175,7 +145,6 @@ abstract class Robot {
      *
      * @param dir The intended direction of movement
      * @return true if a move was performed
-     * @throws GameActionException
      */
     boolean tryMove(Direction dir) throws GameActionException {
         return tryMove(dir, 20, 3, type.strideRadius);
@@ -188,7 +157,6 @@ abstract class Robot {
      * @param degreeOffset  Spacing between checked directions (degrees)
      * @param checksPerSide Number of extra directions checked on each side, if intended direction was unavailable
      * @return true if a move was performed
-     * @throws GameActionException
      */
     boolean tryMove(Direction dir, float degreeOffset, int checksPerSide, float distance) throws GameActionException {
         // First, try intended direction
@@ -468,72 +436,11 @@ abstract class Robot {
         return true;
     }
 
-    MapLocation findBestUnexploredChunk() throws GameActionException {
-        long exploredChunks = readBroadcastLong(EXPLORATION_EXPLORED);
-        long chunksOutsideMap = readBroadcastLong(EXPLORATION_OUTSIDE_MAP);
-
-        while (true) {
-            // Consider chunks that have not been explored yet and are not outside the map
-            long chunksToConsider = ~exploredChunks & ~chunksOutsideMap;
-
-            MapLocation bestChunk = null;
-            int bestChunkIndex = -1;
-            float bestScore = 0f;
-
-            // Loop through all chunks
-            for (int y = 0; y < 8; y++) {
-                int indexy = y * 8;
-                for (int x = 0; x < 8; x++) {
-                    int index = indexy + x;
-                    // Ignore chunks that we can never reach or that are already explored
-                    if ((chunksToConsider & (1L << index)) != 0) {
-                        // Chunk position
-                        MapLocation chunkPosition = new MapLocation(explorationOrigin.x + (x - 4 + 0.5f) * PATHFINDING_NODE_SIZE, explorationOrigin.y + (y - 4 + 0.5f) * PATHFINDING_NODE_SIZE);
-                        float score = 1f / chunkPosition.distanceTo(rc.getLocation());
-
-						/*try {
-                            debug_setIndicatorDot(chunkPosition, 10 * score)
-						} catch {
-							case e:Exception =>
-						}*/
-
-                        if (score > bestScore) {
-                            bestScore = score;
-                            bestChunk = chunkPosition;
-                            bestChunkIndex = index;
-                        }
-                    }
-                }
-            }
-
-            if (bestChunk != null) {
-                // Check if the chunk is on the map using the currently known information
-                if (onMap(bestChunk)) {
-                    return bestChunk;
-                } else {
-                    chunksOutsideMap |= 1L << bestChunkIndex;
-                    broadcast(EXPLORATION_OUTSIDE_MAP, chunksOutsideMap);
-                }
-            } else {
-                // Reset exploration
-                exploredChunks = 0L;
-                broadcast(EXPLORATION_EXPLORED, exploredChunks);
-            }
-        }
-    }
-
     /**
      * True if the location is on the map using the information known so far
      */
     boolean onMap(MapLocation pos) {
         return pos.x <= mapEdges0 && pos.y <= mapEdges1 && pos.x >= mapEdges2 && pos.y >= mapEdges3;
-    }
-
-    /**
-     * True if the location is on the map using the information known so far
-     */
-    boolean onMap(float x, float y) {
-        return x <= mapEdges0 && y <= mapEdges1 && x >= mapEdges2 && y >= mapEdges3;
     }
 
     /**
@@ -569,15 +476,6 @@ abstract class Robot {
         x = Math.max(x, mapEdges2 + margin);
         y = Math.max(y, mapEdges3 + margin);
         return new MapLocation(x, y);
-    }
-
-    float getDistanceToMapEdge(MapLocation pos) {
-        float ret = 10f;
-        ret = Math.min(ret, mapEdges0 - pos.x);
-        ret = Math.min(ret, mapEdges1 - pos.y);
-        ret = Math.min(ret, pos.x - mapEdges2);
-        ret = Math.min(ret, pos.y - mapEdges3);
-        return ret;
     }
 
     void broadcastEnemyLocations() throws GameActionException {
@@ -775,7 +673,6 @@ abstract class Robot {
      * Fire at any nearby robots if possible.
      *
      * @return Plan for firing. Call plan.apply to actually fire the bullets.
-     * @throws GameActionException
      */
     FirePlan fireAtNearbyRobot(RobotInfo[] friendlyRobots, RobotInfo[] hostileRobots, boolean targetArchons) throws GameActionException {
         if (hostileRobots.length == 0) return null;
@@ -883,430 +780,6 @@ abstract class Robot {
         return null;
     }
 
-    static final int SWEEP_DIRECTIONS = 30;
-    final float[] directionScores = new float[SWEEP_DIRECTIONS];
-    final float[] transparencies = new float[SWEEP_DIRECTIONS];
-
-    void debug_directions() {
-        for (int i = 0; i < SWEEP_DIRECTIONS; i++) {
-            Direction d1 = new Direction(2 * (float)Math.PI * i / (float)SWEEP_DIRECTIONS - (float)Math.PI);
-            Direction d2 = new Direction(2 * (float)Math.PI * (i + 1) / (float)SWEEP_DIRECTIONS - (float)Math.PI);
-            float radius = rc.getType().bodyRadius * 1.5f;
-            MapLocation p1 = rc.getLocation().add(d1, radius);
-            MapLocation p2 = rc.getLocation().add(d2, radius);
-
-            float value = directionScores[i];
-            float r = Math.max(Math.min(value * 3f, 1f), 0f);
-            float g = Math.max(Math.min((value - 1 / 3f) * 3f, 1f), 0f);
-            float b = Math.max(Math.min((value - 2 / 3f) * 3f, 1f), 0f);
-
-            rc.setIndicatorLine(p1, p2, (int)(r * 255f), (int)(g * 255f), (int)(b * 255f));
-        }
-    }
-
-    void fireAtNearbyRobotSweep2(RobotInfo[] robots, TreeInfo[] trees) throws GameActionException {
-        if (!rc.canFireSingleShot()) return;
-
-        int numTrees = Math.min(trees.length, 4);
-        int numRobots = Math.min(robots.length, 6);
-        MapLocation myLocation = rc.getLocation();
-        float bulletSpeed = rc.getType().bulletSpeed;
-
-        int w1 = Clock.getBytecodeNum();
-
-        for (int i = 0; i < directionScores.length; i++) {
-            directionScores[i] = 0f;
-            transparencies[i] = 1f;
-        }
-
-        // Go through the objects in sorted order
-        float distanceToNextTree = numTrees > 0 ? myLocation.distanceTo(trees[0].location) - trees[0].radius * 0.2f : 10000;
-        float distanceToNextRobot = numRobots > 0 ? myLocation.distanceTo(robots[0].location) : 10000;
-        int ri = 0;
-        int ti = 0;
-        while (ri < numRobots || ti < numTrees) {
-            float start;
-            float end;
-            float probabilityToHit;
-            float pointsForHitting;
-
-            if (distanceToNextTree < distanceToNextRobot) {
-                // Closest thing is a tree
-                TreeInfo tree = trees[ti];
-                Direction dir = myLocation.directionTo(tree.location);
-                float dist = distanceToNextTree;
-                float halfwidth = tree.radius;
-                float radiansDelta = Math.min(halfwidth / dist, (float)Math.PI);
-                start = dir.radians - radiansDelta + (float)Math.PI;
-                end = dir.radians + radiansDelta + (float)Math.PI;
-                probabilityToHit = 1f;
-                pointsForHitting = -0.001f;
-
-                ti++;
-                distanceToNextTree = ti < numTrees ? myLocation.distanceTo(trees[ti].location) - trees[0].radius * 0.2f : 10000;
-            } else {
-                // Closest thing is a robot
-                RobotInfo robot = robots[ri];
-
-                Direction dir = myLocation.directionTo(robot.location);
-                float stride = 0.5f * robot.type.strideRadius;
-                float dist = distanceToNextRobot;
-                float halfwidth = robot.type.bodyRadius + stride * (dist / bulletSpeed);
-                float radiansDelta = halfwidth / dist;
-
-                start = dir.radians - radiansDelta + (float)Math.PI;
-                end = dir.radians + radiansDelta + (float)Math.PI;
-
-                probabilityToHit = robot.type.bodyRadius / halfwidth;
-                if (robot.team == ally) {
-                    pointsForHitting = -0.5f;
-                } else {
-                    switch (robot.type) {
-                        case ARCHON:
-                            pointsForHitting = rc.getRoundNum() > 2000 ? 0.8f : 0f;
-                            break;
-                        case GARDENER:
-                            pointsForHitting = 0.5f;
-                            break;
-                        default:
-                            pointsForHitting = 1f;
-                            break;
-                    }
-                }
-
-                ri++;
-                distanceToNextRobot = ri < numRobots ? myLocation.distanceTo(robots[ri].location) : 10000;
-            }
-
-            int startIndex = (int)Math.floor(start * (SWEEP_DIRECTIONS / (2 * Math.PI)));
-            int endIndex = (int)Math.floor(end * (SWEEP_DIRECTIONS / (2 * Math.PI)));
-
-            pointsForHitting *= probabilityToHit;
-            float probabilityOfNotHitting = 1f - probabilityToHit;
-
-            if (startIndex < 0) {
-                for (int i = startIndex + SWEEP_DIRECTIONS; i < SWEEP_DIRECTIONS; i++) {
-                    directionScores[i] += pointsForHitting * transparencies[i];
-                    transparencies[i] *= probabilityOfNotHitting;
-                }
-
-                startIndex = 0;
-            }
-
-            if (endIndex >= SWEEP_DIRECTIONS) {
-                for (int i = endIndex - SWEEP_DIRECTIONS; i >= 0; i--) {
-                    directionScores[i] += pointsForHitting * transparencies[i];
-                    transparencies[i] *= probabilityOfNotHitting;
-                }
-
-                endIndex = SWEEP_DIRECTIONS - 1;
-            }
-
-            while (startIndex <= endIndex) {
-                directionScores[startIndex] += pointsForHitting * transparencies[startIndex];
-                transparencies[startIndex] *= probabilityOfNotHitting;
-                startIndex++;
-            }
-        }
-
-        Direction bestDirection = null;
-        float bestScore = 0f;
-        for (RobotInfo robot : robots) {
-            if (robot.team == enemy) {
-                Direction dir = myLocation.directionTo(robot.location);
-                int index = (int)Math.floor((dir.radians + Math.PI) * (SWEEP_DIRECTIONS / (2 * Math.PI)));
-                float score = directionScores[index];
-                if (score > bestScore) {
-                    bestScore = score;
-                    bestDirection = dir;
-                }
-            }
-        }
-
-        if (bestDirection != null) {
-            rc.fireSingleShot(bestDirection);
-        }
-
-        int w2 = Clock.getBytecodeNum();
-        debug_directions();
-
-        if (robots.length > 1) {
-            System.out.println("SWEEP2: " + (w2 - w1) + " " + numRobots + " " + numTrees);
-        }
-    }
-
-    final static int[] next = new int[100];
-    final static float[] distances = new float[100];
-    final static float[] probabilityOfNotHitting = new float[100];
-    // Note: premultiplied with (1 - probabilityOfNotHitting)
-    final static float[] pointsForHitting = new float[100];
-    final static long[] events = new long[100];
-    final static long[] potentialFiringDirections = new long[100];
-    final static int[] initialEvents = new int[100];
-
-    void fireAtNearbyRobotSweep(RobotInfo[] friendlyRobots, RobotInfo[] hostileRobots, TreeInfo[] trees) throws GameActionException {
-        if (!rc.canFireSingleShot()) return;
-
-        //String IDENT = "[" + rnd.nextInt(1000) + "]: ";
-
-        int w1 = Clock.getBytecodeNum();
-        // First 2 event indices are not used
-        int eventCount = 2;
-        MapLocation myLocation = rc.getLocation();
-        float bulletSpeed = rc.getType().bulletSpeed;
-
-        int initialEventCount = 0;
-        int firingDirections = 0;
-
-        int numTrees = Math.min(trees.length, 5);
-        for (int i = 0; i < numTrees; i++) {
-            TreeInfo tree = trees[i];
-
-            Direction dir = myLocation.directionTo(tree.location);
-            float dist = myLocation.distanceTo(tree.location);
-            float halfwidth = tree.radius;
-            float radiansDelta = halfwidth / dist;
-            probabilityOfNotHitting[eventCount] = 1f;
-            float start = dir.radians - radiansDelta + (float)Math.PI;
-            float end = dir.radians + radiansDelta + (float)Math.PI;
-
-            if (start < 0) {
-                start += Math.PI * 2;
-                initialEvents[initialEventCount] = eventCount;
-                initialEventCount++;
-            }
-
-            if (end > Math.PI * 2) {
-                end -= Math.PI * 2;
-                initialEvents[initialEventCount] = eventCount;
-                initialEventCount++;
-            }
-
-            events[eventCount] = (long)(1000 * start) << 32 | eventCount;
-            events[eventCount + 1] = (long)(1000 * end) << 32 | eventCount + 1;
-            distances[eventCount] = dist;
-            pointsForHitting[eventCount] = -0.01f;
-            eventCount += 2;
-        }
-
-        int numFriendly = Math.min(friendlyRobots.length, 4);
-        for (int i = 0; i < numFriendly; i++) {
-            RobotInfo robot = friendlyRobots[i];
-
-            Direction dir = myLocation.directionTo(robot.location);
-            float stride = 0.5f * robot.type.strideRadius;
-            float dist = myLocation.distanceTo(robot.location);
-            float halfwidth = robot.type.bodyRadius + stride * (dist / bulletSpeed);
-            float transparency = 1f - robot.type.bodyRadius / halfwidth;
-            float radiansDelta = halfwidth / dist;
-            //System.out.println("Width in radians: " + radiansDelta + " " + dist + " " + halfwidth);
-            probabilityOfNotHitting[eventCount] = transparency;
-            float start = dir.radians - radiansDelta + (float)Math.PI;
-            float end = dir.radians + radiansDelta + (float)Math.PI;
-
-            if (start < 0) {
-                start += Math.PI * 2;
-                initialEvents[initialEventCount] = eventCount;
-                initialEventCount++;
-            }
-
-            if (end > Math.PI * 2) {
-                end -= Math.PI * 2;
-                initialEvents[initialEventCount] = eventCount;
-                initialEventCount++;
-            }
-
-            events[eventCount] = (long)(1000 * start) << 32 | eventCount;
-            events[eventCount + 1] = (long)(1000 * end) << 32 | eventCount + 1;
-            distances[eventCount] = dist;
-            pointsForHitting[eventCount] = -1f;
-            eventCount += 2;
-        }
-
-        int numHostile = Math.min(hostileRobots.length, 4);
-        for (int i = 0; i < numHostile; i++) {
-            RobotInfo robot = hostileRobots[i];
-
-            Direction dir = myLocation.directionTo(robot.location);
-            float stride = 0.5f * robot.type.strideRadius;
-            float dist = myLocation.distanceTo(robot.location);
-            float halfwidth = robot.type.bodyRadius + stride * (dist / bulletSpeed);
-            float transparency = 1f - robot.type.bodyRadius / halfwidth;
-            float radiansDelta = halfwidth / dist;
-            //System.out.println("Width in radians: " + radiansDelta + " " + dist + " " + halfwidth);
-            probabilityOfNotHitting[eventCount] = transparency;
-            float start = dir.radians - radiansDelta + (float)Math.PI;
-            float end = dir.radians + radiansDelta + (float)Math.PI;
-
-            if (start < 0) {
-                start += Math.PI * 2;
-                initialEvents[initialEventCount] = eventCount;
-                initialEventCount++;
-            }
-
-            if (end > Math.PI * 2) {
-                end -= Math.PI * 2;
-                initialEvents[initialEventCount] = eventCount;
-                initialEventCount++;
-            }
-
-            events[eventCount] = (long)(1000 * start) << 32 | eventCount;
-            events[eventCount + 1] = (long)(1000 * end) << 32 | eventCount + 1;
-            distances[eventCount] = dist;
-            pointsForHitting[eventCount] = 1f;
-            eventCount += 2;
-
-            potentialFiringDirections[firingDirections] = (long)(1000 * (dir.radians + (float)Math.PI));
-            firingDirections++;
-        }
-
-        int w2 = Clock.getBytecodeNum();
-
-        // Inlined sorting algorithm
-        int left = 2;
-        int right = eventCount - 1;
-        for (int i = left, j = i; i < right; j = ++i) {
-            long ai = events[i + 1];
-            while (ai < events[j]) {
-                events[j + 1] = events[j];
-                if (j-- == left) {
-                    break;
-                }
-            }
-            events[j + 1] = ai;
-        }
-
-        int w3 = Clock.getBytecodeNum();
-
-        int w4 = Clock.getBytecodeNum();
-        Arrays.sort(potentialFiringDirections, 0, firingDirections);
-
-        /*
-        for (int i = 2; i < eventCount; i++) {
-            long ev = events[i];
-            int id = (int)ev;
-            float angle = (ev >> 32) / 1000f;
-            //System.out.println(IDENT + "Event " + id + " at angle " + angle);
-        }*/
-
-        // Add events crossing the 0 radian mark
-        int prev = 0;
-        for (int i = 0; i < initialEventCount; i++) {
-            //System.out.println(IDENT + "Inserting initial id " + initialEvents[i]);
-            prev = next[prev] = initialEvents[i];
-        }
-        next[prev] = -1;
-
-        float bestScore = 0f;
-        long bestAngle = -1;
-
-        if (firingDirections == 0) {
-            // Nowhere to shoot
-            return;
-        }
-
-        int nextFiringDirectionIndex = 0;
-        long nextFiringDirection = potentialFiringDirections[0];
-
-        for (int i = 2; i < eventCount; i++) {
-            long ev = events[i];
-            int id = (int)ev;
-
-            long angle = ev >> 32;
-            if (angle > nextFiringDirection) {
-                // Calculate score for interval
-                float rayStrength = 1f;
-                float score = 0f;
-                int c = next[0];
-                while (c != -1) {
-                    score += rayStrength * pointsForHitting[c];
-                    rayStrength *= probabilityOfNotHitting[c];
-                    c = next[c];
-                }
-
-                if (score > bestScore) {
-                    bestScore = score;
-                    bestAngle = nextFiringDirection;
-                }
-
-                nextFiringDirectionIndex++;
-                if (nextFiringDirectionIndex < firingDirections) {
-                    nextFiringDirection = potentialFiringDirections[nextFiringDirectionIndex];
-                } else {
-                    // No more firing directions to consider
-                    break;
-                }
-            }
-
-            if ((id & 1) == 0) {
-                float dist = distances[id];
-                // Start of interval
-                // Insert into sorted linked list
-                //System.out.println(IDENT + "Inserting id " + id);
-                int c = 0;
-                while (true) {
-                    int k = next[c];
-                    if (k == -1 || dist < distances[k]) {
-                        next[id] = next[c];
-                        next[c] = id;
-                        break;
-                    }
-                    c = k;
-                }
-            } else {
-                // End of interval
-                // Remove from linked list
-                //System.out.println(IDENT + "Removing id " + id);
-                id -= 1;
-                int c = 0;
-                while (next[c] != id) {
-                    c = next[c];
-                }
-                next[c] = next[next[c]];
-            }
-        }
-
-
-        int w5 = Clock.getBytecodeNum();
-
-        if (hostileRobots.length > 1) {
-            System.out.println("Sweep: " + (w2 - w1) + " " + (w3 - w2) + " " + (w4 - w3) + " " + (w5 - w4) + ": " + hostileRobots.length + " " + friendlyRobots.length + " " + numTrees);
-        }
-
-        if (bestAngle != -1) {
-            float angle = (bestAngle / 1000f) - (float)Math.PI;
-            rc.fireSingleShot(new Direction(angle));
-        }
-    }
-
-    /**
-     * A slightly more complicated example function, this returns true if the given bullet is on a collision
-     * course with the current robot. Doesn't take into account objects between the bullet and this robot.
-     *
-     * @param bullet The bullet in question
-     * @return True if the line of the bullet's path intersects with this robot's current position.
-     */
-    boolean willCollideWithMe(BulletInfo bullet) {
-        MapLocation myLocation = rc.getLocation();
-        // get() relevant bullet information
-        Direction propagationDirection = bullet.dir;
-        MapLocation bulletLocation = bullet.location;
-        // Calculate bullet relations to this robot
-        Direction directionToRobot = bulletLocation.directionTo(myLocation);
-        float distToRobot = bulletLocation.distanceTo(myLocation);
-        float theta = propagationDirection.radiansBetween(directionToRobot);
-        // If theta > 90 degrees, then the bullet is traveling away from us and we can break early
-        if (Math.abs(theta) > Math.PI / 2) {
-            return false;
-        }
-        // distToRobot is our hypotenuse, theta is our angle, and we want to know this length of the opposite leg.
-        // This is the distance of a line that goes from myLocation and intersects perpendicularly with propagationDirection.
-        // This corresponds to the smallest radius circle centered at our location that would intersect with the
-        // line that is the path of the bullet.
-        float perpendicularDist = (float)Math.abs(distToRobot * Math.sin(theta)); // soh cah toa :)
-        return (perpendicularDist <= rc.getType().bodyRadius);
-    }
-
     /**
      * Return value in [bullets/tick]
      */
@@ -1322,30 +795,6 @@ abstract class Robot {
         if (b != null && b.isRobot()) return ((RobotInfo)b).team;
         if (b != null && b.isTree()) return ((TreeInfo)b).team;
         return Team.NEUTRAL;
-    }
-
-    /**
-     * First body on the line segment.
-     * Uses sampling so it is not perfectly accurate.
-     * \warning Assumes both the start point and the end point are within the sensor radius
-     */
-    BodyInfo linecastUnsafe(MapLocation a, MapLocation b) throws GameActionException {
-        Direction dir = a.directionTo(b);
-        float dist = a.distanceTo(b);
-
-        int steps = (int)(dist / 0.5f);
-        for (int t = 1; t <= steps; t++) {
-            MapLocation p = a.add(dir, dist * t / (float)steps);
-            if (rc.canSenseLocation(p) && rc.isLocationOccupied(p)) {
-                RobotInfo robot = rc.senseRobotAtLocation(p);
-                if (robot != null && robot.ID != rc.getID()) return robot;
-
-                TreeInfo tree = rc.senseTreeAtLocation(p);
-                if (tree != null) return tree;
-            }
-        }
-
-        return null;
     }
 
     /**
@@ -1440,32 +889,6 @@ abstract class Robot {
 
                 TreeInfo tree = rc.senseTreeAtLocation(p);
                 if (tree != null) return tree;
-            }
-        }
-
-        return null;
-    }
-
-    BodyInfo linecastIgnoreTrees(MapLocation b) throws GameActionException {
-        MapLocation a = rc.getLocation();
-        Direction dir = a.directionTo(b);
-        float dist = a.distanceTo(b);
-        dist = Math.min(dist, type.sensorRadius * 0.99f);
-
-        float offset = Math.min(type.bodyRadius + 0.001f, dist);
-        a = a.add(dir, offset);
-        dist -= offset;
-
-        if (dist <= 0) {
-            return null;
-        }
-
-        int steps = (int)(dist / 0.5f);
-        for (int t = 1; t <= steps; t++) {
-            MapLocation p = a.add(dir, dist * t / (float)steps);
-            if (rc.isLocationOccupiedByRobot(p)) {
-                RobotInfo robot = rc.senseRobotAtLocation(p);
-                if (robot != null && robot.ID != rc.getID()) return robot;
             }
         }
 
