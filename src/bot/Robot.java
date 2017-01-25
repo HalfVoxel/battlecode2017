@@ -826,8 +826,10 @@ abstract class Robot {
                         score += 50;
                         break;
                     case SOLDIER:
-                        score += 150;
+                        score += 250;
                         break;
+                    case TANK:
+                        score += 200;
                     default:
                         score += 80;
                         break;
