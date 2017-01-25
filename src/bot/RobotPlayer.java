@@ -2,15 +2,13 @@ package bot;
 
 import battlecode.common.*;
 
+@SuppressWarnings("unused")
 public strictfp class RobotPlayer {
-    /**
-     * run() is the method that is called when a robot is instantiated in the Battlecode world.
-     * If this method returns, the robot dies!
-     **/
+
     @SuppressWarnings("unused")
     public static void run(RobotController rc) {
-        // Here, we've separated the controls into a different method for each RobotType.
         try {
+            Robot.init(rc);
             Robot robot = null;
             switch (rc.getType()) {
                 case ARCHON:
@@ -33,9 +31,11 @@ public strictfp class RobotPlayer {
                     break;
             }
 
-            Robot.rc = rc;
-            robot.init();
-            robot.run();
+            robot.onAwake();
+            robot.onStartOfTick();
+            while(true) {
+                robot.onUpdate();
+            }
         } catch (Exception e) {
             System.out.println("Exception in " + rc.getType());
             e.printStackTrace();

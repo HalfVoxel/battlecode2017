@@ -27,8 +27,6 @@ class Scout extends Robot {
                                    float[] bulletX, float[] bulletY, float[] bulletDx, float[] bulletDy,
                                    float[] bulletDamage, float[] bulletSpeed, float[] bulletImpactDistances,
                                    TreeInfo bestTree, MapLocation target) {
-        Team myTeam = rc.getTeam();
-
         float score = 0f;
         score += 3f / (loc.distanceSquaredTo(target) + 10);
 
@@ -37,7 +35,7 @@ class Scout extends Robot {
 //            score -= 0.05 * (disToEdge - 10) * (disToEdge - 10);
 
         for (RobotInfo unit : units) {
-            if (unit.team == myTeam) {
+            if (unit.team == ally) {
                 if (unit.type == RobotType.SCOUT)
                     score -= 1f / (loc.distanceSquaredTo(unit.location) + 1);
             } else {
@@ -118,120 +116,118 @@ class Scout extends Robot {
         return bestTree;
     }
 
-    public void run() throws GameActionException {
+    MapLocation target;
+
+    @Override
+    public void onAwake() throws GameActionException {
         System.out.println("I'm a scout!");
+        target = randomChoice(initialArchonLocations, rc.getLocation());
+    }
 
-        Team enemy = rc.getTeam().opponent();
-        MapLocation[] archons = rc.getInitialArchonLocations(enemy);
-        MapLocation target = randomChoice(archons);
+    @Override
+    public void onUpdate() throws GameActionException {
+        shakeNearbyTrees();
+        MapLocation myLocation = rc.getLocation();
+        // See if there are any nearby enemy robots
+        RobotInfo[] robots = rc.senseNearbyRobots(-1, enemy);
+        RobotInfo[] friendlyRobots = rc.senseNearbyRobots(-1, ally);
+        RobotInfo[] allRobots = rc.senseNearbyRobots();
+        BulletInfo[] nearbyBullets = rc.senseNearbyBullets(8f);
+        float[] bulletImpactDistances = updateBulletHitDistances(nearbyBullets);
 
-        if (target == null) target = rc.getLocation();
-
-        // The code you want your robot to perform every round should be in this loop
-        while (true) {
-            shakeNearbyTrees();
-            MapLocation myLocation = rc.getLocation();
-            // See if there are any nearby enemy robots
-            RobotInfo[] robots = rc.senseNearbyRobots(-1, enemy);
-            RobotInfo[] friendlyRobots = rc.senseNearbyRobots(-1, rc.getTeam());
-            RobotInfo[] allRobots = rc.senseNearbyRobots();
-            BulletInfo[] nearbyBullets = rc.senseNearbyBullets(8f);
-            float[] bulletImpactDistances = updateBulletHitDistances(nearbyBullets);
-
-            int bulletsToConsider = Math.min(nearbyBullets.length, bulletX.length);
-            // Discard bullets that cannot hit us and move the bullets that can hit us to the front of the array
-            // The first bulletsToConsider bullets will can potentially hit us after the loop is done
-            for (int i = 0; i < bulletsToConsider; i++) {
-                if (!bulletCanHitUs(myLocation, nearbyBullets[i])) {
-                    bulletsToConsider--;
-                    nearbyBullets[i] = nearbyBullets[bulletsToConsider];
-                    i--;
-                } else {
-                    BulletInfo bullet = nearbyBullets[i];
-                    bulletX[i] = bullet.location.x;
-                    bulletY[i] = bullet.location.y;
-                    bulletDx[i] = bullet.dir.getDeltaX(1);
-                    bulletDy[i] = bullet.dir.getDeltaY(1);
-                    bulletDamage[i] = bullet.damage;
-                    bulletSpeed[i] = bullet.speed;
-                }
+        int bulletsToConsider = Math.min(nearbyBullets.length, bulletX.length);
+        // Discard bullets that cannot hit us and move the bullets that can hit us to the front of the array
+        // The first bulletsToConsider bullets will can potentially hit us after the loop is done
+        for (int i = 0; i < bulletsToConsider; i++) {
+            if (!bulletCanHitUs(myLocation, nearbyBullets[i])) {
+                bulletsToConsider--;
+                nearbyBullets[i] = nearbyBullets[bulletsToConsider];
+                i--;
+            } else {
+                BulletInfo bullet = nearbyBullets[i];
+                bulletX[i] = bullet.location.x;
+                bulletY[i] = bullet.location.y;
+                bulletDx[i] = bullet.dir.getDeltaX(1);
+                bulletDy[i] = bullet.dir.getDeltaY(1);
+                bulletDamage[i] = bullet.damage;
+                bulletSpeed[i] = bullet.speed;
             }
-
-            // Pick a new target with a small probability or when very close to the target
-            if (rnd.nextInt(200) < 1 || myLocation.distanceTo(target) < 4f) {
-                target = pickTarget();
-            }
-
-            TreeInfo bestTree = findBestTreeToShake();
-
-            int numMovesToConsider = 0;
-
-            if (myLocation.distanceTo(target) > 0) {
-                movesToConsider[numMovesToConsider++] = myLocation.add(myLocation.directionTo(target), type.strideRadius);
-            }
-
-            if (robots.length > 0) {
-                Direction dir = myLocation.directionTo(robots[0].location);
-                movesToConsider[numMovesToConsider++] = myLocation.add(dir.opposite(), type.strideRadius);
-            }
-
-            if (bestTree != null) {
-                Direction dir = myLocation.directionTo(bestTree.location);
-                movesToConsider[numMovesToConsider++] = myLocation.add(dir, type.strideRadius);
-            }
-
-            if (previousBestMove != null) {
-                movesToConsider[numMovesToConsider++] = previousBestMove;
-            }
-
-            float bestScore = -1000000f;
-            MapLocation bestMove = null;
-            int iterationsDone = 0;
-            int processingTime = 0;
-
-            // Save some processing power if we have no bullets to consider (will be used by e.g the exploration code)
-            int maxIterations = bulletsToConsider == 0 ? 6 : 1000;
-            while ((Clock.getBytecodesLeft() - processingTime > 3000 && iterationsDone < maxIterations) || iterationsDone < 3) {
-                MapLocation loc;
-                if (iterationsDone < numMovesToConsider) {
-                    loc = movesToConsider[iterationsDone];
-                } else {
-                    Direction dir = randomDirection();
-                    int r = rnd.nextInt(10);
-                    if (r < 8)
-                        loc = myLocation.add(dir, type.strideRadius);
-                    else if (r < 9)
-                        loc = myLocation.add(dir, type.strideRadius * 0.5f);
-                    else
-                        loc = myLocation.add(dir, 0.2f);
-                }
-
-                if (rc.canMove(loc)) {
-                    int bytecodesBefore = Clock.getBytecodesLeft();
-                    float score = getPositionScore(loc, allRobots,
-                            bulletsToConsider, bulletX, bulletY, bulletDx, bulletDy, bulletDamage, bulletSpeed, bulletImpactDistances, bestTree, target);
-                    if (score > bestScore) {
-                        bestScore = score;
-                        bestMove = loc;
-                    }
-                    processingTime = bytecodesBefore - Clock.getBytecodesLeft();
-                }
-
-                iterationsDone += 1;
-            }
-
-            if (bestMove != null) {
-                rc.move(bestMove);
-                previousBestMove = bestMove;
-            }
-
-            boolean targetArchons = !highPriorityTargetExists() && rc.getRoundNum() > 2000;
-            FirePlan firePlan = fireAtNearbyRobot(friendlyRobots, robots, targetArchons);
-            if (firePlan != null) {
-                firePlan.apply(rc);
-            }
-
-            yieldAndDoBackgroundTasks();
         }
+
+        // Pick a new target with a small probability or when very close to the target
+        if (rnd.nextInt(200) < 1 || myLocation.distanceTo(target) < 4f) {
+            target = pickTarget();
+        }
+
+        TreeInfo bestTree = findBestTreeToShake();
+
+        int numMovesToConsider = 0;
+
+        if (myLocation.distanceTo(target) > 0) {
+            movesToConsider[numMovesToConsider++] = myLocation.add(myLocation.directionTo(target), type.strideRadius);
+        }
+
+        if (robots.length > 0) {
+            Direction dir = myLocation.directionTo(robots[0].location);
+            movesToConsider[numMovesToConsider++] = myLocation.add(dir.opposite(), type.strideRadius);
+        }
+
+        if (bestTree != null) {
+            Direction dir = myLocation.directionTo(bestTree.location);
+            movesToConsider[numMovesToConsider++] = myLocation.add(dir, type.strideRadius);
+        }
+
+        if (previousBestMove != null) {
+            movesToConsider[numMovesToConsider++] = previousBestMove;
+        }
+
+        float bestScore = -1000000f;
+        MapLocation bestMove = null;
+        int iterationsDone = 0;
+        int processingTime = 0;
+
+        // Save some processing power if we have no bullets to consider (will be used by e.g the exploration code)
+        int maxIterations = bulletsToConsider == 0 ? 6 : 1000;
+        while ((Clock.getBytecodesLeft() - processingTime > 3000 && iterationsDone < maxIterations) || iterationsDone < 3) {
+            MapLocation loc;
+            if (iterationsDone < numMovesToConsider) {
+                loc = movesToConsider[iterationsDone];
+            } else {
+                Direction dir = randomDirection();
+                int r = rnd.nextInt(10);
+                if (r < 8)
+                    loc = myLocation.add(dir, type.strideRadius);
+                else if (r < 9)
+                    loc = myLocation.add(dir, type.strideRadius * 0.5f);
+                else
+                    loc = myLocation.add(dir, 0.2f);
+            }
+
+            if (rc.canMove(loc)) {
+                int bytecodesBefore = Clock.getBytecodesLeft();
+                float score = getPositionScore(loc, allRobots,
+                        bulletsToConsider, bulletX, bulletY, bulletDx, bulletDy, bulletDamage, bulletSpeed, bulletImpactDistances, bestTree, target);
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestMove = loc;
+                }
+                processingTime = bytecodesBefore - Clock.getBytecodesLeft();
+            }
+
+            iterationsDone += 1;
+        }
+
+        if (bestMove != null) {
+            rc.move(bestMove);
+            previousBestMove = bestMove;
+        }
+
+        boolean targetArchons = !highPriorityTargetExists() && rc.getRoundNum() > 2000;
+        FirePlan firePlan = fireAtNearbyRobot(friendlyRobots, robots, targetArchons);
+        if (firePlan != null) {
+            firePlan.apply(rc);
+        }
+
+        yieldAndDoBackgroundTasks();
     }
 }

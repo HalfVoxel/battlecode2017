@@ -11,9 +11,13 @@ abstract class Robot {
      * rc.getType, should ideally be called 'type' but that is unfortunately a keyword
      */
     static RobotType type = null;
-    MapLocation spawnPos = null;
+    static MapLocation spawnPos = null;
     static Random rnd;
     int roundAtStart = 0;
+
+    static Team enemy;
+    static Team ally;
+    static MapLocation[] initialArchonLocations;
 
     static final int MAP_EDGE_BROADCAST_OFFSET = 10;
     static final int HIGH_PRIORITY_TARGET_OFFSET = 20;
@@ -52,9 +56,9 @@ abstract class Robot {
 
     static MapLocation explorationOrigin;
 
-    void init() throws GameActionException {
+    public static void init(RobotController rc) throws GameActionException {
+        Robot.rc = rc;
         rnd = new Random(System.getProperty("bc.testing.seed", "0").hashCode());
-        System.out.println("GOT SEED " + System.getProperty("bc.testing.seed", "0"));
         type = rc.getType();
         spawnPos = rc.getLocation();
 
@@ -64,24 +68,56 @@ abstract class Robot {
         mapEdges2 = Math.max(spawnPos.x - GameConstants.MAP_MAX_WIDTH, 0f);
         mapEdges3 = Math.max(spawnPos.y - GameConstants.MAP_MAX_WIDTH, 0f);
 
+        ally = rc.getTeam();
+        enemy = ally.opponent();
+        initialArchonLocations = rc.getInitialArchonLocations(enemy);
+
         // Set the exploration origin if it has not been set already
         if (readBroadcastLong(EXPLORATION_ORIGIN) == 0L) {
-            System.out.println("Set exploration origin");
-            explorationOrigin = rc.getLocation().translate(-PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2, -PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2);
-            broadcast(EXPLORATION_ORIGIN, explorationOrigin);
-
-            rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (0 + 1), mapEdges0);
-            rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (1 + 1), mapEdges1);
-            rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (2 + 1), mapEdges2);
-            rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (3 + 1), mapEdges3);
+            onStartOfGame();
         } else {
             explorationOrigin = readBroadcastPosition(EXPLORATION_ORIGIN);
         }
-
-        onStartOfTick();
     }
 
-    abstract void run() throws GameActionException;
+    /**
+     * Called once at the start of the game (only for a single unit).
+     *
+     * @throws GameActionException
+     */
+    static void onStartOfGame() throws GameActionException {
+        explorationOrigin = rc.getLocation().translate(-PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2, -PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2);
+        broadcast(EXPLORATION_ORIGIN, explorationOrigin);
+
+        rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (0 + 1), mapEdges0);
+        rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (1 + 1), mapEdges1);
+        rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (2 + 1), mapEdges2);
+        rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (3 + 1), mapEdges3);
+
+        // Reset some broadcast values
+        rc.broadcast(GARDENER_OFFSET, -1000);
+        rc.broadcast(HIGH_PRIORITY_TARGET_OFFSET, -1000);
+
+        // Ensure we have count the number of alive archons correctly
+        rc.broadcast(RobotType.ARCHON.ordinal(), rc.getInitialArchonLocations(ally).length);
+    }
+
+    /**
+     * Called once when the unit first starts to run code.
+     * Executed just before the first call to onUpdate.
+     *
+     * @throws GameActionException
+     */
+    void onAwake() throws GameActionException {
+    }
+
+    /**
+     * Called repeatedly until the unit dies or the game ends.
+     * A single invocation may take longer than one tick.
+     *
+     * @throws GameActionException
+     */
+    abstract void onUpdate() throws GameActionException;
 
     /**
      * Returns a random Direction
@@ -545,8 +581,6 @@ abstract class Robot {
     }
 
     void broadcastEnemyLocations() throws GameActionException {
-        Team enemy = rc.getTeam().opponent();
-
         int priority = 0;
         float friendlyMilitaryUnits = 0;
         float maxScore = 0;
@@ -667,7 +701,7 @@ abstract class Robot {
             TreeInfo bestTree = null;
             for (TreeInfo tree : trees) {
                 // Make sure it is not the tree of an opponent
-                if (tree.team == Team.NEUTRAL || tree.team == rc.getTeam()) {
+                if (tree.team == Team.NEUTRAL || tree.team == ally) {
                     // Make sure the tree has bullets and pick the tree with the most bullets in it
                     if (tree.containedBullets > 0 && (bestTree == null || tree.containedBullets > bestTree.containedBullets)) {
                         bestTree = tree;
@@ -808,7 +842,7 @@ abstract class Robot {
                 bestRobotsTried.add(bestRobot.ID);
 
                 BodyInfo firstUnitHit = linecast(bestRobot.location);
-                if (rc.getLocation().distanceTo(bestRobot.location) < 2 * type.sensorRadius && teamOf(firstUnitHit) == rc.getTeam().opponent() && turnsLeft > STOP_SPENDING_AT_TIME) {
+                if (rc.getLocation().distanceTo(bestRobot.location) < 2 * type.sensorRadius && teamOf(firstUnitHit) == enemy && turnsLeft > STOP_SPENDING_AT_TIME) {
                     Direction dir = rc.getLocation().directionTo(bestRobot.location);
                     if (rc.canFirePentadShot() && rc.getTeamBullets() > 300 && friendlyRobots.length < hostileRobots.length && (friendlyRobots.length == 0 || hostileRobots.length >= 2)) {
                         // ...Then fire a bullet in the direction of the enemy.
@@ -878,7 +912,6 @@ abstract class Robot {
         int numRobots = Math.min(robots.length, 6);
         MapLocation myLocation = rc.getLocation();
         float bulletSpeed = rc.getType().bulletSpeed;
-        Team enemy = rc.getTeam().opponent();
 
         int w1 = Clock.getBytecodeNum();
 
@@ -926,7 +959,7 @@ abstract class Robot {
                 end = dir.radians + radiansDelta + (float)Math.PI;
 
                 probabilityToHit = robot.type.bodyRadius / halfwidth;
-                if (robot.team == rc.getTeam()) {
+                if (robot.team == ally) {
                     pointsForHitting = -0.5f;
                 } else {
                     switch (robot.type) {
@@ -1700,7 +1733,7 @@ abstract class Robot {
                                            RobotInfo[] units, MapLocation target) {
 
 
-        Team myTeam = rc.getTeam();
+        Team myTeam = ally;
         float score = 0f;
         boolean ignoreTarget = false;
         boolean isCoward = rc.getHealth() < type.maxHealth * 0.3f;
@@ -1960,8 +1993,8 @@ abstract class Robot {
         }
     }
 
-    static <T> T randomChoice(T[] values) {
-        return values.length > 0 ? values[(int)(rnd.nextFloat() * values.length)] : null;
+    static <T> T randomChoice(T[] values, T def) {
+        return values.length > 0 ? values[(int)(rnd.nextFloat() * values.length)] : def;
     }
 
     void considerDonating() throws GameActionException {
@@ -1983,7 +2016,6 @@ abstract class Robot {
     }
 
     void fireAtNearbyTree(TreeInfo[] trees) throws GameActionException {
-        Team enemy = rc.getTeam().opponent();
         int turnsLeft = rc.getRoundLimit() - rc.getRoundNum();
 
         for (TreeInfo tree : trees) {

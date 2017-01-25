@@ -4,103 +4,101 @@ import battlecode.common.*;
 
 class Archon extends Robot {
 
-    @Override
-    public void run() throws GameActionException {
-        rc.broadcast(GARDENER_OFFSET, -1000);
-        rc.broadcast(HIGH_PRIORITY_TARGET_OFFSET, -1000);
-        int STOP_SPENDING_AT_TIME = 100;
+    static final int STOP_SPENDING_AT_TIME = 100;
 
+    int archonIndex;
+
+    @Override
+    public void onAwake() throws GameActionException {
         System.out.println("I'm an archon! ");
-        rc.broadcast(RobotType.ARCHON.ordinal(), rc.getInitialArchonLocations(rc.getTeam()).length);
 
         int archonIndex = 0;
-        MapLocation[] archonLocations = rc.getInitialArchonLocations(rc.getTeam());
-        for (int i = 0; i < archonLocations.length; i++) {
-            if (archonLocations[i].distanceTo(rc.getLocation()) < 2f) {
+        for (int i = 0; i < initialArchonLocations.length; i++) {
+            if (initialArchonLocations[i].distanceTo(rc.getLocation()) < 2f) {
                 archonIndex = i;
             }
         }
         System.out.println("Archon index: " + archonIndex);
+    }
 
-        // The code you want your robot to perform every round should be in this loop
-        while (true) {
-            int gardenerCount = spawnedCount(RobotType.GARDENER);
-            boolean saveForTank = false;
-            int tankCount = spawnedCount(RobotType.TANK);
-            int turnsLeft = rc.getRoundLimit() - rc.getRoundNum();
+    @Override
+    public void onUpdate() throws GameActionException {
+        int gardenerCount = spawnedCount(RobotType.GARDENER);
+        boolean saveForTank = false;
+        int tankCount = spawnedCount(RobotType.TANK);
+        int turnsLeft = rc.getRoundLimit() - rc.getRoundNum();
 
-            if (rc.getTreeCount() > tankCount * 4 + 400 && rc.getTeamBullets() <= RobotType.TANK.bulletCost + 100 && gardenerCount > 1) {
-                saveForTank = true;
-            }
-
-            float buildScore = 0f;
-            RobotInfo[] robots = rc.senseNearbyRobots();
-            for (RobotInfo robot : robots) {
-                if (robot.getTeam() == rc.getTeam()) {
-                    if (robot.getType() == RobotType.GARDENER) {
-                        buildScore -= 1f / (rc.getLocation().distanceTo(robot.location));
-                    } else {
-                        buildScore -= 0.5f / (rc.getLocation().distanceTo(robot.location));
-                    }
-                } else {
-                    if (robot.getType() != RobotType.GARDENER && robot.getType() != RobotType.ARCHON)
-                        buildScore -= 2f / (rc.getLocation().distanceTo(robot.location));
-                }
-            }
-            TreeInfo[] trees = rc.senseNearbyTrees(7f);
-            for (TreeInfo tree : trees) {
-                if (tree.getTeam() == rc.getTeam()) {
-                    buildScore -= 0.3f / (rc.getLocation().distanceTo(tree.location));
-                } else {
-                    buildScore -= Math.pow(tree.getRadius(), 1.5) * 0.1f / (rc.getLocation().distanceTo(tree.location));
-                }
-            }
-            float bestBuildScore = -1000000f;
-            for (int i = 0; i < archonLocations.length; i += 1) {
-                int roundNum = rc.readBroadcast(ARCHON_BUILD_SCORE + 2 * i + 1);
-                if (roundNum < rc.getRoundNum() - 2)
-                    continue;
-                if (i == archonIndex)
-                    continue;
-                bestBuildScore = Math.max(bestBuildScore, rc.readBroadcastFloat(ARCHON_BUILD_SCORE + 2 * i));
-            }
-            boolean isGoodArchon = (buildScore >= bestBuildScore - 0.5);
-
-            boolean gardenersSeemToBeBlocked = rc.readBroadcast(GARDENER_CAN_PROBABLY_BUILD) > gardenerCount * 20 + 10;
-            if (rc.hasRobotBuildRequirements(RobotType.GARDENER) && isGoodArchon && (gardenersSeemToBeBlocked || gardenerCount < 1 || rc.getTreeCount() > 4 * gardenerCount || rc.getTeamBullets() > RobotType.TANK.bulletCost + 100) && !saveForTank) {
-                boolean couldBuild = false;
-                for (int attempts = 0; attempts < 6; attempts += 1) {
-                    // Generate a random direction
-                    Direction dir = randomDirection();
-                    if (rc.canHireGardener(dir) && turnsLeft > STOP_SPENDING_AT_TIME) {
-                        rc.hireGardener(dir);
-                        rc.broadcast(RobotType.GARDENER.ordinal(), gardenerCount + 1);
-                        if (gardenersSeemToBeBlocked) {
-                            System.out.println("Hired gardener because all the existing ones seem to be blocked");
-                        }
-
-                        rc.broadcast(GARDENER_CAN_PROBABLY_BUILD, 0);
-                        couldBuild = true;
-                        break;
-                    }
-                }
-                if (!couldBuild)
-                    buildScore -= 10000;
-            }
-            rc.broadcastFloat(ARCHON_BUILD_SCORE + 2 * archonIndex, buildScore);
-            rc.broadcast(ARCHON_BUILD_SCORE + 2 * archonIndex + 1, rc.getRoundNum());
-
-            BulletInfo[] bullets = rc.senseNearbyBullets(type.strideRadius + type.bodyRadius + 3f);
-            RobotInfo[] units = rc.senseNearbyRobots();
-            MapLocation moveTo = moveToAvoidBullets(null, bullets, units);
-            if (moveTo != null)
-                rc.move(moveTo);
-            pathfinding();
-
-            yieldAndDoBackgroundTasks();
-
-            debug_resign();
+        if (rc.getTreeCount() > tankCount * 4 + 400 && rc.getTeamBullets() <= RobotType.TANK.bulletCost + 100 && gardenerCount > 1) {
+            saveForTank = true;
         }
+
+        float buildScore = 0f;
+        RobotInfo[] robots = rc.senseNearbyRobots();
+        for (RobotInfo robot : robots) {
+            if (robot.getTeam() == ally) {
+                if (robot.getType() == RobotType.GARDENER) {
+                    buildScore -= 1f / (rc.getLocation().distanceTo(robot.location));
+                } else {
+                    buildScore -= 0.5f / (rc.getLocation().distanceTo(robot.location));
+                }
+            } else {
+                if (robot.getType() != RobotType.GARDENER && robot.getType() != RobotType.ARCHON)
+                    buildScore -= 2f / (rc.getLocation().distanceTo(robot.location));
+            }
+        }
+        TreeInfo[] trees = rc.senseNearbyTrees(7f);
+        for (TreeInfo tree : trees) {
+            if (tree.getTeam() == ally) {
+                buildScore -= 0.3f / (rc.getLocation().distanceTo(tree.location));
+            } else {
+                buildScore -= Math.pow(tree.getRadius(), 1.5) * 0.1f / (rc.getLocation().distanceTo(tree.location));
+            }
+        }
+        float bestBuildScore = -1000000f;
+        for (int i = 0; i < initialArchonLocations.length; i += 1) {
+            int roundNum = rc.readBroadcast(ARCHON_BUILD_SCORE + 2 * i + 1);
+            if (roundNum < rc.getRoundNum() - 2)
+                continue;
+            if (i == archonIndex)
+                continue;
+            bestBuildScore = Math.max(bestBuildScore, rc.readBroadcastFloat(ARCHON_BUILD_SCORE + 2 * i));
+        }
+        boolean isGoodArchon = (buildScore >= bestBuildScore - 0.5);
+
+        boolean gardenersSeemToBeBlocked = rc.readBroadcast(GARDENER_CAN_PROBABLY_BUILD) > gardenerCount * 20 + 10;
+        if (rc.hasRobotBuildRequirements(RobotType.GARDENER) && isGoodArchon && (gardenersSeemToBeBlocked || gardenerCount < 1 || rc.getTreeCount() > 4 * gardenerCount || rc.getTeamBullets() > RobotType.TANK.bulletCost + 100) && !saveForTank) {
+            boolean couldBuild = false;
+            for (int attempts = 0; attempts < 6; attempts += 1) {
+                // Generate a random direction
+                Direction dir = randomDirection();
+                if (rc.canHireGardener(dir) && turnsLeft > STOP_SPENDING_AT_TIME) {
+                    rc.hireGardener(dir);
+                    rc.broadcast(RobotType.GARDENER.ordinal(), gardenerCount + 1);
+                    if (gardenersSeemToBeBlocked) {
+                        System.out.println("Hired gardener because all the existing ones seem to be blocked");
+                    }
+
+                    rc.broadcast(GARDENER_CAN_PROBABLY_BUILD, 0);
+                    couldBuild = true;
+                    break;
+                }
+            }
+            if (!couldBuild)
+                buildScore -= 10000;
+        }
+        rc.broadcastFloat(ARCHON_BUILD_SCORE + 2 * archonIndex, buildScore);
+        rc.broadcast(ARCHON_BUILD_SCORE + 2 * archonIndex + 1, rc.getRoundNum());
+
+        BulletInfo[] bullets = rc.senseNearbyBullets(type.strideRadius + type.bodyRadius + 3f);
+        RobotInfo[] units = rc.senseNearbyRobots();
+        MapLocation moveTo = moveToAvoidBullets(null, bullets, units);
+        if (moveTo != null)
+            rc.move(moveTo);
+        pathfinding();
+
+        yieldAndDoBackgroundTasks();
+
+        debug_resign();
     }
 
     private static final CustomQueue queue = new CustomQueue();
@@ -170,8 +168,7 @@ class Archon extends Robot {
             }
         }
         if (!addedAny) {
-            MapLocation[] archons = rc.getInitialArchonLocations(rc.getTeam().opponent());
-            for (MapLocation archon : archons) {
+            for (MapLocation archon : initialArchonLocations) {
                 addPathfindingseed(archon);
             }
         }
@@ -376,7 +373,7 @@ class Archon extends Robot {
 
     void debug_resign() {
         // Give up if the odds do not seem to be in our favor
-        if (rc.getRoundNum() > 1800 && rc.getRobotCount() <= 2 && rc.senseNearbyRobots(-1, rc.getTeam().opponent()).length >= 4 && rc.getTeamBullets() < 200 && rc.getTreeCount() <= 1) {
+        if (rc.getRoundNum() > 1800 && rc.getRobotCount() <= 2 && rc.senseNearbyRobots(-1, enemy).length >= 4 && rc.getTeamBullets() < 200 && rc.getTreeCount() <= 1) {
             System.out.println("RESIGNING");
             rc.resign();
         }
