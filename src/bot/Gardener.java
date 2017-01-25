@@ -173,7 +173,7 @@ class Gardener extends Robot {
 
     MapLocation target;
     final int STOP_SPENDING_AT_TIME = 100;
-    float desiredRadius = type.bodyRadius + 2.01f * GameConstants.BULLET_TREE_RADIUS;
+    final float desiredRadius = type.bodyRadius + 2.01f * GameConstants.BULLET_TREE_RADIUS;
     int moveFailCounter = 0;
     boolean hasBuiltScout = false;
     boolean hasSettled = false;
@@ -185,7 +185,6 @@ class Gardener extends Robot {
     public void onAwake() throws GameActionException {
         System.out.println("I'm a gardener!");
 
-        desiredRadius = type.bodyRadius + 2.01f * GameConstants.BULLET_TREE_RADIUS;
         target = rc.getLocation();
 
         buildLumberjackInDenseForests();
