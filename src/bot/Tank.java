@@ -67,7 +67,7 @@ class Tank extends Robot {
 
     @Override
     public void run() throws GameActionException {
-        System.out.println("I'm an tank!");
+        System.out.println("I'm a tank!");
 
         Team enemy = rc.getTeam().opponent();
         MapLocation target = rc.getLocation();
