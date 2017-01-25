@@ -1664,8 +1664,12 @@ abstract class Robot {
         }
 
         if (units.length > 0) {
-            Direction dir = myLocation.directionTo(units[0].location);
-            movesToConsider[numMovesToConsider++] = myLocation.add(dir.opposite(), type.strideRadius);
+            // Move away from unit
+            //Direction dir = myLocation.directionTo(units[0].location);
+            //movesToConsider[numMovesToConsider++] = myLocation.add(dir.opposite(), type.strideRadius);
+            float dist = units[0].location.distanceTo(myLocation);
+            Direction dir = units[0].location.directionTo(myLocation).rotateRightRads(type.strideRadius/dist);
+            movesToConsider[numMovesToConsider++] = units[0].location.add(dir, dist);
         }
 
         if (previousBestMove != null && Math.hypot(previousBestMove.x, previousBestMove.y) > 0.01f) {
