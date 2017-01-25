@@ -113,7 +113,7 @@ class Lumberjack extends Robot {
                     if (!rc.canStrike())
                         System.out.println("Can't strike tree!!");
                     float turnsToChopDown = (tree.health / GameConstants.LUMBERJACK_CHOP_DAMAGE) + (float)Math.sqrt(Math.max(3f, rc.getLocation().distanceTo(tree.location)) / type.strideRadius) + 1f;
-                    float score = ((tree.containedRobot != null ? tree.containedRobot.bulletCost * 1.5f : 0) + tree.containedBullets + (float)Math.sqrt(rc.getLocation().distanceTo(tree.location) / type.strideRadius) + 1) / turnsToChopDown;
+                    float score = ((tree.containedRobot != null ? tree.containedRobot.bulletCost * 1.5f : 0) + tree.containedBullets + 1) / turnsToChopDown;
                     if ((tree.containedRobot != null || tree.containedBullets > 0) && tree.getHealth() <= 10)
                         score -= 10000;
                     if (tree.getTeam() == rc.getTeam().opponent()) {
