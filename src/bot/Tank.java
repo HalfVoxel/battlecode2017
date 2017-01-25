@@ -115,8 +115,44 @@ class Tank extends Robot {
                 }
             }
 
+            boolean targetArchons = rc.getTeamBullets() > 1000 || rc.getRoundNum() > 1000 || (rc.getRoundNum() > 600 && archons.length == 1);
+
             if (bestRobot != null) {
-                moveToAvoidBullets(bestRobot.location, bullets, robots);
+                MapLocation moveTo = moveToAvoidBullets(bestRobot.location, bullets, robots);
+                if(moveTo == null){
+                    FirePlan firePlan = fireAtNearbyRobot(friendlyRobots, robots, targetArchons);
+                    if(firePlan != null)
+                        firePlan.apply(rc);
+                }
+                else {
+                    Direction preliminaryShootDirection = rc.getLocation().directionTo(bestRobot.location);
+                    Direction moveToDirection = rc.getLocation().directionTo(moveTo);
+                    if (moveToDirection == null)
+                        moveToDirection = new Direction(0);
+                    float deg = Math.abs(preliminaryShootDirection.degreesBetween(moveToDirection));
+                    if (deg > 90) {
+                        FirePlan firePlan = fireAtNearbyRobot(friendlyRobots, robots, targetArchons);
+                        if (firePlan == null) {
+                            rc.move(moveTo);
+                        } else if (Math.abs(firePlan.direction.degreesBetween(moveToDirection)) > 90) {
+                            //System.out.println("Shoot first, move after");
+                            firePlan.apply(rc);
+                            rc.move(moveTo);
+                        } else {
+                            rc.move(moveTo);
+                            firePlan = fireAtNearbyRobot(friendlyRobots, robots, targetArchons);
+                            if(firePlan != null){
+                                firePlan.apply(rc);
+                            }
+                        }
+                    } else {
+                        rc.move(moveTo);
+                        FirePlan firePlan = fireAtNearbyRobot(friendlyRobots, robots, targetArchons);
+                        if (firePlan != null) {
+                            firePlan.apply(rc);
+                        }
+                    }
+                }
             }
 
             if (!rc.hasMoved()) {
@@ -128,7 +164,9 @@ class Tank extends Robot {
                 }
 
                 float d1 = rc.getLocation().distanceTo(target);
-                moveToAvoidBullets(target, bullets, robots);
+                MapLocation moveTo = moveToAvoidBullets(target, bullets, robots);
+                if(moveTo != null)
+                    rc.move(moveTo);
                 float d2 = rc.getLocation().distanceTo(target);
                 speedToTarget *= 0.5f;
                 speedToTarget += 0.5f * (d1 - d2);
@@ -147,8 +185,9 @@ class Tank extends Robot {
                 }
             }
 
-            boolean targetArchons = rc.getTeamBullets() > 1000 || rc.getRoundNum() > 1000 || (rc.getRoundNum() > 600 && archons.length == 1);
-            fireAtNearbyRobot(friendlyRobots, robots, targetArchons);
+            if(!rc.hasAttacked()){
+                fireAtNearbyRobot(friendlyRobots, robots, targetArchons);
+            }
             if (!rc.hasAttacked()) {
                 int nearbyGardeners = 0;
                 for (RobotInfo robot : robots) {

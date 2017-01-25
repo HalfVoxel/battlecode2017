@@ -310,7 +310,9 @@ class Gardener extends Robot {
 
                 if (!rc.hasMoved()) {
                     float d1 = rc.getLocation().distanceTo(target);
-                    moveToAvoidBullets(target, bullets, units);
+                    MapLocation moveTo = moveToAvoidBullets(target, bullets, units);
+                    if(moveTo != null)
+                        rc.move(moveTo);
                     float d2 = rc.getLocation().distanceTo(target);
                     speedToTarget *= 0.5f;
                     speedToTarget += 0.5f * (d1 - d2);

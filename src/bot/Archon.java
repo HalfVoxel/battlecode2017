@@ -95,7 +95,9 @@ class Archon extends Robot {
 
             BulletInfo[] bullets = rc.senseNearbyBullets(type.strideRadius + type.bodyRadius + 3f);
             RobotInfo[] units = rc.senseNearbyRobots();
-            moveToAvoidBullets(null, bullets, units);
+            MapLocation moveTo = moveToAvoidBullets(null, bullets, units);
+            if(moveTo != null)
+                rc.move(moveTo);
             pathfinding();
 
             yieldAndDoBackgroundTasks();

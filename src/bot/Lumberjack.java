@@ -84,7 +84,9 @@ class Lumberjack extends Robot {
             RobotInfo[] enemyRobots = rc.senseNearbyRobots(-1, enemy);
             RobotInfo[] allRobots = rc.senseNearbyRobots();
             MapLocation target = bestTree == null ? pickTarget(archons) : bestTree.location;
-            moveToAvoidBullets(target, bullets, allRobots);
+            MapLocation moveTo = moveToAvoidBullets(target, bullets, allRobots);
+            if(moveTo != null)
+                rc.move(moveTo);
 
             // See if there are any enemy robots within striking range (distance 1 from lumberjack's radius)
             RobotInfo[] robots = rc.senseNearbyRobots(GameConstants.LUMBERJACK_STRIKE_RADIUS, enemy);

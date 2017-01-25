@@ -791,8 +791,8 @@ abstract class Robot {
      * @return If there are any nearby gardeners (maybe move to different method?)
      * @throws GameActionException
      */
-    void fireAtNearbyRobot(RobotInfo[] friendlyRobots, RobotInfo[] hostileRobots, boolean targetArchons) throws GameActionException {
-        if (hostileRobots.length == 0) return;
+    FirePlan fireAtNearbyRobot(RobotInfo[] friendlyRobots, RobotInfo[] hostileRobots, boolean targetArchons) throws GameActionException {
+        if (hostileRobots.length == 0) return null;
 
         MapLocation myLocation = rc.getLocation();
         int turnsLeft = rc.getRoundLimit() - rc.getRoundNum();
@@ -801,7 +801,6 @@ abstract class Robot {
         for (int attemptN = 0; attemptN < 1; ++attemptN) {
             RobotInfo bestRobot = null;
             float bestScore2 = 0;
-            MapLocation closestThreat = null;
 
             for (RobotInfo robot : hostileRobots) {
                 if (bestRobotsTried.contains(robot.ID))
@@ -830,9 +829,6 @@ abstract class Robot {
                         score += 150;
                         break;
                     default:
-                        if (closestThreat == null || robot.location.distanceTo(myLocation) < closestThreat.distanceTo(myLocation)) {
-                            closestThreat = robot.location;
-                        }
                         score += 80;
                         break;
                 }
@@ -865,26 +861,31 @@ abstract class Robot {
                     Direction dir = rc.getLocation().directionTo(bestRobot.location);
                     if (rc.canFirePentadShot() && rc.getTeamBullets() > 300 && friendlyRobots.length < hostileRobots.length && (friendlyRobots.length == 0 || hostileRobots.length >= 2)) {
                         // ...Then fire a bullet in the direction of the enemy.
-                        rc.firePentadShot(dir);
+                        //rc.firePentadShot(dir);
+                        return new FirePlan(dir, 5);
                     }
 
                     if (rc.canFirePentadShot() && rc.getLocation().distanceTo(bestRobot.location) < 3.5f) {
-                        rc.firePentadShot(dir);
+                        //rc.firePentadShot(dir);
+                        return new FirePlan(dir, 5);
                     }
 
                     if (rc.canFireTriadShot() && friendlyRobots.length < hostileRobots.length && (friendlyRobots.length == 0 || hostileRobots.length >= 2)) {
                         // ...Then fire a bullet in the direction of the enemy.
-                        rc.fireTriadShot(dir);
+                        //rc.fireTriadShot(dir);
+                        return new FirePlan(dir, 3);
                     }
 
                     if (rc.canFireTriadShot() && rc.getLocation().distanceTo(bestRobot.location) < 5.5f) {
-                        rc.fireTriadShot(dir);
+                        //rc.fireTriadShot(dir);
+                        return new FirePlan(dir, 3);
                     }
 
                     // And we have enough bullets, and haven't attacked yet this turn...
                     if (rc.canFireSingleShot()) {
                         // ...Then fire a bullet in the direction of the enemy.
-                        rc.fireSingleShot(dir);
+                        //rc.fireSingleShot(dir);
+                        return new FirePlan(dir, 1);
                     }
 
                     break;
@@ -895,6 +896,7 @@ abstract class Robot {
             if (Clock.getBytecodesLeft() < 3000)
                 break;
         }
+        return null;
     }
 
     static final int SWEEP_DIRECTIONS = 30;
@@ -1629,8 +1631,8 @@ abstract class Robot {
     float[] bulletSpeed = new float[100];
     MapLocation[] movesToConsider = new MapLocation[100];
 
-    void moveToAvoidBullets(MapLocation secondaryTarget, BulletInfo[] bullets, RobotInfo[] units) throws GameActionException {
-        if (rc.hasMoved()) return;
+    MapLocation moveToAvoidBullets(MapLocation secondaryTarget, BulletInfo[] bullets, RobotInfo[] units) throws GameActionException {
+        if (rc.hasMoved()) return null;
 
         MapLocation reservedNodeLocation = null;
         if (type != RobotType.GARDENER) {
@@ -1649,7 +1651,7 @@ abstract class Robot {
         if (bullets.length == 0 && type != RobotType.LUMBERJACK && type != RobotType.ARCHON && reservedNodeLocation == null) {
             distBug(secondaryTarget);
             // optimisticBug(secondaryTarget)
-            return;
+            return null;
         }
 
         MapLocation myLocation = rc.getLocation();
@@ -1732,8 +1734,9 @@ abstract class Robot {
         // We need to check again that the move is legal, in case we exceeded the byte code limit
         if (bestMove != null && rc.canMove(bestMove)) {
             previousBestMove = bestMove.translate(-rc.getLocation().x, -rc.getLocation().y);
-            rc.move(bestMove);
+            return bestMove;
         }
+        return null;
     }
 
     float getDefensiveBulletAvoidanceScore(MapLocation loc, MapLocation reservedNodeLoc, int numBullets,
