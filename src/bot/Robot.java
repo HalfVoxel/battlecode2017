@@ -569,10 +569,10 @@ abstract class Robot {
                 switch(robot.type){
                     case ARCHON: score = 0; break;
                     case GARDENER: score = 150; break;
-                    case LUMBERJACK: score = 30; break;
-                    case SCOUT: score = 10; break;
-                    case SOLDIER: score = 50; break;
-                    case TANK: score = 140; break;
+                    case LUMBERJACK: score = 0; break;
+                    case SCOUT: score = 0; break;
+                    case SOLDIER: score = 0; break;
+                    case TANK: score = 0; break;
                     default: break;
                 }
                 if(score > maxScore){
@@ -865,7 +865,7 @@ abstract class Robot {
                         return new FirePlan(dir, 5);
                     }
 
-                    if (rc.canFirePentadShot() && rc.getLocation().distanceTo(bestRobot.location) < 3.5f) {
+                    if (rc.canFirePentadShot() && rc.getLocation().distanceTo(bestRobot.location) < 4.5f) {
                         //rc.firePentadShot(dir);
                         return new FirePlan(dir, 5);
                     }

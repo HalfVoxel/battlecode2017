@@ -46,18 +46,20 @@ class Tank extends Robot {
         for(int i = 0; i < NUMBER_OF_TARGETS; ++i){
             int offset = TARGET_OFFSET + 10*i;
             int timeSpotted = rc.readBroadcast(offset);
-            float lastEventPriority = rc.readBroadcast(offset + 1) / (rc.getRoundNum()-timeSpotted+5.0f);
             MapLocation loc = readBroadcastPosition(offset+2);
-            if(loc.distanceTo(rc.getLocation()) < 15f && lastEventPriority > bestPriority) {
+            float lastEventPriority = rc.readBroadcast(offset + 1) / (rc.getRoundNum()-timeSpotted+5.0f);
+            lastEventPriority /= loc.distanceSquaredTo(rc.getLocation()) + 10;
+            //System.out.println("Target " + loc + " from frame " + timeSpotted + " has priority " + lastEventPriority);
+            if(loc.distanceTo(rc.getLocation()) < 30f && lastEventPriority > bestPriority) {
                 bestPriority = lastEventPriority;
                 bestTarget = loc;
             }
         }
-        if(bestTarget != null && bestPriority > 0.5) {
-            System.out.println("Heading for nearby target!");
+        if(bestTarget != null && bestPriority > 0.02) {
+            //System.out.println("Heading for nearby target " + bestTarget);
             return bestTarget;
         } else if(bestPriority > 0){
-            System.out.println("Not heading for nearby target " + bestTarget + " (" + bestPriority + ")");
+            //System.out.println("Not heading for nearby target " + bestTarget + " (" + bestPriority + ")");
         }
 
         return null;
@@ -172,7 +174,7 @@ class Tank extends Robot {
                 speedToTarget += 0.5f * (d1 - d2);
 
                 if (getHighPriorityTarget() != null) {
-                    pickTarget(archons);
+                    target = pickTarget(archons);
                 } else {
                     if (speedToTarget < type.strideRadius * 0.2f) {
                         ticksMovingInTheWrongDirection++;
