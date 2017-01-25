@@ -10,7 +10,7 @@ abstract class Robot {
     /** rc.getType, should ideally be called 'type' but that is unfortunately a keyword */
     static RobotType type = null;
     MapLocation spawnPos = null;
-    Random rnd;
+    static Random rnd;
     int lastAttackedEnemyID = -1;
     int roundAtStart = 0;
 
@@ -88,11 +88,11 @@ abstract class Robot {
      *
      * @return a random Direction
      */
-    protected Direction randomDirection() {
+    protected static Direction randomDirection() {
         return new Direction(rnd.nextFloat() * 2 * (float)Math.PI);
     }
 
-    protected int spawnedCount(RobotType tp) throws GameActionException {
+    protected static int spawnedCount(RobotType tp) throws GameActionException {
         return rc.readBroadcast(tp.ordinal());
     }
 
@@ -204,7 +204,7 @@ abstract class Robot {
         if (Clock.getBytecodesLeft() > 1000) determineMapSize();
         if (Clock.getBytecodesLeft() > 1000 || rc.getType() == RobotType.GARDENER) shakeNearbyTrees();
         if (Clock.getBytecodesLeft() > 200) broadcastExploration();
-        if (Clock.getBytecodesLeft() > 1000) broadcastEnemyLocations(null);
+        if (Clock.getBytecodesLeft() > 1000) broadcastEnemyLocations();
 
         if (rc.getRoundNum() != roundAtStart) {
             System.out.println("Error! Did not finish within the bytecode limit");
@@ -364,6 +364,7 @@ abstract class Robot {
 
         int startingTime = Clock.getBytecodeNum();
 
+        //noinspection NumericOverflow
         boolean alreadyFullyExplored = (jobChunkInfo & (1 << 31)) != 0;
 
         // Loop through all the nodes in the chunk
@@ -550,16 +551,11 @@ abstract class Robot {
         return ret;
     }
 
-    void broadcastEnemyLocations(RobotInfo[] nearbyEnemies) throws GameActionException {
+    void broadcastEnemyLocations() throws GameActionException {
         Team enemy = rc.getTeam().opponent();
-
-        if (nearbyEnemies == null) {
-            nearbyEnemies = rc.senseNearbyRobots(type.sensorRadius, enemy);
-        }
 
         int priority = 0;
         float friendlyMilitaryUnits = 0;
-        float friendlyUnits = 0;
         float maxScore = 0;
         MapLocation maxScoreLocation = null;
         RobotInfo[] robots = rc.senseNearbyRobots();
@@ -573,7 +569,6 @@ abstract class Robot {
                     case SCOUT: score = 0; break;
                     case SOLDIER: score = 0; break;
                     case TANK: score = 0; break;
-                    default: break;
                 }
                 if(score > maxScore){
                     maxScore = score;
@@ -582,7 +577,6 @@ abstract class Robot {
                 priority += score;
             }
             else{
-                friendlyUnits += 1;
                 if(robot.type != RobotType.ARCHON && robot.type != RobotType.GARDENER){
                     friendlyMilitaryUnits += 1;
                 }
@@ -624,68 +618,23 @@ abstract class Robot {
                 rc.broadcast(offset + 1, 2*priority);
             }
         }
-
-
-        /*int lastAttackingEnemySpotted = rc.readBroadcast(HIGH_PRIORITY_TARGET_OFFSET);
-        int lastGardenerSpotted = rc.readBroadcast(GARDENER_OFFSET);
-
-        boolean anyHostiles = false;
-        boolean anyGardeners = false;
-        for (RobotInfo robot : nearbyEnemies) {
-            if (robot.getType() != RobotType.ARCHON && robot.team == enemy) {
-                anyHostiles = true;
-                anyGardeners |= robot.getType() == RobotType.GARDENER;
-
-                if (robot.attackCount > 0) {
-                    // Aaaaah! They are attacking!! High priority target
-                    int previousTick = rc.readBroadcast(HIGH_PRIORITY_TARGET_OFFSET);
-
-                    // Keep the same target for at least 5 ticks
-                    if (
-                            (rc.getRoundNum() > previousTick + 5)) {
-                        rc.broadcast(HIGH_PRIORITY_TARGET_OFFSET, rc.getRoundNum());
-                        broadcast(HIGH_PRIORITY_TARGET_OFFSET + 1, robot.location);
-                    }
-                }
-
-                if (robot.getType() == RobotType.GARDENER) {
-                    // Ha! Found a gardener, we can harass that one
-
-                    // Keep the same target for at least 5 ticks
-                    int previousTick = rc.readBroadcast(GARDENER_OFFSET);
-                    if (rc.getRoundNum() > previousTick + 5) {
-                        rc.broadcast(GARDENER_OFFSET, rc.getRoundNum());
-                        broadcast(GARDENER_OFFSET + 1, robot.location);
-                    }
-                }
-            }
-        }
-
-        // Clear gardener and high priority target if we can see those positions but we cannot see any hostile units
-        if (!anyHostiles && lastAttackingEnemySpotted != -1000 && rc.getLocation().isWithinDistance(readBroadcastPosition(HIGH_PRIORITY_TARGET_OFFSET + 1), type.sensorRadius * 0.7f)) {
-            rc.broadcast(HIGH_PRIORITY_TARGET_OFFSET, -1000);
-        }
-
-        if (!anyGardeners && lastGardenerSpotted != -1000 && rc.getLocation().isWithinDistance(readBroadcastPosition(GARDENER_OFFSET + 1), type.sensorRadius * 0.7f)) {
-            rc.broadcast(GARDENER_OFFSET, -1000);
-        }*/
     }
 
-    void broadcast(int channel, MapLocation pos) throws GameActionException {
+    static void broadcast(int channel, MapLocation pos) throws GameActionException {
         rc.broadcastFloat(channel, pos.x);
         rc.broadcastFloat(channel + 1, pos.y);
     }
 
-    void broadcast(int channel, long v) throws GameActionException {
+    static void broadcast(int channel, long v) throws GameActionException {
         rc.broadcast(channel, (int)(v >>> 32));
         rc.broadcast(channel + 1, (int)v);
     }
 
-    long readBroadcastLong(int channel) throws GameActionException {
+    static long readBroadcastLong(int channel) throws GameActionException {
         return ((long)rc.readBroadcast(channel) << 32) | (long)rc.readBroadcast(channel + 1);
     }
 
-    MapLocation readBroadcastPosition(int channel) throws GameActionException {
+    static MapLocation readBroadcastPosition(int channel) throws GameActionException {
         return new MapLocation(rc.readBroadcastFloat(channel), rc.readBroadcastFloat(channel + 1));
     }
 
@@ -1327,7 +1276,7 @@ abstract class Robot {
     /**
      * Return value in [bullets/tick]
      */
-    float treeScore(TreeInfo tree, MapLocation fromPos) {
+    static float treeScore(TreeInfo tree, MapLocation fromPos) {
         float turnsToChopDown = 1f;
         turnsToChopDown += (tree.health / GameConstants.LUMBERJACK_CHOP_DAMAGE);
         if (fromPos != null) turnsToChopDown += Math.sqrt(fromPos.distanceTo(tree.location) / type.strideRadius);
@@ -1336,7 +1285,7 @@ abstract class Robot {
         return score;
     }
 
-    Team teamOf(BodyInfo b) {
+    static Team teamOf(BodyInfo b) {
         if (b != null && b.isRobot()) return ((RobotInfo)b).team;
         if (b != null && b.isTree()) return ((TreeInfo)b).team;
         return Team.NEUTRAL;
@@ -1902,7 +1851,6 @@ abstract class Robot {
      * Determine whether a bullet can possibly hit us
      */
     boolean bulletCanHitUs(MapLocation loc, BulletInfo bullet) {
-        float dmg = 0f;
         float radius = type.bodyRadius + type.strideRadius;
         float sqrRadius = radius * radius;
         // Current bullet position
@@ -2009,7 +1957,7 @@ abstract class Robot {
         }
     }
 
-    <T> T randomChoice(T[] values) {
+    static <T> T randomChoice(T[] values) {
         return values.length > 0 ? values[(int)(rnd.nextFloat() * values.length)] : null;
     }
 
