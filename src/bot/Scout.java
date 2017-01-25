@@ -88,7 +88,7 @@ class Scout extends Robot {
 
     private TreeInfo findBestTreeToShake() throws GameActionException {
         // Cache the best tree for a few ticks
-        if (rc.getRoundNum() < lastBestTree + 10 && rc.canSenseTree(lastBestTree)) {
+        if (rc.getRoundNum() < lastBestTreeTick + 10 && rc.canSenseTree(lastBestTree)) {
             TreeInfo tree = rc.senseTree(lastBestTree);
             if (tree.containedBullets > 0) {
                 return tree;
