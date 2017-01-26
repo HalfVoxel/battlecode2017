@@ -1449,7 +1449,7 @@ abstract class Robot {
                 BodyInfo firstUnitHit = linecast(tree.location);
                 if (firstUnitHit != null && firstUnitHit.isTree() && ((TreeInfo)firstUnitHit).getTeam() == enemy) {
                     TreeInfo t = (TreeInfo)firstUnitHit;
-                    if (rc.canFireSingleShot() && turnsLeft > STOP_SPENDING_AT_TIME && t.getHealth() > 20 &&
+                    if (rc.canFireSingleShot() && turnsLeft > STOP_SPENDING_AT_TIME && t.getHealth() > 10 &&
                             (t.getHealth() < 45 || t.location.distanceTo(rc.getLocation()) < 3f)) {
                         rc.fireSingleShot(rc.getLocation().directionTo(tree.location));
                     }
