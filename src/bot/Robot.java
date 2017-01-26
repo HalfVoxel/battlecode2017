@@ -7,22 +7,25 @@ import java.util.*;
 abstract class Robot {
     static RobotController rc = null;
 
-    /** rc.getType, should ideally be called 'type' but that is unfortunately a keyword */
+    /**
+     * rc.getType, should ideally be called 'type' but that is unfortunately a keyword
+     */
     static RobotType type = null;
-    MapLocation spawnPos = null;
-    Random rnd;
-    int lastAttackedEnemyID = -1;
+    static MapLocation spawnPos = null;
+    static Random rnd;
     int roundAtStart = 0;
+
+    static Team enemy;
+    static Team ally;
+    static MapLocation[] initialArchonLocations;
 
     static final int MAP_EDGE_BROADCAST_OFFSET = 10;
     static final int HIGH_PRIORITY_TARGET_OFFSET = 20;
     static final int GARDENER_OFFSET = 25;
-    static final int TREE_OFFSET = 30;
     static final int GARDENER_CAN_PROBABLY_BUILD = 40;
     static final int PRIMARY_UNIT = 50;
     static final int TARGET_OFFSET = 60;
     static final int NUMBER_OF_TARGETS = 4;
-    static final int HAS_SEEN = 1000;
     static final int PATHFINDING = 3000;
     static final int PATHFINDING_RESULT_TO_ENEMY_ARCHON = 4000;
     static final int PATHFINDING_TREE = 5000;
@@ -38,23 +41,21 @@ abstract class Robot {
     static final int PATHFINDING_WORLD_WIDTH = 100;
     private static final float PATHFINDING_CHUNK_RADIUS = PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE * 0.707106781f + 0.001f;
 
-    static final int EXPLORATION_ORIGIN = EXPLORATION_OFFSET + 0;
-    private static final int EXPLORATION_EXPLORED = EXPLORATION_OFFSET + 2;
-    private static final int EXPLORATION_OUTSIDE_MAP = EXPLORATION_OFFSET + 4;
+    static final int EXPLORATION_ORIGIN = EXPLORATION_OFFSET;
 
     static final int STOP_SPENDING_AT_TIME = 50;
 
     static int mapEdgesDetermined = 0;
     static float mapEdges0, mapEdges1, mapEdges2, mapEdges3;
     boolean countingAsAlive = true;
-    private Map<Integer, Float> bulletHitDistance = new HashMap<>();
-    private Map<Integer, MapLocation> unitLastLocation = new HashMap<>();
+    private final Map<Integer, Float> bulletHitDistance = new HashMap<>();
+    private final Map<Integer, MapLocation> unitLastLocation = new HashMap<>();
 
     static MapLocation explorationOrigin;
 
-    void init() throws GameActionException {
+    public static void init(RobotController rc) throws GameActionException {
+        Robot.rc = rc;
         rnd = new Random(System.getProperty("bc.testing.seed", "0").hashCode());
-        System.out.println("GOT SEED " + System.getProperty("bc.testing.seed", "0"));
         type = rc.getType();
         spawnPos = rc.getLocation();
 
@@ -64,80 +65,79 @@ abstract class Robot {
         mapEdges2 = Math.max(spawnPos.x - GameConstants.MAP_MAX_WIDTH, 0f);
         mapEdges3 = Math.max(spawnPos.y - GameConstants.MAP_MAX_WIDTH, 0f);
 
+        ally = rc.getTeam();
+        enemy = ally.opponent();
+        initialArchonLocations = rc.getInitialArchonLocations(enemy);
+
         // Set the exploration origin if it has not been set already
         if (readBroadcastLong(EXPLORATION_ORIGIN) == 0L) {
-            System.out.println("Set exploration origin");
-            explorationOrigin = rc.getLocation().translate(-PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2, -PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2);
-            broadcast(EXPLORATION_ORIGIN, explorationOrigin);
-
-            rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (0 + 1), mapEdges0);
-            rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (1 + 1), mapEdges1);
-            rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (2 + 1), mapEdges2);
-            rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (3 + 1), mapEdges3);
+            onStartOfGame();
         } else {
             explorationOrigin = readBroadcastPosition(EXPLORATION_ORIGIN);
         }
-
-        onStartOfTick();
     }
 
-    abstract void run() throws GameActionException;
+    /**
+     * Called once at the start of the game (only for a single unit).
+     */
+    static void onStartOfGame() throws GameActionException {
+        explorationOrigin = rc.getLocation().translate(-PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2, -PATHFINDING_NODE_SIZE * PATHFINDING_WORLD_WIDTH / 2);
+        broadcast(EXPLORATION_ORIGIN, explorationOrigin);
+
+        rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (0 + 1), mapEdges0);
+        rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (1 + 1), mapEdges1);
+        rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (2 + 1), mapEdges2);
+        rc.broadcastFloat(MAP_EDGE_BROADCAST_OFFSET + (3 + 1), mapEdges3);
+
+        // Reset some broadcast values
+        rc.broadcast(GARDENER_OFFSET, -1000);
+        rc.broadcast(HIGH_PRIORITY_TARGET_OFFSET, -1000);
+
+        // Ensure we have count the number of alive archons correctly
+        rc.broadcast(RobotType.ARCHON.ordinal(), rc.getInitialArchonLocations(ally).length);
+    }
+
+    /**
+     * Called once when the unit first starts to run code.
+     * Executed just before the first call to onUpdate.
+     */
+    void onAwake() throws GameActionException {
+    }
+
+    /**
+     * Called repeatedly until the unit dies or the game ends.
+     * A single invocation may take longer than one tick.
+     */
+    abstract void onUpdate() throws GameActionException;
 
     /**
      * Returns a random Direction
      *
      * @return a random Direction
      */
-    protected Direction randomDirection() {
+    protected static Direction randomDirection() {
         return new Direction(rnd.nextFloat() * 2 * (float)Math.PI);
     }
 
-    protected int spawnedCount(RobotType tp) throws GameActionException {
+    protected static int spawnedCount(RobotType tp) throws GameActionException {
         return rc.readBroadcast(tp.ordinal());
-    }
-
-    /**
-     * Adds the ID to a global shared set of all detected entities and returns if this was
-     * the first time that entity was detected.
-     *
-     * @param id ID of the entity, assumed to be in the range 0...32000.
-     * @return True if this was the first time this particular ID was detected. False otherwise.
-     * @throws GameActionException
-     */
-    boolean detect(int id) throws GameActionException {
-        // Note that the right shift by id will only use the last 5 bits
-        // and thus this will pick out the id'th bit in the broadcast array when starting
-        // from the offset HAS_SEEN
-        if (((rc.readBroadcast(HAS_SEEN + (id >> 5)) >> id) & 1) == 0) {
-            // Broadcast that index but with the bit set
-            rc.broadcast(HAS_SEEN + (id >> 5), rc.readBroadcast(HAS_SEEN + (id >> 5)) | (1 << id));
-            return true;
-        }
-        return false;
     }
 
     /**
      * Adds the ID to a global shared set of all high priority entities
      *
      * @param id ID of the entity, assumed to be in the range 0...32000.
-     * @throws GameActionException
      */
     void markAsHighPriority(int id) throws GameActionException {
         // Note that the right shift by id will only use the last 5 bits
         // and thus this will pick out the id'th bit in the broadcast array when starting
-        // from the offset HAS_SEEN
+        // from the offset HIGH_PRIORITY
         // Broadcast that index but with the bit set
-        rc.broadcast(HIGH_PRIORITY + (id >> 5), rc.readBroadcast(HAS_SEEN + (id >> 5)) | (1 << id));
+        rc.broadcast(HIGH_PRIORITY + (id >> 5), rc.readBroadcast(HIGH_PRIORITY + (id >> 5)) | (1 << id));
     }
 
-    boolean isHighPriority (int id) throws GameActionException {
+    boolean isHighPriority(int id) throws GameActionException {
         return ((rc.readBroadcast(HIGH_PRIORITY + (id >> 5)) >> id) & 1) != 0;
-    }
-
-    boolean tryMove(MapLocation to) throws GameActionException {
-        float dist = rc.getLocation().distanceTo(to);
-        if (dist > 0) return tryMove(rc.getLocation().directionTo(to), 20, 3, dist);
-        else return true;
     }
 
     /**
@@ -145,7 +145,6 @@ abstract class Robot {
      *
      * @param dir The intended direction of movement
      * @return true if a move was performed
-     * @throws GameActionException
      */
     boolean tryMove(Direction dir) throws GameActionException {
         return tryMove(dir, 20, 3, type.strideRadius);
@@ -158,7 +157,6 @@ abstract class Robot {
      * @param degreeOffset  Spacing between checked directions (degrees)
      * @param checksPerSide Number of extra directions checked on each side, if intended direction was unavailable
      * @return true if a move was performed
-     * @throws GameActionException
      */
     boolean tryMove(Direction dir, float degreeOffset, int checksPerSide, float distance) throws GameActionException {
         // First, try intended direction
@@ -167,7 +165,6 @@ abstract class Robot {
             return true;
         }
         // Now try a bunch of similar angles
-        boolean moved = false;
         int currentCheck = 1;
         while (currentCheck <= checksPerSide) {
             // Try the offset of the left side
@@ -204,7 +201,7 @@ abstract class Robot {
         if (Clock.getBytecodesLeft() > 1000) determineMapSize();
         if (Clock.getBytecodesLeft() > 1000 || rc.getType() == RobotType.GARDENER) shakeNearbyTrees();
         if (Clock.getBytecodesLeft() > 200) broadcastExploration();
-        if (Clock.getBytecodesLeft() > 1000) broadcastEnemyLocations(null);
+        if (Clock.getBytecodesLeft() > 1000) broadcastEnemyLocations();
 
         if (rc.getRoundNum() != roundAtStart) {
             System.out.println("Error! Did not finish within the bytecode limit");
@@ -235,8 +232,7 @@ abstract class Robot {
 
         int tx = nx + dx[dir];
         int ty = ny + dy[dir];
-        MapLocation target = explorationOrigin.translate((tx + 0.5f) * PATHFINDING_NODE_SIZE, (ty + 0.5f) * PATHFINDING_NODE_SIZE);
-        return target;
+        return explorationOrigin.translate((tx + 0.5f) * PATHFINDING_NODE_SIZE, (ty + 0.5f) * PATHFINDING_NODE_SIZE);
     }
 
     static int pathfindingChunkDataForNode(int nodeX, int nodeY) throws GameActionException {
@@ -246,14 +242,14 @@ abstract class Robot {
         return rc.readBroadcast(PATHFINDING + index);
     }
 
-    boolean isNodeReserved (int x, int y) throws GameActionException {
+    boolean isNodeReserved(int x, int y) throws GameActionException {
         int cx = x / PATHFINDING_CHUNK_SIZE;
         int cy = y / PATHFINDING_CHUNK_SIZE;
         int index = cy * (PATHFINDING_WORLD_WIDTH / PATHFINDING_CHUNK_SIZE) + cx;
         return ((rc.readBroadcast(PATHFINDING_TREE + index) >> ((y % PATHFINDING_CHUNK_SIZE) * PATHFINDING_CHUNK_SIZE + (x % PATHFINDING_CHUNK_SIZE))) & 1) != 0;
     }
 
-    void reserveNode (int x, int y) throws GameActionException {
+    void reserveNode(int x, int y) throws GameActionException {
         int cx = x / PATHFINDING_CHUNK_SIZE;
         int cy = y / PATHFINDING_CHUNK_SIZE;
         int index = cy * (PATHFINDING_WORLD_WIDTH / PATHFINDING_CHUNK_SIZE) + cx;
@@ -262,23 +258,27 @@ abstract class Robot {
         rc.broadcast(PATHFINDING_TREE + index, val | 1 << ((y % PATHFINDING_CHUNK_SIZE) * PATHFINDING_CHUNK_SIZE + (x % PATHFINDING_CHUNK_SIZE)));
     }
 
-    /** Returns node index for the closest node */
-    static int snapToNode (MapLocation loc) {
+    /**
+     * Returns node index for the closest node
+     */
+    static int snapToNode(MapLocation loc) {
         MapLocation relativePos = loc.translate(-explorationOrigin.x, -explorationOrigin.y);
         int x = (int)Math.floor(relativePos.x / PATHFINDING_NODE_SIZE);
         int y = (int)Math.floor(relativePos.y / PATHFINDING_NODE_SIZE);
         return y * PATHFINDING_WORLD_WIDTH + x;
     }
 
-    /** Returns a bitpacked value where bit 0 indicates if the node is blocked and bit 1 indicates if the node chunk has been fully explored yet */
-    static int nodeInfo (int x, int y) throws GameActionException {
+    /**
+     * Returns a bitpacked value where bit 0 indicates if the node is blocked and bit 1 indicates if the node chunk has been fully explored yet
+     */
+    static int nodeInfo(int x, int y) throws GameActionException {
         int chunk = pathfindingChunkDataForNode(x, y);
         int blocked = (chunk >> ((y % PATHFINDING_CHUNK_SIZE) * PATHFINDING_CHUNK_SIZE + (x % PATHFINDING_CHUNK_SIZE))) & 1;
         int fullyExplored = (chunk >>> 30) & 0x2;
         return fullyExplored | blocked;
     }
 
-    static MapLocation nodePosition (int x, int y) {
+    static MapLocation nodePosition(int x, int y) {
         return explorationOrigin.translate((x + 0.5f) * PATHFINDING_NODE_SIZE, (y + 0.5f) * PATHFINDING_NODE_SIZE);
     }
 
@@ -364,6 +364,7 @@ abstract class Robot {
 
         int startingTime = Clock.getBytecodeNum();
 
+        //noinspection NumericOverflow
         boolean alreadyFullyExplored = (jobChunkInfo & (1 << 31)) != 0;
 
         // Loop through all the nodes in the chunk
@@ -408,11 +409,8 @@ abstract class Robot {
             // Clear that bit
             jobChunkInfo &= ~(1 << jobChunkNodeIndex);
 
-            if (traversable) {
-                //rc.setIndicatorDot(nodeCenter, 40, 200, 10);
-            } else {
+            if (!traversable) {
                 jobChunkInfo |= 1 << jobChunkNodeIndex;
-                //rc.setIndicatorDot(nodeCenter, 200, 40, 10);
             }
         }
 
@@ -438,72 +436,11 @@ abstract class Robot {
         return true;
     }
 
-    MapLocation findBestUnexploredChunk() throws GameActionException {
-        long exploredChunks = readBroadcastLong(EXPLORATION_EXPLORED);
-        long chunksOutsideMap = readBroadcastLong(EXPLORATION_OUTSIDE_MAP);
-
-        while (true) {
-            // Consider chunks that have not been explored yet and are not outside the map
-            long chunksToConsider = ~exploredChunks & ~chunksOutsideMap;
-
-            MapLocation bestChunk = null;
-            int bestChunkIndex = -1;
-            float bestScore = 0f;
-
-            // Loop through all chunks
-            for (int y = 0; y < 8; y++) {
-                int indexy = y * 8;
-                for (int x = 0; x < 8; x++) {
-                    int index = indexy + x;
-                    // Ignore chunks that we can never reach or that are already explored
-                    if ((chunksToConsider & (1L << index)) != 0) {
-                        // Chunk position
-                        MapLocation chunkPosition = new MapLocation(explorationOrigin.x + (x - 4 + 0.5f) * PATHFINDING_NODE_SIZE, explorationOrigin.y + (y - 4 + 0.5f) * PATHFINDING_NODE_SIZE);
-                        float score = 1f / chunkPosition.distanceTo(rc.getLocation());
-
-						/*try {
-                            debug_setIndicatorDot(chunkPosition, 10 * score)
-						} catch {
-							case e:Exception =>
-						}*/
-
-                        if (score > bestScore) {
-                            bestScore = score;
-                            bestChunk = chunkPosition;
-                            bestChunkIndex = index;
-                        }
-                    }
-                }
-            }
-
-            if (bestChunk != null) {
-                // Check if the chunk is on the map using the currently known information
-                if (onMap(bestChunk)) {
-                    return bestChunk;
-                } else {
-                    chunksOutsideMap |= 1L << bestChunkIndex;
-                    broadcast(EXPLORATION_OUTSIDE_MAP, chunksOutsideMap);
-                }
-            } else {
-                // Reset exploration
-                exploredChunks = 0L;
-                broadcast(EXPLORATION_EXPLORED, exploredChunks);
-            }
-        }
-    }
-
     /**
      * True if the location is on the map using the information known so far
      */
     boolean onMap(MapLocation pos) {
         return pos.x <= mapEdges0 && pos.y <= mapEdges1 && pos.x >= mapEdges2 && pos.y >= mapEdges3;
-    }
-
-    /**
-     * True if the location is on the map using the information known so far
-     */
-    boolean onMap(float x, float y) {
-        return x <= mapEdges0 && y <= mapEdges1 && x >= mapEdges2 && y >= mapEdges3;
     }
 
     /**
@@ -541,151 +478,99 @@ abstract class Robot {
         return new MapLocation(x, y);
     }
 
-    float getDistanceToMapEdge(MapLocation pos) {
-        float ret = 10f;
-        ret = Math.min(ret, mapEdges0 - pos.x);
-        ret = Math.min(ret, mapEdges1 - pos.y);
-        ret = Math.min(ret, pos.x - mapEdges2);
-        ret = Math.min(ret, pos.y - mapEdges3);
-        return ret;
-    }
-
-    void broadcastEnemyLocations(RobotInfo[] nearbyEnemies) throws GameActionException {
-        Team enemy = rc.getTeam().opponent();
-
-        if (nearbyEnemies == null) {
-            nearbyEnemies = rc.senseNearbyRobots(type.sensorRadius, enemy);
-        }
-
+    void broadcastEnemyLocations() throws GameActionException {
         int priority = 0;
         float friendlyMilitaryUnits = 0;
-        float friendlyUnits = 0;
         float maxScore = 0;
         MapLocation maxScoreLocation = null;
         RobotInfo[] robots = rc.senseNearbyRobots();
-        for(RobotInfo robot : robots){
-            if(robot.getTeam() == enemy){
+        for (RobotInfo robot : robots) {
+            if (robot.getTeam() == enemy) {
                 float score = 0;
-                switch(robot.type){
-                    case ARCHON: score = 0; break;
-                    case GARDENER: score = 150; break;
-                    case LUMBERJACK: score = 0; break;
-                    case SCOUT: score = 0; break;
-                    case SOLDIER: score = 0; break;
-                    case TANK: score = 0; break;
-                    default: break;
+                switch (robot.type) {
+                    case ARCHON:
+                        score = 0;
+                        break;
+                    case GARDENER:
+                        score = 150;
+                        break;
+                    case LUMBERJACK:
+                        score = 0;
+                        break;
+                    case SCOUT:
+                        score = 0;
+                        break;
+                    case SOLDIER:
+                        score = 0;
+                        break;
+                    case TANK:
+                        score = 0;
+                        break;
                 }
-                if(score > maxScore){
+                if (score > maxScore) {
                     maxScore = score;
                     maxScoreLocation = robot.location;
                 }
                 priority += score;
-            }
-            else{
-                friendlyUnits += 1;
-                if(robot.type != RobotType.ARCHON && robot.type != RobotType.GARDENER){
+            } else {
+                if (robot.type != RobotType.ARCHON && robot.type != RobotType.GARDENER) {
                     friendlyMilitaryUnits += 1;
                 }
             }
         }
         priority /= Math.sqrt(friendlyMilitaryUnits + 2);
-        if(maxScoreLocation != null) {
+        if (maxScoreLocation != null) {
             int index = -1;
             boolean isBetter = true;
-            for(int i = 0; i < NUMBER_OF_TARGETS; ++i){
-                int offset = TARGET_OFFSET + 10*i;
+            for (int i = 0; i < NUMBER_OF_TARGETS; ++i) {
+                int offset = TARGET_OFFSET + 10 * i;
                 int timeSpotted = rc.readBroadcast(offset);
                 int lastEventPriority = rc.readBroadcast(offset + 1);
-                MapLocation loc = readBroadcastPosition(offset+2);
-                if(lastEventPriority / (20 + rc.getRoundNum() - timeSpotted) < priority / 20 && loc.distanceTo(maxScoreLocation) < 20f) {
+                MapLocation loc = readBroadcastPosition(offset + 2);
+                if (lastEventPriority / (20 + rc.getRoundNum() - timeSpotted) < priority / 20 && loc.distanceTo(maxScoreLocation) < 20f) {
                     index = i;
                     rc.broadcast(offset + 1, 0);
                 }
-                if(lastEventPriority / (20 + rc.getRoundNum() - timeSpotted) >= priority / 20 && loc.distanceTo(maxScoreLocation) < 20f) {
+                if (lastEventPriority / (20 + rc.getRoundNum() - timeSpotted) >= priority / 20 && loc.distanceTo(maxScoreLocation) < 20f) {
                     isBetter = false;
                 }
-                if(lastEventPriority == 0){
+                if (lastEventPriority == 0) {
                     index = i;
                 }
             }
-            if(isBetter && index != -1) {
-                int offset = TARGET_OFFSET + 10*index;
+            if (isBetter && index != -1) {
+                int offset = TARGET_OFFSET + 10 * index;
                 rc.broadcast(offset, rc.getRoundNum());
                 rc.broadcast(offset + 1, priority);
                 broadcast(offset + 2, maxScoreLocation);
             }
         }
-        for(int i = 0; i < NUMBER_OF_TARGETS; ++i){
-            int offset = TARGET_OFFSET + 10*i;
-            int timeSpotted = rc.readBroadcast(offset);
+        for (int i = 0; i < NUMBER_OF_TARGETS; ++i) {
+            int offset = TARGET_OFFSET + 10 * i;
+            //int timeSpotted = rc.readBroadcast(offset);
             int lastEventPriority = rc.readBroadcast(offset + 1);
-            MapLocation loc = readBroadcastPosition(offset+2);
-            if(loc.distanceTo(rc.getLocation()) < 4f && 2*priority < lastEventPriority) {
-                rc.broadcast(offset + 1, 2*priority);
+            MapLocation loc = readBroadcastPosition(offset + 2);
+            if (loc.distanceTo(rc.getLocation()) < 4f && 2 * priority < lastEventPriority) {
+                rc.broadcast(offset + 1, 2 * priority);
             }
         }
-
-
-        /*int lastAttackingEnemySpotted = rc.readBroadcast(HIGH_PRIORITY_TARGET_OFFSET);
-        int lastGardenerSpotted = rc.readBroadcast(GARDENER_OFFSET);
-
-        boolean anyHostiles = false;
-        boolean anyGardeners = false;
-        for (RobotInfo robot : nearbyEnemies) {
-            if (robot.getType() != RobotType.ARCHON && robot.team == enemy) {
-                anyHostiles = true;
-                anyGardeners |= robot.getType() == RobotType.GARDENER;
-
-                if (robot.attackCount > 0) {
-                    // Aaaaah! They are attacking!! High priority target
-                    int previousTick = rc.readBroadcast(HIGH_PRIORITY_TARGET_OFFSET);
-
-                    // Keep the same target for at least 5 ticks
-                    if (
-                            (rc.getRoundNum() > previousTick + 5)) {
-                        rc.broadcast(HIGH_PRIORITY_TARGET_OFFSET, rc.getRoundNum());
-                        broadcast(HIGH_PRIORITY_TARGET_OFFSET + 1, robot.location);
-                    }
-                }
-
-                if (robot.getType() == RobotType.GARDENER) {
-                    // Ha! Found a gardener, we can harass that one
-
-                    // Keep the same target for at least 5 ticks
-                    int previousTick = rc.readBroadcast(GARDENER_OFFSET);
-                    if (rc.getRoundNum() > previousTick + 5) {
-                        rc.broadcast(GARDENER_OFFSET, rc.getRoundNum());
-                        broadcast(GARDENER_OFFSET + 1, robot.location);
-                    }
-                }
-            }
-        }
-
-        // Clear gardener and high priority target if we can see those positions but we cannot see any hostile units
-        if (!anyHostiles && lastAttackingEnemySpotted != -1000 && rc.getLocation().isWithinDistance(readBroadcastPosition(HIGH_PRIORITY_TARGET_OFFSET + 1), type.sensorRadius * 0.7f)) {
-            rc.broadcast(HIGH_PRIORITY_TARGET_OFFSET, -1000);
-        }
-
-        if (!anyGardeners && lastGardenerSpotted != -1000 && rc.getLocation().isWithinDistance(readBroadcastPosition(GARDENER_OFFSET + 1), type.sensorRadius * 0.7f)) {
-            rc.broadcast(GARDENER_OFFSET, -1000);
-        }*/
     }
 
-    void broadcast(int channel, MapLocation pos) throws GameActionException {
+    static void broadcast(int channel, MapLocation pos) throws GameActionException {
         rc.broadcastFloat(channel, pos.x);
         rc.broadcastFloat(channel + 1, pos.y);
     }
 
-    void broadcast(int channel, long v) throws GameActionException {
+    static void broadcast(int channel, long v) throws GameActionException {
         rc.broadcast(channel, (int)(v >>> 32));
         rc.broadcast(channel + 1, (int)v);
     }
 
-    long readBroadcastLong(int channel) throws GameActionException {
+    static long readBroadcastLong(int channel) throws GameActionException {
         return ((long)rc.readBroadcast(channel) << 32) | (long)rc.readBroadcast(channel + 1);
     }
 
-    MapLocation readBroadcastPosition(int channel) throws GameActionException {
+    static MapLocation readBroadcastPosition(int channel) throws GameActionException {
         return new MapLocation(rc.readBroadcastFloat(channel), rc.readBroadcastFloat(channel + 1));
     }
 
@@ -700,7 +585,7 @@ abstract class Robot {
         }
     }
 
-    void debug_setIndicatorDot(MapLocation pos, float value) throws GameActionException {
+    void debug_setIndicatorDot(MapLocation pos, float value) {
         float r = Math.max(Math.min(value * 3f, 1f), 0f);
         float g = Math.max(Math.min((value - 1 / 3f) * 3f, 1f), 0f);
         float b = Math.max(Math.min((value - 2 / 3f) * 3f, 1f), 0f);
@@ -714,7 +599,7 @@ abstract class Robot {
             TreeInfo bestTree = null;
             for (TreeInfo tree : trees) {
                 // Make sure it is not the tree of an opponent
-                if (tree.team == Team.NEUTRAL || tree.team == rc.getTeam()) {
+                if (tree.team == Team.NEUTRAL || tree.team == ally) {
                     // Make sure the tree has bullets and pick the tree with the most bullets in it
                     if (tree.containedBullets > 0 && (bestTree == null || tree.containedBullets > bestTree.containedBullets)) {
                         bestTree = tree;
@@ -787,9 +672,7 @@ abstract class Robot {
     /**
      * Fire at any nearby robots if possible.
      *
-     * @param hostileRobots
-     * @return If there are any nearby gardeners (maybe move to different method?)
-     * @throws GameActionException
+     * @return Plan for firing. Call plan.apply to actually fire the bullets.
      */
     FirePlan fireAtNearbyRobot(RobotInfo[] friendlyRobots, RobotInfo[] hostileRobots, boolean targetArchons) throws GameActionException {
         if (hostileRobots.length == 0) return null;
@@ -806,11 +689,11 @@ abstract class Robot {
                 if (bestRobotsTried.contains(robot.ID))
                     continue;
                 MapLocation lastLoc = unitLastLocation.get(robot.getID());
-                if(lastLoc == null){
+                if (lastLoc == null) {
                     lastLoc = robot.location;
                     unitLastLocation.put(robot.getID(), lastLoc);
                 }
-                if(!lastLoc.equals(robot.location) && lastLoc.x >= 0){
+                if (!lastLoc.equals(robot.location) && lastLoc.x >= 0) {
                     lastLoc = new MapLocation(-1f, -1f);
                     unitLastLocation.put(robot.getID(), lastLoc);
                 }
@@ -834,7 +717,7 @@ abstract class Robot {
                         score += 80;
                         break;
                 }
-                if(lastLoc.x >= 0) {
+                if (lastLoc.x >= 0) {
                     score *= 2;
                 }
                 score /= 4 + robot.health / robot.type.maxHealth;
@@ -846,20 +729,18 @@ abstract class Robot {
             }
 
             if (bestRobot != null) {
-                if(rc.getType() == RobotType.SCOUT){
-                    if(bestRobot.getType() == RobotType.SCOUT || bestRobot.getType() == RobotType.GARDENER){
-                        if(myLocation.distanceTo(bestRobot.location) > 3f)
+                if (rc.getType() == RobotType.SCOUT) {
+                    if (bestRobot.getType() == RobotType.SCOUT || bestRobot.getType() == RobotType.GARDENER) {
+                        if (myLocation.distanceTo(bestRobot.location) > 3f)
                             break;
-                    }
-                    else{
+                    } else {
                         break;
                     }
                 }
-                lastAttackedEnemyID = bestRobot.getID();
                 bestRobotsTried.add(bestRobot.ID);
 
                 BodyInfo firstUnitHit = linecast(bestRobot.location);
-                if (rc.getLocation().distanceTo(bestRobot.location) < 2 * type.sensorRadius && teamOf(firstUnitHit) == rc.getTeam().opponent() && turnsLeft > STOP_SPENDING_AT_TIME) {
+                if (rc.getLocation().distanceTo(bestRobot.location) < 2 * type.sensorRadius && teamOf(firstUnitHit) == enemy && turnsLeft > STOP_SPENDING_AT_TIME) {
                     Direction dir = rc.getLocation().directionTo(bestRobot.location);
                     if (rc.canFirePentadShot() && rc.getTeamBullets() > 300 && friendlyRobots.length < hostileRobots.length && (friendlyRobots.length == 0 || hostileRobots.length >= 2)) {
                         // ...Then fire a bullet in the direction of the enemy.
@@ -901,471 +782,21 @@ abstract class Robot {
         return null;
     }
 
-    static final int SWEEP_DIRECTIONS = 30;
-    float[] directionScores = new float[SWEEP_DIRECTIONS];
-    float[] transparencies = new float[SWEEP_DIRECTIONS];
-
-    void debug_directions() {
-        for (int i = 0; i < SWEEP_DIRECTIONS; i++) {
-            Direction d1 = new Direction(2 * (float)Math.PI * i / (float)SWEEP_DIRECTIONS - (float)Math.PI);
-            Direction d2 = new Direction(2 * (float)Math.PI * (i + 1) / (float)SWEEP_DIRECTIONS - (float)Math.PI);
-            float radius = rc.getType().bodyRadius * 1.5f;
-            MapLocation p1 = rc.getLocation().add(d1, radius);
-            MapLocation p2 = rc.getLocation().add(d2, radius);
-
-            float value = directionScores[i];
-            float r = Math.max(Math.min(value * 3f, 1f), 0f);
-            float g = Math.max(Math.min((value - 1 / 3f) * 3f, 1f), 0f);
-            float b = Math.max(Math.min((value - 2 / 3f) * 3f, 1f), 0f);
-
-            rc.setIndicatorLine(p1, p2, (int)(r * 255f), (int)(g * 255f), (int)(b * 255f));
-        }
-    }
-
-    void fireAtNearbyRobotSweep2(RobotInfo[] robots, TreeInfo[] trees) throws GameActionException {
-        if (!rc.canFireSingleShot()) return;
-
-        int numTrees = Math.min(trees.length, 4);
-        int numRobots = Math.min(robots.length, 6);
-        MapLocation myLocation = rc.getLocation();
-        float bulletSpeed = rc.getType().bulletSpeed;
-        Team enemy = rc.getTeam().opponent();
-
-        int w1 = Clock.getBytecodeNum();
-
-        for (int i = 0; i < directionScores.length; i++) {
-            directionScores[i] = 0f;
-            transparencies[i] = 1f;
-        }
-
-        // Go through the objects in sorted order
-        float distanceToNextTree = numTrees > 0 ? myLocation.distanceTo(trees[0].location) - trees[0].radius * 0.2f : 10000;
-        float distanceToNextRobot = numRobots > 0 ? myLocation.distanceTo(robots[0].location) : 10000;
-        int ri = 0;
-        int ti = 0;
-        while (ri < numRobots || ti < numTrees) {
-            float start;
-            float end;
-            float probabilityToHit;
-            float pointsForHitting;
-
-            if (distanceToNextTree < distanceToNextRobot) {
-                // Closest thing is a tree
-                TreeInfo tree = trees[ti];
-                Direction dir = myLocation.directionTo(tree.location);
-                float dist = distanceToNextTree;
-                float halfwidth = tree.radius;
-                float radiansDelta = Math.min(halfwidth / dist, (float)Math.PI);
-                start = dir.radians - radiansDelta + (float)Math.PI;
-                end = dir.radians + radiansDelta + (float)Math.PI;
-                probabilityToHit = 1f;
-                pointsForHitting = -0.001f;
-
-                ti++;
-                distanceToNextTree = ti < numTrees ? myLocation.distanceTo(trees[ti].location) - trees[0].radius * 0.2f : 10000;
-            } else {
-                // Closest thing is a robot
-                RobotInfo robot = robots[ri];
-
-                Direction dir = myLocation.directionTo(robot.location);
-                float stride = 0.5f * robot.type.strideRadius;
-                float dist = distanceToNextRobot;
-                float halfwidth = robot.type.bodyRadius + stride * (dist / bulletSpeed);
-                float radiansDelta = halfwidth / dist;
-
-                start = dir.radians - radiansDelta + (float)Math.PI;
-                end = dir.radians + radiansDelta + (float)Math.PI;
-
-                probabilityToHit = robot.type.bodyRadius / halfwidth;
-                if (robot.team == rc.getTeam()) {
-                    pointsForHitting = -0.5f;
-                } else {
-                    switch (robot.type) {
-                        case ARCHON:
-                            pointsForHitting = rc.getRoundNum() > 2000 ? 0.8f : 0f;
-                            break;
-                        case GARDENER:
-                            pointsForHitting = 0.5f;
-                            break;
-                        default:
-                            pointsForHitting = 1f;
-                            break;
-                    }
-                }
-
-                ri++;
-                distanceToNextRobot = ri < numRobots ? myLocation.distanceTo(robots[ri].location) : 10000;
-            }
-
-            int startIndex = (int)Math.floor(start * (SWEEP_DIRECTIONS / (2 * Math.PI)));
-            int endIndex = (int)Math.floor(end * (SWEEP_DIRECTIONS / (2 * Math.PI)));
-
-            pointsForHitting *= probabilityToHit;
-            float probabilityOfNotHitting = 1f - probabilityToHit;
-
-            if (startIndex < 0) {
-                for (int i = startIndex + SWEEP_DIRECTIONS; i < SWEEP_DIRECTIONS; i++) {
-                    directionScores[i] += pointsForHitting * transparencies[i];
-                    transparencies[i] *= probabilityOfNotHitting;
-                }
-
-                startIndex = 0;
-            }
-
-            if (endIndex >= SWEEP_DIRECTIONS) {
-                for (int i = endIndex - SWEEP_DIRECTIONS; i >= 0; i--) {
-                    directionScores[i] += pointsForHitting * transparencies[i];
-                    transparencies[i] *= probabilityOfNotHitting;
-                }
-
-                endIndex = SWEEP_DIRECTIONS - 1;
-            }
-
-            while (startIndex <= endIndex) {
-                directionScores[startIndex] += pointsForHitting * transparencies[startIndex];
-                transparencies[startIndex] *= probabilityOfNotHitting;
-                startIndex++;
-            }
-        }
-
-        Direction bestDirection = null;
-        float bestScore = 0f;
-        for (RobotInfo robot : robots) {
-            if (robot.team == enemy) {
-                Direction dir = myLocation.directionTo(robot.location);
-                int index = (int)Math.floor((dir.radians + Math.PI) * (SWEEP_DIRECTIONS / (2 * Math.PI)));
-                float score = directionScores[index];
-                if (score > bestScore) {
-                    bestScore = score;
-                    bestDirection = dir;
-                }
-            }
-        }
-
-        if (bestDirection != null) {
-            rc.fireSingleShot(bestDirection);
-        }
-
-        int w2 = Clock.getBytecodeNum();
-        debug_directions();
-
-        if (robots.length > 1) {
-            System.out.println("SWEEP2: " + (w2 - w1) + " " + numRobots + " " + numTrees);
-        }
-    }
-
-    final static int[] next = new int[100];
-    final static float[] distances = new float[100];
-    final static float[] probabilityOfNotHitting = new float[100];
-    // Note: premultiplied with (1 - probabilityOfNotHitting)
-    final static float[] pointsForHitting = new float[100];
-    final static long[] events = new long[100];
-    final static long[] potentialFiringDirections = new long[100];
-    final static int[] initialEvents = new int[100];
-
-    void fireAtNearbyRobotSweep(RobotInfo[] friendlyRobots, RobotInfo[] hostileRobots, TreeInfo[] trees) throws GameActionException {
-        if (!rc.canFireSingleShot()) return;
-
-        //String IDENT = "[" + rnd.nextInt(1000) + "]: ";
-
-        int w1 = Clock.getBytecodeNum();
-        // First 2 event indices are not used
-        int eventCount = 2;
-        MapLocation myLocation = rc.getLocation();
-        float bulletSpeed = rc.getType().bulletSpeed;
-
-        int initialEventCount = 0;
-        int firingDirections = 0;
-
-        int numTrees = Math.min(trees.length, 5);
-        for (int i = 0; i < numTrees; i++) {
-            TreeInfo tree = trees[i];
-
-            Direction dir = myLocation.directionTo(tree.location);
-            float dist = myLocation.distanceTo(tree.location);
-            float halfwidth = tree.radius;
-            float radiansDelta = halfwidth / dist;
-            probabilityOfNotHitting[eventCount] = 1f;
-            float start = dir.radians - radiansDelta + (float)Math.PI;
-            float end = dir.radians + radiansDelta + (float)Math.PI;
-
-            if (start < 0) {
-                start += Math.PI * 2;
-                initialEvents[initialEventCount] = eventCount;
-                initialEventCount++;
-            }
-
-            if (end > Math.PI * 2) {
-                end -= Math.PI * 2;
-                initialEvents[initialEventCount] = eventCount;
-                initialEventCount++;
-            }
-
-            events[eventCount] = (long)(1000 * start) << 32 | eventCount;
-            events[eventCount + 1] = (long)(1000 * end) << 32 | eventCount + 1;
-            distances[eventCount] = dist;
-            pointsForHitting[eventCount] = -0.01f;
-            eventCount += 2;
-        }
-
-        int numFriendly = Math.min(friendlyRobots.length, 4);
-        for (int i = 0; i < numFriendly; i++) {
-            RobotInfo robot = friendlyRobots[i];
-
-            Direction dir = myLocation.directionTo(robot.location);
-            float stride = 0.5f * robot.type.strideRadius;
-            float dist = myLocation.distanceTo(robot.location);
-            float halfwidth = robot.type.bodyRadius + stride * (dist / bulletSpeed);
-            float transparency = 1f - robot.type.bodyRadius / halfwidth;
-            float radiansDelta = halfwidth / dist;
-            //System.out.println("Width in radians: " + radiansDelta + " " + dist + " " + halfwidth);
-            probabilityOfNotHitting[eventCount] = transparency;
-            float start = dir.radians - radiansDelta + (float)Math.PI;
-            float end = dir.radians + radiansDelta + (float)Math.PI;
-
-            if (start < 0) {
-                start += Math.PI * 2;
-                initialEvents[initialEventCount] = eventCount;
-                initialEventCount++;
-            }
-
-            if (end > Math.PI * 2) {
-                end -= Math.PI * 2;
-                initialEvents[initialEventCount] = eventCount;
-                initialEventCount++;
-            }
-
-            events[eventCount] = (long)(1000 * start) << 32 | eventCount;
-            events[eventCount + 1] = (long)(1000 * end) << 32 | eventCount + 1;
-            distances[eventCount] = dist;
-            pointsForHitting[eventCount] = -1f;
-            eventCount += 2;
-        }
-
-        int numHostile = Math.min(hostileRobots.length, 4);
-        for (int i = 0; i < numHostile; i++) {
-            RobotInfo robot = hostileRobots[i];
-
-            Direction dir = myLocation.directionTo(robot.location);
-            float stride = 0.5f * robot.type.strideRadius;
-            float dist = myLocation.distanceTo(robot.location);
-            float halfwidth = robot.type.bodyRadius + stride * (dist / bulletSpeed);
-            float transparency = 1f - robot.type.bodyRadius / halfwidth;
-            float radiansDelta = halfwidth / dist;
-            //System.out.println("Width in radians: " + radiansDelta + " " + dist + " " + halfwidth);
-            probabilityOfNotHitting[eventCount] = transparency;
-            float start = dir.radians - radiansDelta + (float)Math.PI;
-            float end = dir.radians + radiansDelta + (float)Math.PI;
-
-            if (start < 0) {
-                start += Math.PI * 2;
-                initialEvents[initialEventCount] = eventCount;
-                initialEventCount++;
-            }
-
-            if (end > Math.PI * 2) {
-                end -= Math.PI * 2;
-                initialEvents[initialEventCount] = eventCount;
-                initialEventCount++;
-            }
-
-            events[eventCount] = (long)(1000 * start) << 32 | eventCount;
-            events[eventCount + 1] = (long)(1000 * end) << 32 | eventCount + 1;
-            distances[eventCount] = dist;
-            pointsForHitting[eventCount] = 1f;
-            eventCount += 2;
-
-            potentialFiringDirections[firingDirections] = (long)(1000 * (dir.radians + (float)Math.PI));
-            firingDirections++;
-        }
-
-        int w2 = Clock.getBytecodeNum();
-
-        // Inlined sorting algorithm
-        int left = 2;
-        int right = eventCount - 1;
-        for (int i = left, j = i; i < right; j = ++i) {
-            long ai = events[i + 1];
-            while (ai < events[j]) {
-                events[j + 1] = events[j];
-                if (j-- == left) {
-                    break;
-                }
-            }
-            events[j + 1] = ai;
-        }
-
-        int w3 = Clock.getBytecodeNum();
-
-        int w4 = Clock.getBytecodeNum();
-        Arrays.sort(potentialFiringDirections, 0, firingDirections);
-
-        /*
-        for (int i = 2; i < eventCount; i++) {
-            long ev = events[i];
-            int id = (int)ev;
-            float angle = (ev >> 32) / 1000f;
-            //System.out.println(IDENT + "Event " + id + " at angle " + angle);
-        }*/
-
-        // Add events crossing the 0 radian mark
-        int prev = 0;
-        for (int i = 0; i < initialEventCount; i++) {
-            //System.out.println(IDENT + "Inserting initial id " + initialEvents[i]);
-            prev = next[prev] = initialEvents[i];
-        }
-        next[prev] = -1;
-
-        float bestScore = 0f;
-        long bestAngle = -1;
-
-        if (firingDirections == 0) {
-            // Nowhere to shoot
-            return;
-        }
-
-        int nextFiringDirectionIndex = 0;
-        long nextFiringDirection = potentialFiringDirections[0];
-
-        for (int i = 2; i < eventCount; i++) {
-            long ev = events[i];
-            int id = (int)ev;
-
-            long angle = ev >> 32;
-            if (angle > nextFiringDirection) {
-                // Calculate score for interval
-                float rayStrength = 1f;
-                float score = 0f;
-                int c = next[0];
-                while (c != -1) {
-                    score += rayStrength * pointsForHitting[c];
-                    rayStrength *= probabilityOfNotHitting[c];
-                    c = next[c];
-                }
-
-                if (score > bestScore) {
-                    bestScore = score;
-                    bestAngle = nextFiringDirection;
-                }
-
-                nextFiringDirectionIndex++;
-                if (nextFiringDirectionIndex < firingDirections) {
-                    nextFiringDirection = potentialFiringDirections[nextFiringDirectionIndex];
-                } else {
-                    // No more firing directions to consider
-                    break;
-                }
-            }
-
-            if ((id & 1) == 0) {
-                float dist = distances[id];
-                // Start of interval
-                // Insert into sorted linked list
-                //System.out.println(IDENT + "Inserting id " + id);
-                int c = 0;
-                while (true) {
-                    int k = next[c];
-                    if (k == -1 || dist < distances[k]) {
-                        next[id] = next[c];
-                        next[c] = id;
-                        break;
-                    }
-                    c = k;
-                }
-            } else {
-                // End of interval
-                // Remove from linked list
-                //System.out.println(IDENT + "Removing id " + id);
-                id -= 1;
-                int c = 0;
-                while (next[c] != id) {
-                    c = next[c];
-                }
-                next[c] = next[next[c]];
-            }
-        }
-
-
-        int w5 = Clock.getBytecodeNum();
-
-        if (hostileRobots.length > 1) {
-            System.out.println("Sweep: " + (w2 - w1) + " " + (w3 - w2) + " " + (w4 - w3) + " " + (w5 - w4) + ": " + hostileRobots.length + " " + friendlyRobots.length + " " + numTrees);
-        }
-
-        if (bestAngle != -1) {
-            float angle = (bestAngle / 1000f) - (float)Math.PI;
-            rc.fireSingleShot(new Direction(angle));
-        }
-    }
-
-    /**
-     * A slightly more complicated example function, this returns true if the given bullet is on a collision
-     * course with the current robot. Doesn't take into account objects between the bullet and this robot.
-     *
-     * @param bullet The bullet in question
-     * @return True if the line of the bullet's path intersects with this robot's current position.
-     */
-    boolean willCollideWithMe(BulletInfo bullet) {
-        MapLocation myLocation = rc.getLocation();
-        // get() relevant bullet information
-        Direction propagationDirection = bullet.dir;
-        MapLocation bulletLocation = bullet.location;
-        // Calculate bullet relations to this robot
-        Direction directionToRobot = bulletLocation.directionTo(myLocation);
-        float distToRobot = bulletLocation.distanceTo(myLocation);
-        float theta = propagationDirection.radiansBetween(directionToRobot);
-        // If theta > 90 degrees, then the bullet is traveling away from us and we can break early
-        if (Math.abs(theta) > Math.PI / 2) {
-            return false;
-        }
-        // distToRobot is our hypotenuse, theta is our angle, and we want to know this length of the opposite leg.
-        // This is the distance of a line that goes from myLocation and intersects perpendicularly with propagationDirection.
-        // This corresponds to the smallest radius circle centered at our location that would intersect with the
-        // line that is the path of the bullet.
-        float perpendicularDist = (float)Math.abs(distToRobot * Math.sin(theta)); // soh cah toa :)
-        return (perpendicularDist <= rc.getType().bodyRadius);
-    }
-
     /**
      * Return value in [bullets/tick]
      */
-    float treeScore(TreeInfo tree, MapLocation fromPos) {
+    static float treeScore(TreeInfo tree, MapLocation fromPos) {
         float turnsToChopDown = 1f;
         turnsToChopDown += (tree.health / GameConstants.LUMBERJACK_CHOP_DAMAGE);
         if (fromPos != null) turnsToChopDown += Math.sqrt(fromPos.distanceTo(tree.location) / type.strideRadius);
 
-        float score = ((tree.containedRobot != null ? tree.containedRobot.bulletCost * 1.5f : 0) + 1) / turnsToChopDown;
-        return score;
+        return ((tree.containedRobot != null ? tree.containedRobot.bulletCost * 1.5f : 0) + 1) / turnsToChopDown;
     }
 
-    Team teamOf(BodyInfo b) {
+    static Team teamOf(BodyInfo b) {
         if (b != null && b.isRobot()) return ((RobotInfo)b).team;
         if (b != null && b.isTree()) return ((TreeInfo)b).team;
         return Team.NEUTRAL;
-    }
-
-    /**
-     * First body on the line segment.
-     * Uses sampling so it is not perfectly accurate.
-     * \warning Assumes both the start point and the end point are within the sensor radius
-     */
-    BodyInfo linecastUnsafe(MapLocation a, MapLocation b) throws GameActionException {
-        Direction dir = a.directionTo(b);
-        float dist = a.distanceTo(b);
-
-        int steps = (int)(dist / 0.5f);
-        for (int t = 1; t <= steps; t++) {
-            MapLocation p = a.add(dir, dist * t / (float)steps);
-            if (rc.canSenseLocation(p) && rc.isLocationOccupied(p)) {
-                RobotInfo robot = rc.senseRobotAtLocation(p);
-                if (robot != null && robot.ID != rc.getID()) return robot;
-
-                TreeInfo tree = rc.senseTreeAtLocation(p);
-                if (tree != null) return tree;
-            }
-        }
-
-        return null;
     }
 
     /**
@@ -1423,9 +854,9 @@ abstract class Robot {
             float d = t * dx;
             MapLocation p = a.add(dir, d);
             if (rc.isCircleOccupiedExceptByThisRobot(p, radius)) {
-                if (rc.isCircleOccupiedExceptByThisRobot(a.add(dir, d - 0.75f*dx), radius)) return d - 0.75f*dx;
-                if (rc.isCircleOccupiedExceptByThisRobot(a.add(dir, d - 0.5f*dx), radius)) return d - 0.5f*dx;
-                if (rc.isCircleOccupiedExceptByThisRobot(a.add(dir, d - 0.25f*dx), radius)) return d - 0.25f*dx;
+                if (rc.isCircleOccupiedExceptByThisRobot(a.add(dir, d - 0.75f * dx), radius)) return d - 0.75f * dx;
+                if (rc.isCircleOccupiedExceptByThisRobot(a.add(dir, d - 0.5f * dx), radius)) return d - 0.5f * dx;
+                if (rc.isCircleOccupiedExceptByThisRobot(a.add(dir, d - 0.25f * dx), radius)) return d - 0.25f * dx;
                 return d;
             }
         }
@@ -1466,37 +897,12 @@ abstract class Robot {
         return null;
     }
 
-    BodyInfo linecastIgnoreTrees(MapLocation b) throws GameActionException {
-        MapLocation a = rc.getLocation();
-        Direction dir = a.directionTo(b);
-        float dist = a.distanceTo(b);
-        dist = Math.min(dist, type.sensorRadius * 0.99f);
-
-        float offset = Math.min(type.bodyRadius + 0.001f, dist);
-        a = a.add(dir, offset);
-        dist -= offset;
-
-        if (dist <= 0) {
-            return null;
-        }
-
-        int steps = (int)(dist / 0.5f);
-        for (int t = 1; t <= steps; t++) {
-            MapLocation p = a.add(dir, dist * t / (float)steps);
-            if (rc.isLocationOccupiedByRobot(p)) {
-                RobotInfo robot = rc.senseRobotAtLocation(p);
-                if (robot != null && robot.ID != rc.getID()) return robot;
-            }
-        }
-
-        return null;
-    }
-
     Direction lastBugDir;
-    MapLocation[] positionHistory = new MapLocation[40];
+    final MapLocation[] positionHistory = new MapLocation[40];
     int positionHistoryIndex = 0;
     int bugTiebreaker = 0;
-    void distBug (MapLocation target) throws GameActionException {
+
+    void distBug(MapLocation target) throws GameActionException {
         final float step = 0.2f;
 
         float distanceToTarget = rc.getLocation().distanceTo(target);
@@ -1513,7 +919,7 @@ abstract class Robot {
             // Turn as far as we can
             boolean any = false;
             for (int i = 0; i < steps; i++) {
-                Direction nextDir = lastBugDir.rotateLeftDegrees(bugTiebreaker*dtheta);
+                Direction nextDir = lastBugDir.rotateLeftDegrees(bugTiebreaker * dtheta);
                 if (rc.canMove(nextDir)) {
                     lastBugDir = nextDir;
                 } else {
@@ -1539,7 +945,7 @@ abstract class Robot {
             }
 
             for (int i = 0; i < steps; i++) {
-                Direction nextDir = lastBugDir.rotateRightDegrees(bugTiebreaker*dtheta*i);
+                Direction nextDir = lastBugDir.rotateRightDegrees(bugTiebreaker * dtheta * i);
                 if (rc.canMove(nextDir)) {
                     lastBugDir = nextDir;
                     break;
@@ -1553,9 +959,11 @@ abstract class Robot {
         }
 
         float historicalMinDist = distanceToTarget;
-        for (int i = 0; i < positionHistory.length; i++) if (positionHistory[i] != null) {
-            //rc.setIndicatorDot(positionHistory[i], 0, 0, 0);
-            historicalMinDist = Math.min(historicalMinDist, positionHistory[i].distanceTo(target));
+        for (MapLocation pos : positionHistory) {
+            if (pos != null) {
+                //rc.setIndicatorDot(positionHistory[i], 0, 0, 0);
+                historicalMinDist = Math.min(historicalMinDist, pos.distanceTo(target));
+            }
         }
 
         if (rc.canMove(rc.getLocation().directionTo(target))) {
@@ -1580,8 +988,10 @@ abstract class Robot {
     float fallbackDirectionLimit = 0.5f;
     int movementBlockedTicks = 0;
 
-    /** Moves toward the target and turns to follow object contours if necessary */
-    void optimisticBug (MapLocation target, BulletInfo[] bullets, RobotInfo[] units) throws GameActionException {
+    /**
+     * Moves toward the target and turns to follow object contours if necessary
+     */
+    void optimisticBug(MapLocation target, BulletInfo[] bullets, RobotInfo[] units) throws GameActionException {
         Direction desiredDir = rc.getLocation().directionTo(target);
         float desiredStride = Math.min(rc.getLocation().distanceTo(target), type.strideRadius);
 
@@ -1595,7 +1005,7 @@ abstract class Robot {
             Direction dir = desiredDir.rotateLeftRads(angle);
             //rc.setIndicatorLine(rc.getLocation(), rc.getLocation().add(dir, type.strideRadius), 200, fallbackMovementDirection > 0 ? 255 : 0, 200);
             if (rc.canMove(dir, desiredStride)) {
-                if (angle <= Math.PI*0.5f + 0.001f) {
+                if (angle <= Math.PI * 0.5f + 0.001f) {
                     fallbackDirectionLimit = 0.5f;
                 }
                 rc.move(dir, desiredStride);
@@ -1625,13 +1035,13 @@ abstract class Robot {
 
     MapLocation previousBestMove;
 
-    float[] bulletX = new float[100];
-    float[] bulletY = new float[100];
-    float[] bulletDx = new float[100];
-    float[] bulletDy = new float[100];
-    float[] bulletDamage = new float[100];
-    float[] bulletSpeed = new float[100];
-    MapLocation[] movesToConsider = new MapLocation[100];
+    final float[] bulletX = new float[100];
+    final float[] bulletY = new float[100];
+    final float[] bulletDx = new float[100];
+    final float[] bulletDy = new float[100];
+    final float[] bulletDamage = new float[100];
+    final float[] bulletSpeed = new float[100];
+    final MapLocation[] movesToConsider = new MapLocation[100];
 
     MapLocation moveToAvoidBullets(MapLocation secondaryTarget, BulletInfo[] bullets, RobotInfo[] units) throws GameActionException {
         if (rc.hasMoved()) return null;
@@ -1661,7 +1071,7 @@ abstract class Robot {
 
         if (secondaryTarget != null && myLocation.distanceTo(secondaryTarget) > 0) {
             movesToConsider[numMovesToConsider++] = myLocation.add(myLocation.directionTo(secondaryTarget), Math.min(myLocation.distanceTo(secondaryTarget), type.strideRadius));
-            if(rc.getType() == RobotType.LUMBERJACK) {
+            if (rc.getType() == RobotType.LUMBERJACK) {
                 movesToConsider[numMovesToConsider++] = myLocation;
             }
         } else {
@@ -1673,7 +1083,7 @@ abstract class Robot {
             //Direction dir = myLocation.directionTo(units[0].location);
             //movesToConsider[numMovesToConsider++] = myLocation.add(dir.opposite(), type.strideRadius);
             float dist = units[0].location.distanceTo(myLocation);
-            Direction dir = units[0].location.directionTo(myLocation).rotateRightRads(type.strideRadius/dist);
+            Direction dir = units[0].location.directionTo(myLocation).rotateRightRads(type.strideRadius / dist);
             movesToConsider[numMovesToConsider++] = units[0].location.add(dir, dist);
         }
 
@@ -1744,10 +1154,10 @@ abstract class Robot {
     float getDefensiveBulletAvoidanceScore(MapLocation loc, MapLocation reservedNodeLoc, int numBullets,
                                            float[] bulletX, float[] bulletY, float[] bulletDx, float[] bulletDy,
                                            float[] bulletDamage, float[] bulletSpeed,
-                                           RobotInfo[] units, MapLocation target) throws GameActionException {
+                                           RobotInfo[] units, MapLocation target) {
 
 
-        Team myTeam = rc.getTeam();
+        Team myTeam = ally;
         float score = 0f;
         boolean ignoreTarget = false;
         boolean isCoward = rc.getHealth() < type.maxHealth * 0.3f;
@@ -1793,7 +1203,7 @@ abstract class Robot {
                     score += Math.sqrt((tree.containedRobot != null ? tree.containedRobot.bulletCost * 1.5f : 0) + tree.containedBullets + 1) / (loc.distanceTo(tree.location) + 1);
                 } else if (tree.team == myTeam) {
                     score -= 1f / (loc.distanceTo(tree.location));
-                } else{
+                } else {
                     score += 4f / (loc.distanceTo(tree.location));
                 }
             }
@@ -1816,7 +1226,7 @@ abstract class Robot {
                     }
                 }
             }
-        } else if(type == RobotType.ARCHON) {
+        } else if (type == RobotType.ARCHON) {
             for (RobotInfo unit : units) {
                 if (unit.team == myTeam) {
                     if (unit.ID == rc.getID())
@@ -1835,7 +1245,7 @@ abstract class Robot {
                             break;
                         default: // Scout/Soldier/Tank
                             // Note: Potential should be positive for some point within the sensor radius otherwise we will just flee
-                            if(isCoward)
+                            if (isCoward)
                                 score -= 2f / (loc.distanceSquaredTo(unit.location) + 1);
                             else
                                 score += 1f / (loc.distanceSquaredTo(unit.location) + 1);
@@ -1870,17 +1280,17 @@ abstract class Robot {
                             break;
                         case SCOUT:
                             float dis = loc.distanceTo(unit.location);
-                            if(isCoward)
-                                score += 0.5 / (dis + 1) - 2f / (dis*dis + 1);
+                            if (isCoward)
+                                score += 0.5 / (dis + 1) - 2f / (dis * dis + 1);
                             else
                                 score += 1 / (dis + 1);
                             break;
                         default: // Soldier/Tank
                             dis = loc.distanceTo(unit.location);
-                            if(isCoward)
-                                score += 1 / (dis + 1) - 7f / (dis*dis + 1);
+                            if (isCoward)
+                                score += 1 / (dis + 1) - 7f / (dis * dis + 1);
                             else
-                                score += 1.5 / (dis + 1) - 6f / (dis*dis + 1);
+                                score += 1.5 / (dis + 1) - 6f / (dis * dis + 1);
                             break;
                         case LUMBERJACK:
                             dis = loc.distanceTo(unit.location);
@@ -1904,7 +1314,6 @@ abstract class Robot {
      * Determine whether a bullet can possibly hit us
      */
     boolean bulletCanHitUs(MapLocation loc, BulletInfo bullet) {
-        float dmg = 0f;
         float radius = type.bodyRadius + type.strideRadius;
         float sqrRadius = radius * radius;
         // Current bullet position
@@ -1923,12 +1332,9 @@ abstract class Robot {
         // The bullet cannot possibly hit us
         if (sqrDistanceToLineOfTravel > sqrRadius)
             return false;
-        if (dot < 0 && sqrRadius - sqrDistanceToLineOfTravel < dot * dot) {
-            // The bullet has already passed us. Everything is ok!
-            return false;
-        }
 
-        return true;
+        // Finally make sure the bullet has not already passed us
+        return !(dot < 0 && sqrRadius - sqrDistanceToLineOfTravel < dot * dot);
     }
 
     /**
@@ -2011,8 +1417,8 @@ abstract class Robot {
         }
     }
 
-    <T> T randomChoice(T[] values) {
-        return values.length > 0 ? values[(int)(rnd.nextFloat() * values.length)] : null;
+    static <T> T randomChoice(T[] values, T def) {
+        return values.length > 0 ? values[(int)(rnd.nextFloat() * values.length)] : def;
     }
 
     void considerDonating() throws GameActionException {
@@ -2025,7 +1431,7 @@ abstract class Robot {
         if (turnsUntilVictory < 200 || rc.getRoundNum() > rc.getRoundLimit() - 300 || rc.getTeamBullets() > 2000 ||
                 (gardenerCount == 0 && archonCount == 0 && rc.getTeamBullets() > 20 && rc.getRoundNum() > 50)) {
             int toKeep = turnsUntilVictory < 50 ? 0 : 200;
-            int shouldBuy = (int)Math.floor((rc.getTeamBullets() - toKeep)/ cost);
+            int shouldBuy = (int)Math.floor((rc.getTeamBullets() - toKeep) / cost);
             double donate = shouldBuy * cost + 0.0001;
             if (donate > 0) {
                 rc.donate((float)donate);
@@ -2034,7 +1440,6 @@ abstract class Robot {
     }
 
     void fireAtNearbyTree(TreeInfo[] trees) throws GameActionException {
-        Team enemy = rc.getTeam().opponent();
         int turnsLeft = rc.getRoundLimit() - rc.getRoundNum();
 
         for (TreeInfo tree : trees) {

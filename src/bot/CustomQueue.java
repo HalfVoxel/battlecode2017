@@ -6,7 +6,7 @@ class CustomQueue {
     public int head;
     public int tail;
 
-    public CustomQueue () {
+    public CustomQueue() {
     }
 
     public void addLast(int e) {

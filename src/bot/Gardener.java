@@ -2,19 +2,14 @@ package bot;
 
 import battlecode.common.*;
 
-import java.nio.channels.AcceptPendingException;
-import java.util.Random;
-
 class Gardener extends Robot {
 
     boolean blockedByNeutralTrees = false;
     int lastBuildLumberjackTime = -1000;
 
-    void water(TreeInfo[] trees) throws GameActionException {
+    void water() throws GameActionException {
         if (rc.canWater()) {
-            if (trees == null) {
-                trees = rc.senseNearbyTrees(type.bodyRadius + type.strideRadius + 0.01f, rc.getTeam());
-            }
+            TreeInfo[] trees = rc.senseNearbyTrees(type.bodyRadius + type.strideRadius + 0.01f, ally);
 
             TreeInfo minHealthTree = null;
             for (TreeInfo tree : trees) {
@@ -36,15 +31,11 @@ class Gardener extends Robot {
 
         boolean canSeeTarget = target.distanceSquaredTo(rc.getLocation()) < 0.01f || rc.canSenseAllOfCircle(target.add(0, 0.001f), freeRadius);
 
-        if (canSeeTarget && (!onMap(target.add(0, 0.001f), freeRadius) || rc.isCircleOccupiedExceptByThisRobot(target.add(0, 0.001f), freeRadius))) {
-            return false;
-        }
-
-        return true;
+        return !canSeeTarget || (onMap(target.add(0, 0.001f), freeRadius) && !rc.isCircleOccupiedExceptByThisRobot(target.add(0, 0.001f), freeRadius));
     }
 
     MapLocation pickTarget(float freeRadius) throws GameActionException {
-        MapLocation target = null;
+        MapLocation target;
         int tests = 0;
         do {
             // Pick a new target
@@ -110,7 +101,6 @@ class Gardener extends Robot {
     }
 
     MapLocation plantTrees(MapLocation settledLocation) throws GameActionException {
-        MapLocation myLocation = rc.getLocation();
         blockedByNeutralTrees = false;
 
         for (int tries = 0; tries < 2; tries++) {
@@ -118,12 +108,12 @@ class Gardener extends Robot {
             for (int i = 0; i < 6; i++) {
                 if (rc.hasMoved()) break;
 
-                Direction dir = new Direction(2 * (float) Math.PI * i / 6f);
+                Direction dir = new Direction(2 * (float)Math.PI * i / 6f);
                 MapLocation origPos = settledLocation != null ? settledLocation : rc.getLocation();
                 MapLocation plantPos = origPos.add(dir, type.bodyRadius + type.strideRadius + GameConstants.BULLET_TREE_RADIUS);
                 if (rc.isCircleOccupiedExceptByThisRobot(plantPos, GameConstants.BULLET_TREE_RADIUS + 0.01f) || !onMap(plantPos, GameConstants.BULLET_TREE_RADIUS + 0.01f)) {
                     TreeInfo tree = rc.senseTreeAtLocation(plantPos);
-                    if (tries > 0 && ((tree != null && tree.team != rc.getTeam()) || (tree == null && rc.senseNearbyTrees(plantPos, GameConstants.BULLET_TREE_RADIUS + 0.01f, Team.NEUTRAL).length > 0))) {
+                    if (tries > 0 && ((tree != null && tree.team != ally) || (tree == null && rc.senseNearbyTrees(plantPos, GameConstants.BULLET_TREE_RADIUS + 0.01f, Team.NEUTRAL).length > 0))) {
                         blockedByNeutralTrees = true;
                         rc.setIndicatorDot(plantPos, 255, 0, 255);
                     } else {
@@ -163,11 +153,13 @@ class Gardener extends Robot {
         return settledLocation;
     }
 
-    /** Marks nearby trees as high priority for woodcutters, marks nearby nodes as reserved so that other units will try to avoid them */
+    /**
+     * Marks nearby trees as high priority for woodcutters, marks nearby nodes as reserved so that other units will try to avoid them
+     */
     void reserveSettlingLocation(MapLocation loc) throws GameActionException {
         // Just settled
         // Mark all nearby trees as high priority for woodcutters to chop down
-        TreeInfo[] trees = rc.senseNearbyTrees(loc, type.bodyRadius + 2*GameConstants.BULLET_TREE_RADIUS + 0.01f, null);
+        TreeInfo[] trees = rc.senseNearbyTrees(loc, type.bodyRadius + 2 * GameConstants.BULLET_TREE_RADIUS + 0.01f, null);
         for (TreeInfo tree : trees) markAsHighPriority(tree.ID);
 
         int index = snapToNode(loc);
@@ -179,166 +171,167 @@ class Gardener extends Robot {
         }
     }
 
+    MapLocation target;
+    final int STOP_SPENDING_AT_TIME = 100;
+    final float desiredRadius = type.bodyRadius + 2.01f * GameConstants.BULLET_TREE_RADIUS;
+    int moveFailCounter = 0;
+    boolean hasBuiltScout = false;
+    boolean hasSettled = false;
+    int unsettledTime = 0;
+    int movesWithTarget = 0;
+    float speedToTarget = 0f;
+
     @Override
-    public void run() throws GameActionException {
+    public void onAwake() throws GameActionException {
         System.out.println("I'm a gardener!");
 
-        // The code you want your robot to perform every round should be in this loop
-
-        MapLocation target = rc.getLocation();
-        float desiredRadius = type.bodyRadius + 2.01f * GameConstants.BULLET_TREE_RADIUS;
-        int moveFailCounter = 0;
-        boolean hasBuiltScout = false;
-        boolean hasSettled = false;
-        int unsettledTime = 0;
-        int STOP_SPENDING_AT_TIME = 100;
-        int movesWithTarget = 0;
-        float speedToTarget = 0f;
+        target = rc.getLocation();
 
         buildLumberjackInDenseForests();
+    }
 
-        while (true) {
-            int turnsLeft = rc.getRoundLimit() - rc.getRoundNum();
-            boolean saveForTank = false;
-            int tankCount = spawnedCount(RobotType.TANK);
-            int gardenerCount = spawnedCount(RobotType.GARDENER);
-            int scoutCount = spawnedCount(RobotType.SCOUT);
-            int soldierCount = spawnedCount(RobotType.SOLDIER);
+    @Override
+    public void onUpdate() throws GameActionException {
+        int turnsLeft = rc.getRoundLimit() - rc.getRoundNum();
+        boolean saveForTank = false;
+        int tankCount = spawnedCount(RobotType.TANK);
+        int gardenerCount = spawnedCount(RobotType.GARDENER);
+        int scoutCount = spawnedCount(RobotType.SCOUT);
+        int soldierCount = spawnedCount(RobotType.SOLDIER);
 
-            if (rc.getTreeCount() > tankCount * 20 + 10 && rc.getTeamBullets() <= RobotType.TANK.bulletCost + 100 && gardenerCount > 1 && scoutCount > 2) {
-                saveForTank = true;
-            }
-
-            if (!hasSettled) {
-                unsettledTime += 1;
-                TreeInfo[] trees = rc.senseNearbyTrees(type.sensorRadius, rc.getTeam());
-                TreeInfo minHealthTree = null;
-                float bestScore = -1000000;
-                for (TreeInfo tree : trees) {
-                    float score = (50f - tree.health) / tree.location.distanceTo(rc.getLocation());
-                    if (minHealthTree == null || score > bestScore) {
-                        // This probably means the tree isn't tended to by anyone else
-                        minHealthTree = tree;
-                        bestScore = score;
-                    }
-                }
-                if (minHealthTree != null) {
-                    tryMove(rc.getLocation().directionTo(minHealthTree.location));
-                    target = rc.getLocation();
-                }
-            }
-
-            boolean saveForLumberjack = false;
-            if (turnsLeft > STOP_SPENDING_AT_TIME)
-                saveForLumberjack = buildLumberjackInDenseForests();
-
-            boolean invalidTarget = (moveFailCounter > 5 || speedToTarget < type.strideRadius * 0.2f || !likelyValidTarget(target, desiredRadius)) && !hasSettled;
-            boolean canSeeTarget = target.distanceSquaredTo(rc.getLocation()) < 0.01f || rc.canSenseAllOfCircle(target, desiredRadius);
-
-            RobotType buildTarget;
-            if (scoutCount == 0)
-                buildTarget = RobotType.SCOUT;
-
-            else
-                buildTarget = RobotType.SOLDIER;
-            int buildTargetCount = buildTarget == RobotType.SCOUT ? scoutCount : soldierCount;
-            if ((!hasBuiltScout || Math.pow(rc.getTreeCount() + 1, 0.9) > buildTargetCount) && !saveForTank &&
-                    rc.isBuildReady() && rc.hasRobotBuildRequirements(buildTarget) && !saveForLumberjack) {
-                saveForTank = true;
-                boolean built = false;
-                for (int i = 0; i < 6; i++) {
-                    Direction dir = new Direction(2 * (float) Math.PI * i / 6f);
-                    if (rc.canBuildRobot(buildTarget, dir) && turnsLeft > STOP_SPENDING_AT_TIME) {
-                        rc.buildRobot(buildTarget, dir);
-                        rc.broadcast(buildTarget.ordinal(), buildTargetCount + 1);
-                        rc.broadcast(GARDENER_CAN_PROBABLY_BUILD, 0);
-                        hasBuiltScout = true;
-                        built = true;
-                        break;
-                    }
-                }
-
-                if (!built) {
-                    // Noes! Could not build ANYWHERE!
-                    rc.setIndicatorDot(rc.getLocation(), 255, 192, 203);
-                    rc.broadcast(GARDENER_CAN_PROBABLY_BUILD, rc.readBroadcast(GARDENER_CAN_PROBABLY_BUILD) + 1);
-                }
-            } else {
-                rc.broadcast(GARDENER_CAN_PROBABLY_BUILD, 0);
-            }
-
-            if (invalidTarget && movesWithTarget > 3) {
-                target = pickTarget(desiredRadius);
-                //System.out.println("Picked new target " + target)
-                moveFailCounter = 0;
-                movesWithTarget = 0;
-                rc.setIndicatorDot(target, 255, 0, 0);
-            }
-
-            movesWithTarget++;
-            rc.setIndicatorLine(rc.getLocation(), target, 255, 0, 0);
-
-            if (rc.hasRobotBuildRequirements(RobotType.TANK) && saveForTank) {
-                for (int i = 0; i < 6; i++) {
-                    Direction dir = new Direction(2 * (int) Math.PI * i / 6f);
-                    if (rc.canBuildRobot(RobotType.TANK, dir) && turnsLeft > STOP_SPENDING_AT_TIME) {
-                        rc.buildRobot(RobotType.TANK, dir);
-                        tankCount += 1;
-                        rc.broadcast(RobotType.TANK.ordinal(), tankCount);
-                    }
-                }
-            }
-
-            if (canSeeTarget && ((!invalidTarget && rc.getLocation().distanceSquaredTo(target) < 2f) || unsettledTime > 30) && !saveForTank && turnsLeft > STOP_SPENDING_AT_TIME && rc.hasTreeBuildRequirements() && rc.isBuildReady()) {
-                // At target
-                MapLocation settledLocation = plantTrees(hasSettled ? target : null);
-                if (settledLocation != null) {
-                    if (!hasSettled) {
-                        // Just settled
-                        reserveSettlingLocation(rc.getLocation());
-                    }
-                    target = settledLocation;
-                    hasSettled = true;
-                }
-
-                //System.out.println("Lost all trees around me, moving again")
-            }
-
-            if (!hasSettled) {
-                BulletInfo[] bullets = rc.senseNearbyBullets(type.strideRadius + type.bodyRadius + 3f);
-                RobotInfo[] units = rc.senseNearbyRobots();
-
-                if (!rc.hasMoved()) {
-                    float d1 = rc.getLocation().distanceTo(target);
-                    MapLocation moveTo = moveToAvoidBullets(target, bullets, units);
-                    if(moveTo != null)
-                        rc.move(moveTo);
-                    float d2 = rc.getLocation().distanceTo(target);
-                    speedToTarget *= 0.5f;
-                    speedToTarget += 0.5f * (d1 - d2);
-                }
-                /*if (!rc.hasMoved() && moveToAvoidBullets(target, )) {
-                    moveFailCounter = 0;
-                } else {
-                    // Couldn't move there? huh
-                    moveFailCounter += 1;
-                    //System.out.println("Move failed")
-                }*/
-            }
-
-			/*
-            // Randomly attempt to build a soldier or lumberjack in this direction
-			if (rc.canBuildRobot(RobotType.SOLDIER, dir) && Math.random < .01) {
-				rc.buildRobot(RobotType.SOLDIER, dir)
-			} else if (rc.canBuildRobot(RobotType.LUMBERJACK, dir) && Math.random < .01 && rc.isBuildReady) {
-				rc.buildRobot(RobotType.LUMBERJACK, dir)
-			}
-			// Move randomly
-			tryMove(randomDirection)
-			*/
-            // Clock.yield() makes the robot wait until the next turn, then it will perform this loop again
-            water(null);
-            yieldAndDoBackgroundTasks();
+        if (rc.getTreeCount() > tankCount * 20 + 10 && rc.getTeamBullets() <= RobotType.TANK.bulletCost + 100 && gardenerCount > 1 && scoutCount > 2) {
+            saveForTank = true;
         }
+
+        if (!hasSettled) {
+            unsettledTime += 1;
+            TreeInfo[] trees = rc.senseNearbyTrees(type.sensorRadius, ally);
+            TreeInfo minHealthTree = null;
+            float bestScore = -1000000;
+            for (TreeInfo tree : trees) {
+                float score = (50f - tree.health) / tree.location.distanceTo(rc.getLocation());
+                if (minHealthTree == null || score > bestScore) {
+                    // This probably means the tree isn't tended to by anyone else
+                    minHealthTree = tree;
+                    bestScore = score;
+                }
+            }
+            if (minHealthTree != null) {
+                tryMove(rc.getLocation().directionTo(minHealthTree.location));
+                target = rc.getLocation();
+            }
+        }
+
+        boolean saveForLumberjack = false;
+        if (turnsLeft > STOP_SPENDING_AT_TIME)
+            saveForLumberjack = buildLumberjackInDenseForests();
+
+        boolean invalidTarget = (moveFailCounter > 5 || speedToTarget < type.strideRadius * 0.2f || !likelyValidTarget(target, desiredRadius)) && !hasSettled;
+        boolean canSeeTarget = target.distanceSquaredTo(rc.getLocation()) < 0.01f || rc.canSenseAllOfCircle(target, desiredRadius);
+
+        RobotType buildTarget;
+        if (scoutCount == 0)
+            buildTarget = RobotType.SCOUT;
+
+        else
+            buildTarget = RobotType.SOLDIER;
+        int buildTargetCount = buildTarget == RobotType.SCOUT ? scoutCount : soldierCount;
+        if ((!hasBuiltScout || Math.pow(rc.getTreeCount() + 1, 0.9) > buildTargetCount) && !saveForTank &&
+                rc.isBuildReady() && rc.hasRobotBuildRequirements(buildTarget) && !saveForLumberjack) {
+            saveForTank = true;
+            boolean built = false;
+            for (int i = 0; i < 6; i++) {
+                Direction dir = new Direction(2 * (float)Math.PI * i / 6f);
+                if (rc.canBuildRobot(buildTarget, dir) && turnsLeft > STOP_SPENDING_AT_TIME) {
+                    rc.buildRobot(buildTarget, dir);
+                    rc.broadcast(buildTarget.ordinal(), buildTargetCount + 1);
+                    rc.broadcast(GARDENER_CAN_PROBABLY_BUILD, 0);
+                    hasBuiltScout = true;
+                    built = true;
+                    break;
+                }
+            }
+
+            if (!built) {
+                // Noes! Could not build ANYWHERE!
+                rc.setIndicatorDot(rc.getLocation(), 255, 192, 203);
+                rc.broadcast(GARDENER_CAN_PROBABLY_BUILD, rc.readBroadcast(GARDENER_CAN_PROBABLY_BUILD) + 1);
+            }
+        } else {
+            rc.broadcast(GARDENER_CAN_PROBABLY_BUILD, 0);
+        }
+
+        if (invalidTarget && movesWithTarget > 3) {
+            target = pickTarget(desiredRadius);
+            //System.out.println("Picked new target " + target)
+            moveFailCounter = 0;
+            movesWithTarget = 0;
+            rc.setIndicatorDot(target, 255, 0, 0);
+        }
+
+        movesWithTarget++;
+        rc.setIndicatorLine(rc.getLocation(), target, 255, 0, 0);
+
+        if (rc.hasRobotBuildRequirements(RobotType.TANK) && saveForTank) {
+            for (int i = 0; i < 6; i++) {
+                Direction dir = new Direction(2 * (int)Math.PI * i / 6f);
+                if (rc.canBuildRobot(RobotType.TANK, dir) && turnsLeft > STOP_SPENDING_AT_TIME) {
+                    rc.buildRobot(RobotType.TANK, dir);
+                    tankCount += 1;
+                    rc.broadcast(RobotType.TANK.ordinal(), tankCount);
+                }
+            }
+        }
+
+        if (canSeeTarget && ((!invalidTarget && rc.getLocation().distanceSquaredTo(target) < 2f) || unsettledTime > 30) && !saveForTank && turnsLeft > STOP_SPENDING_AT_TIME && rc.hasTreeBuildRequirements() && rc.isBuildReady()) {
+            // At target
+            MapLocation settledLocation = plantTrees(hasSettled ? target : null);
+            if (settledLocation != null) {
+                if (!hasSettled) {
+                    // Just settled
+                    reserveSettlingLocation(rc.getLocation());
+                }
+                target = settledLocation;
+                hasSettled = true;
+            }
+
+            //System.out.println("Lost all trees around me, moving again")
+        }
+
+        if (!hasSettled) {
+            BulletInfo[] bullets = rc.senseNearbyBullets(type.strideRadius + type.bodyRadius + 3f);
+            RobotInfo[] units = rc.senseNearbyRobots();
+
+            if (!rc.hasMoved()) {
+                float d1 = rc.getLocation().distanceTo(target);
+                MapLocation moveTo = moveToAvoidBullets(target, bullets, units);
+                if (moveTo != null)
+                    rc.move(moveTo);
+                float d2 = rc.getLocation().distanceTo(target);
+                speedToTarget *= 0.5f;
+                speedToTarget += 0.5f * (d1 - d2);
+            }
+            /*if (!rc.hasMoved() && moveToAvoidBullets(target, )) {
+                moveFailCounter = 0;
+            } else {
+                // Couldn't move there? huh
+                moveFailCounter += 1;
+                //System.out.println("Move failed")
+            }*/
+        }
+
+        /*
+        // Randomly attempt to build a soldier or lumberjack in this direction
+        if (rc.canBuildRobot(RobotType.SOLDIER, dir) && Math.random < .01) {
+            rc.buildRobot(RobotType.SOLDIER, dir)
+        } else if (rc.canBuildRobot(RobotType.LUMBERJACK, dir) && Math.random < .01 && rc.isBuildReady) {
+            rc.buildRobot(RobotType.LUMBERJACK, dir)
+        }
+        // Move randomly
+        tryMove(randomDirection)
+        */
+        // Clock.yield() makes the robot wait until the next turn, then it will perform this loop again
+        water();
+        yieldAndDoBackgroundTasks();
     }
 }
