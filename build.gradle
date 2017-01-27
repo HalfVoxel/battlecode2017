@@ -159,6 +159,12 @@ task run(type: JavaExec, dependsOn: 'build') {
     ]
 }
 
+task listBattleCodeJar(dependsOn: 'build') {
+    doLast {
+        configurations.compile.files.each { println it }
+    }
+}
+
 // This task prints out all available players, in the format that the `run`
 // task expects them to be given as.
 task listPlayers {

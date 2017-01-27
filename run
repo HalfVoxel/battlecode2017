@@ -13,7 +13,7 @@ maps = ["Arena", "Barbell", "Barrier", "Boxed", "Bullseye", "Chess", "Clusters",
 lowerMaps = [m.lower() for m in maps]
 
 parser = argparse.ArgumentParser(description='Run BattleCode Bots')
-parser.add_argument("-m", "--map", help="Which map to use", choices=lowerMaps, default=maps[-1], type=str.lower)
+parser.add_argument("-m", "--map", help="Which map to use", choices=lowerMaps, default=maps[0], type=str.lower)
 parser.add_argument("-a", "--teamA", help="Team A")
 parser.add_argument("-b", "--teamB", help="Team B")
 parser.add_argument("--tournament", help="Play multiple games and rank the teams", action="store_true")
@@ -36,9 +36,16 @@ reset = "\033[0m"
 clearScreen = "\033[2J"
 active_commands = []
 
+print(yellowStr + "Building..." + reset, end="")
+sys.stdout.flush()
+buildOutput = subprocess.check_output(["./gradlew", "listBattleCodeJar"]).decode('utf-8')
+battlecodeJarPath = re.search("[^\n]*\.jar", buildOutput).group(0)
+print("\r", end="")
+
 
 def execute(cmd, quiet):
     popen = subprocess.Popen(cmd,
+                             bufsize=-1,
                              stdout=subprocess.PIPE,
                              stderr=subprocess.DEVNULL if quiet else None,
                              universal_newlines=False
@@ -66,23 +73,35 @@ def execute(cmd, quiet):
 
 
 def run(teamA, teamB, maps, quiet, seed):
-    gradleArgs = ["./gradlew", "run"]
+    jvmArgs = [
+        "java",
+        "-classpath", battlecodeJarPath,
+        "-Dbc.server.mode=headless",
+        "-Dbc.game.team-a=bot",
+        "-Dbc.game.team-b=bot",
+        "-Dbc.server.map-path=maps",
+        "-Dbc.server.debug=" + str(not quiet),
+        "-Dbc.server.debug=" + str(not quiet),
+        "-Dbc.game.maps=" + ",".join(maps)
+    ]
 
     if teamA is not None:
-        gradleArgs.append("-PteamAclasspath=" + os.path.join(os.getcwd(), "backups/" + teamA))
+        jvmArgs.append("-Dbc.game.team-a.url=" + os.path.join(os.getcwd(), "backups/" + teamA))
+    else:
+        jvmArgs.append("-Dbc.game.team-a.url=build/classes")
 
     if teamB is not None:
-        gradleArgs.append("-PteamBclasspath=" + os.path.join(os.getcwd(), "backups/" + teamB))
-
-    if maps is not None:
-        gradleArgs.append("-Pmaps=" + ",".join(maps))
+        jvmArgs.append("-Dbc.game.team-b.url=" + os.path.join(os.getcwd(), "backups/" + teamB))
+    else:
+        jvmArgs.append("-Dbc.game.team-b.url=build/classes")
 
     if seed is not None:
-        gradleArgs.append("-Pseed=" + str(seed))
+        jvmArgs.append("-Dbc.testing.seed=" + str(seed))
 
+    jvmArgs.append("battlecode.server.Main")
     winRegex = re.compile(r"bot \(([AB])\) wins \(round (\d+)\)")
     reasonRegex = re.compile(r"Reason: The winning team won ([^\n\.]+)")
-    gen = execute(gradleArgs, quiet)
+    gen = execute(jvmArgs, quiet)
     for line in gen:
         win = winRegex.search(line)
         if win is not None:
