@@ -18,6 +18,7 @@ abstract class Robot {
     static Team enemy;
     static Team ally;
     static MapLocation[] initialArchonLocations;
+    static MapLocation[] ourInitialArchonLocations;
 
     static final int MAP_EDGE_BROADCAST_OFFSET = 10;
     static final int HIGH_PRIORITY_TARGET_OFFSET = 20;
@@ -67,6 +68,7 @@ abstract class Robot {
 
         ally = rc.getTeam();
         enemy = ally.opponent();
+        ourInitialArchonLocations = rc.getInitialArchonLocations(ally);
         initialArchonLocations = rc.getInitialArchonLocations(enemy);
 
         // Set the exploration origin if it has not been set already

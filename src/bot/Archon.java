@@ -12,8 +12,8 @@ class Archon extends Robot {
     public void onAwake() throws GameActionException {
         System.out.println("I'm an archon! ");
 
-        for (int i = 0; i < initialArchonLocations.length; i++) {
-            if (initialArchonLocations[i].distanceTo(rc.getLocation()) < 2f) {
+        for (int i = 0; i < ourInitialArchonLocations.length; i++) {
+            if (ourInitialArchonLocations[i].distanceTo(rc.getLocation()) < 2f) {
                 archonIndex = i;
             }
         }
