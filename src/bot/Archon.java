@@ -66,24 +66,19 @@ class Archon extends Robot {
 
         boolean gardenersSeemToBeBlocked = rc.readBroadcast(GARDENER_CAN_PROBABLY_BUILD) > gardenerCount * 20 + 10;
         if (rc.hasRobotBuildRequirements(RobotType.GARDENER) && isGoodArchon && (gardenersSeemToBeBlocked || gardenerCount < 1 || rc.getTreeCount() > 4 * gardenerCount || rc.getTeamBullets() > RobotType.TANK.bulletCost + 100) && !saveForTank) {
-            boolean couldBuild = false;
-            for (int attempts = 0; attempts < 6; attempts += 1) {
-                // Generate a random direction
-                Direction dir = randomDirection();
-                if (rc.canHireGardener(dir) && turnsLeft > STOP_SPENDING_AT_TIME) {
-                    rc.hireGardener(dir);
-                    rc.broadcast(RobotType.GARDENER.ordinal(), gardenerCount + 1);
-                    if (gardenersSeemToBeBlocked) {
-                        System.out.println("Hired gardener because all the existing ones seem to be blocked");
-                    }
+            // Spend more time trying to find a position to build a gardener on if we haven't built any gardeners yet
+            int iterations = gardenerCount == 0 ? 100 : 20;
+            boolean couldBuild = tryHireGardener(iterations);
 
-                    rc.broadcast(GARDENER_CAN_PROBABLY_BUILD, 0);
-                    couldBuild = true;
-                    break;
+            if (couldBuild) {
+                if (gardenersSeemToBeBlocked) {
+                    System.out.println("Hired gardener because all the existing ones seem to be blocked");
                 }
-            }
-            if (!couldBuild)
+
+                rc.broadcast(GARDENER_CAN_PROBABLY_BUILD, 0);
+            } else {
                 buildScore -= 10000;
+            }
         }
         rc.broadcastFloat(ARCHON_BUILD_SCORE + 2 * archonIndex, buildScore);
         rc.broadcast(ARCHON_BUILD_SCORE + 2 * archonIndex + 1, rc.getRoundNum());
@@ -98,6 +93,57 @@ class Archon extends Robot {
         yieldAndDoBackgroundTasks();
 
         debug_resign();
+    }
+
+    public boolean tryHireGardener(int iterations) throws GameActionException {
+        int bestScore = 0;
+        Direction bestDir = null;
+        for (int attempts = 0; attempts < iterations; attempts++) {
+            if (Clock.getBytecodesLeft() < 5000) break;
+
+            // Generate a random direction
+            Direction dir = randomDirection();
+            MapLocation spawnPos = rc.getLocation().add(dir, type.bodyRadius + RobotType.GARDENER.bodyRadius + GameConstants.GENERAL_SPAWN_OFFSET);
+            if (rc.canHireGardener(dir)) {
+                rc.setIndicatorDot(spawnPos, 255, 255, 0);
+                int score = canGardenerBuildAnythingAtLocation(spawnPos);
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestDir = dir;
+                }
+            } else {
+                rc.setIndicatorDot(spawnPos, 255, 0, 0);
+            }
+        }
+
+        if (bestDir != null && rc.canHireGardener(bestDir)) {
+            // Looks good
+            rc.hireGardener(bestDir);
+            int gardenerCount = spawnedCount(RobotType.GARDENER);
+            rc.broadcast(RobotType.GARDENER.ordinal(), gardenerCount + 1);
+            return true;
+        }
+
+        return false;
+    }
+
+    int canGardenerBuildAnythingAtLocation (MapLocation p) throws GameActionException {
+        // Try with a lower dtheta and stride if we couldn't find any direction to move in the first time
+        float dtheta = 6;
+
+        final int steps = (int)(360 / dtheta);
+
+        int cnt = 0;
+        for (int i = 0; i < steps; i++) {
+            Direction dir = new Direction(i * dtheta * (float)Math.PI / 180);
+            MapLocation potentialPos = p.add(dir, RobotType.GARDENER.bodyRadius*2 + GameConstants.GENERAL_SPAWN_OFFSET);
+            // Only check for a radius of 0.9 to be able to handle really cramped maps
+            if (onMap(potentialPos, 1f) && !rc.isCircleOccupied(potentialPos, 0.9f)) {
+                cnt++;
+            }
+        }
+
+        return cnt;
     }
 
     private static final CustomQueue queue = new CustomQueue();
