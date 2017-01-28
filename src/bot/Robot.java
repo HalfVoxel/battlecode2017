@@ -938,11 +938,10 @@ abstract class Robot {
             }
         }
 
-        for (int tries = 0; tries < 3; tries++) {
+        for (int tries = 0; tries < 2; tries++) {
             // Try with a lower dtheta and stride if we couldn't find any direction to move in the first time
             float dtheta = tries == 0 ? 6 : 1f + rnd.nextFloat()*0.1f;
             float stride = tries == 0 ? type.strideRadius : type.strideRadius * rnd.nextFloat();
-            if (tries == 2) stride *= 0.3f;
 
             final int steps = (int)(360 / dtheta);
 
