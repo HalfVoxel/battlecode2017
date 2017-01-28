@@ -23,7 +23,8 @@ maps = [
     "PacMan", "PasscalsTriangles", "PeacefulEncounter", "Planets", "Present",
     "PureImagination", "Shortcut", "Shrubbery", "Slant", "Snowflake",
     "SparseForest", "Sprinkles", "Standoff", "TheOtherSide", "TicTacToe",
-    "TreeFarm", "Turtle", "Waves", "Whirligig", "shrine"
+    "TreeFarm", "Turtle", "Waves", "Whirligig", "shrine",
+    "Sacrifice",
 ]
 lowerMaps = [m.lower() for m in maps]
 
@@ -134,9 +135,14 @@ def run(teamA, teamB, maps, quiet, seed, teamAdna, teamBdna):
     jvmArgs.append("battlecode.server.Main")
     winRegex = re.compile(r"bot \(([AB])\) wins \(round (\d+)\)")
     reasonRegex = re.compile(r"Reason: The winning team won ([^\n\.]+)")
+    mapIndex = 0
     try:
         gen = execute(jvmArgs, quiet)
         for line in gen:
+            if "ARCHON SACRIFICE" in line:
+                # Important event
+                print(redStr + "An archon was sacrificed in the map '" + maps[mapIndex] + "'" + reset)
+
             win = winRegex.search(line)
             if win is not None:
                 reason = reasonRegex.search(next(gen))
@@ -144,6 +150,7 @@ def run(teamA, teamB, maps, quiet, seed, teamAdna, teamBdna):
                 winningTeam = win.group(1)
                 round = int(win.group(2))
                 reason = reason.group(1)
+                mapIndex += 1
                 yield (winningTeam, round, reason)
     except subprocess.CalledProcessError:
         print("Server crashed. Ignoring the rest of the maps")
