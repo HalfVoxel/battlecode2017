@@ -8,6 +8,8 @@ class Archon extends Robot {
 
     int archonIndex;
 
+    boolean everBuiltAGardener = false;
+
     @Override
     public void onAwake() throws GameActionException {
         System.out.println("I'm an archon! ");
@@ -71,12 +73,17 @@ class Archon extends Robot {
             boolean couldBuild = tryHireGardener(iterations);
 
             if (couldBuild) {
+                everBuiltAGardener = true;
                 if (gardenersSeemToBeBlocked) {
                     System.out.println("Hired gardener because all the existing ones seem to be blocked");
                 }
 
                 rc.broadcast(GARDENER_CAN_PROBABLY_BUILD, 0);
             } else {
+                if (trySacrifice()) {
+                    everBuiltAGardener = true;
+                    rc.broadcast(GARDENER_CAN_PROBABLY_BUILD, 0);
+                }
                 buildScore -= 10000;
             }
         }
@@ -85,6 +92,7 @@ class Archon extends Robot {
 
         BulletInfo[] bullets = rc.senseNearbyBullets(type.strideRadius + type.bodyRadius + 3f);
         RobotInfo[] units = rc.senseNearbyRobots();
+        MapLocation target = everBuiltAGardener ? null : rc.getLocation().add(randomDirection());
         MapLocation moveTo = moveToAvoidBullets(null, bullets, units);
         if (moveTo != null)
             rc.move(moveTo);
@@ -93,6 +101,29 @@ class Archon extends Robot {
         yieldAndDoBackgroundTasks();
 
         debug_resign();
+    }
+
+    public boolean trySacrifice() throws GameActionException {
+        // If the game has been running for a while and no archon seem to have been able to build a gardener
+        // then try to build a gardener in any direction and destroy this archon
+        if (rc.getRoundNum() > 50 && !everBuiltAGardener && spawnedCount(RobotType.GARDENER) == 0 && rc.getRobotCount() <= ourInitialArchonLocations.length) {
+            for (int attempts = 0; attempts < 40; attempts++) {
+                if (Clock.getBytecodesLeft() < 2000) break;
+
+                Direction dir = randomDirection();
+                if (rc.canHireGardener(dir)) {
+                    System.out.println("ARCHON SACRIFICE!");
+                    rc.hireGardener(dir);
+                    int gardenerCount = spawnedCount(RobotType.GARDENER);
+                    rc.broadcast(RobotType.GARDENER.ordinal(), gardenerCount + 1);
+
+                    rc.disintegrate();
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     public boolean tryHireGardener(int iterations) throws GameActionException {
