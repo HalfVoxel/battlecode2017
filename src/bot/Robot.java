@@ -1424,19 +1424,56 @@ abstract class Robot {
     }
 
     void considerDonating() throws GameActionException {
-        double cost = rc.getVictoryPointCost();
-        double income = rc.getTreeCount() + 2;
-        double victoryPointsLeft = GameConstants.VICTORY_POINTS_TO_WIN - rc.getTeamVictoryPoints();
-        double turnsUntilVictory = (victoryPointsLeft * cost) / income;
-        int gardenerCount = spawnedCount(RobotType.GARDENER);
-        int archonCount = spawnedCount(RobotType.ARCHON);
-        if (turnsUntilVictory < 200 || rc.getRoundNum() > rc.getRoundLimit() - 300 || rc.getTeamBullets() > 2000 ||
-                (gardenerCount == 0 && archonCount == 0 && rc.getTeamBullets() > 20 && rc.getRoundNum() > 50)) {
-            int toKeep = turnsUntilVictory < 50 ? 0 : 20;
-            int shouldBuy = (int)Math.floor((rc.getTeamBullets() - toKeep) / cost);
-            double donate = shouldBuy * cost + 0.0001;
+        // Cases to handle (the current code does not necessarily handle all of these well)
+        // 1. We have a strong economy and military and can soon win using VPs
+        //   Buy all the VPs
+        // 2. We have a strong economy but are about to be destroyed by an enemy
+        //   Buy some VPs, but ensure we have enough to build units
+        // 3. The game is ending soon, neither we nor the opponent will have time to do much
+        //   Buy VPs
+        // 4. The archon and potentially gardeners are stuck and cannot build anything
+        //   Buy VPs
+        // 5. We have no archons or gardeners left
+        //   Buy VPs, but keep a small buffer for defensive purposes
+        // 6. We only have woodcutters left and can therefore not spend bullets on anything other than VPs (should be very rare)
+        //   Buy VPs
+        // 7. We only have a scout left which should be hiding and waiting for the end of the game
+        //   Buy VPs
+
+        final float cost = rc.getVictoryPointCost();
+        final float victoryPointsLeft = GameConstants.VICTORY_POINTS_TO_WIN - rc.getTeamVictoryPoints();
+        final int gardenerCount = spawnedCount(RobotType.GARDENER);
+        final int archonCount = spawnedCount(RobotType.ARCHON);
+        final boolean gameEndsSoon = rc.getRoundNum() > rc.getRoundLimit() - 300;
+        final float bullets = rc.getTeamBullets();
+        final boolean cantBuildAnything = gardenerCount == 0 && archonCount == 0;
+
+        // We only have a single scout that is alive. Strategy should be to buy as many VPs we can
+        // and try to stay alive until the end of he game.
+        final boolean onlySingleScoutAlive = type == RobotType.SCOUT && rc.getRobotCount() == 1;
+
+        int toKeep = 0;
+        float turnsUntilVictory = 0f;
+
+        // Income depends on the number of bullets we decide to keep which depends on the income
+        // so iterate a few times to make sure it converges
+        for (int it = 0; it < 3; it++) {
+            float income = rc.getTreeCount() + Math.max(200 - toKeep, 0)/100f;
+            turnsUntilVictory = (victoryPointsLeft * cost) / income;
+
+            toKeep = turnsUntilVictory < 50 || onlySingleScoutAlive ? 0 : (cantBuildAnything ? 5 : 110);
+
+            // Never keep any bullets at the end of the game
+            if (rc.getRoundNum() > rc.getRoundLimit() - 10) {
+                toKeep = 0;
+            }
+        }
+
+        if (turnsUntilVictory < 200 || gameEndsSoon || onlySingleScoutAlive || bullets > 2000 || (cantBuildAnything && bullets > 20 && rc.getRoundNum() > 50)) {
+            int shouldBuy = (int)Math.floor((bullets - toKeep) / cost);
+            float donate = shouldBuy * cost;
             if (donate > 0) {
-                rc.donate((float)donate);
+                rc.donate(donate + 0.0001f);
             }
         }
     }
