@@ -202,6 +202,21 @@ def run_tournament_part(teamA, teamB, dnaA, dnaB, switch, seed, maps):
         yield result[0] == "A"
 
 
+def parallel(chains):
+    chains = chains[:]
+    while len(chains) > 0:
+        toRemove = []
+        for chain in chains:
+            try:
+                n = next(chain)
+                yield n
+            except StopIteration:
+                toRemove.append(chain)
+
+        for r in toRemove:
+            chains.remove(r)
+
+
 signal.signal(signal.SIGINT, sigint)
 
 startSeed = args.seed if args.seed is not None else 0
@@ -229,11 +244,10 @@ if args.tournament:
                 chains.append(g1)
                 chains.append(g2)
 
-            for v in zip(*chains):
-                for teamAwon in v:
-                    if teamAwon:
-                        teamAwins += 1
-                    totalCount += 1
+            for teamAwon in parallel(chains):
+                if teamAwon:
+                    teamAwins += 1
+                totalCount += 1
 
         print("Team A has won " + str((teamAwins / totalCount) * 100 if totalCount > 0 else 50) + "% of the time (" +
               str(teamAwins) + " of " + str(totalCount) + ")")
