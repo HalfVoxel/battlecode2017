@@ -1167,6 +1167,9 @@ abstract class Robot {
         return null;
     }
 
+    TreeInfo[] treeCache;
+    int treeCacheRound;
+
     float getDefensiveBulletAvoidanceScore(MapLocation loc, MapLocation reservedNodeLoc, int numBullets,
                                            float[] bulletX, float[] bulletY, float[] bulletDx, float[] bulletDy,
                                            float[] bulletDamage, float[] bulletSpeed,
@@ -1179,7 +1182,8 @@ abstract class Robot {
         boolean isCoward = rc.getHealth() < type.maxHealth * 0.3f;
 
         if (type == RobotType.ARCHON) {
-            TreeInfo[] trees = rc.senseNearbyTrees(type.sensorRadius);
+            // Sense nearby trees but re-use the cache if we have already sensed them during this tick
+            TreeInfo[] trees = treeCache = treeCacheRound == rc.getRoundNum() ? treeCache : rc.senseNearbyTrees(type.sensorRadius);
             for (TreeInfo tree : trees) {
                 if (tree.getTeam() == Team.NEUTRAL) {
                     if (tree.containedBullets > 0) {
@@ -1213,7 +1217,8 @@ abstract class Robot {
         }
 
         if (type == RobotType.LUMBERJACK) {
-            TreeInfo[] trees = rc.senseNearbyTrees();
+            // Sense nearby trees but re-use the cache if we have already sensed them during this tick
+            TreeInfo[] trees = treeCache = treeCacheRound == rc.getRoundNum() ? treeCache : rc.senseNearbyTrees(type.sensorRadius);
             for (TreeInfo tree : trees) {
                 if (tree.team == Team.NEUTRAL) {
                     score += Math.sqrt((tree.containedRobot != null ? tree.containedRobot.bulletCost * 1.5f : 0) + tree.containedBullets + 1) / (loc.distanceTo(tree.location) + 1);
