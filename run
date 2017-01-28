@@ -28,8 +28,8 @@ if args.threads <= 0:
     print("Thread count must be positive")
     exit(1)
 
-if args.threads % 2 != 0:
-    print("Only supports an even number of threads")
+if args.threads % 2 != 0 and args.threads != 1:
+    print("Only supports an even number of threads or a single thread")
     exit(1)
 
 red = (201, 27, 0)
