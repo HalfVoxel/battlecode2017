@@ -9,7 +9,22 @@ import random
 import signal
 from itertools import chain
 
-maps = ["Arena", "Barbell", "Barrier", "Boxed", "Bullseye", "Chess", "Clusters", "Cramped", "CrossFire", "DenseForest", "DigMeOut", "Enclosure", "GiantForest", "Hurdle", "LilForts", "LineOfFire", "MagicWood", "Maniple", "MyFirstMap", "OMGTree", "PasscalsTriangles", "Shrubbery", "SparseForest", "Sprinkles", "Standoff", "Waves", "shrine"]
+maps = [
+    "1337Tree", "Aligned", "Alone", "Arena", "Barbell",
+    "Barrier", "Blitzkrieg", "Boxed", "BugTrap", "Bullseye",
+    "Captive", "Caterpillar", "Chess", "Chevron", "Clusters",
+    "Conga", "Cramped", "CropCircles", "Croquembouche", "CrossFire",
+    "DarkSide", "DeathStar", "Defenseless", "DenseForest", "DigMeOut",
+    "Enclosure", "Fancy", "FlappyTree", "GiantForest", "Grass",
+    "GreatDekuTree", "GreenHouse", "HedgeMaze", "HiddenTunnel", "HouseDivided",
+    "Hurdle", "Interference", "Lanes", "Levels", "LilForts",
+    "LilMaze", "LineOfFire", "MagicWood", "Maniple", "Misaligned",
+    "ModernArt", "MyFirstMap", "OMGTree", "Ocean", "Oxygen",
+    "PacMan", "PasscalsTriangles", "PeacefulEncounter", "Planets", "Present",
+    "PureImagination", "Shortcut", "Shrubbery", "Slant", "Snowflake",
+    "SparseForest", "Sprinkles", "Standoff", "TheOtherSide", "TicTacToe",
+    "TreeFarm", "Turtle", "Waves", "Whirligig", "shrine"
+]
 lowerMaps = [m.lower() for m in maps]
 
 parser = argparse.ArgumentParser(description='Run BattleCode Bots')
