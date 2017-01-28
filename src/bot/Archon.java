@@ -93,7 +93,7 @@ class Archon extends Robot {
         MapLocation moveTo = moveToAvoidBullets(null, bullets, units);
         if (moveTo != null)
             rc.move(moveTo);
-        pathfinding();
+        //pathfinding();
 
         yieldAndDoBackgroundTasks();
 
