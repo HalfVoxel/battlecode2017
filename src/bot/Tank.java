@@ -87,13 +87,15 @@ class Tank extends Robot {
         RobotInfo[] friendlyRobots = rc.senseNearbyRobots(-1, ally);
         BulletInfo[] bullets = rc.senseNearbyBullets(type.strideRadius + type.bodyRadius + 3f);
 
+        boolean targetArchons = rc.getTeamBullets() > 1000 || rc.getRoundNum() > 1000 || (rc.getRoundNum() > 600 && initialArchonLocations.length == 1);
+
         RobotInfo bestRobot = null;
         float bestRobotScore = 0f;
         for (RobotInfo robot : robots) {
             float score;
             switch (robot.getType()) {
                 case ARCHON:
-                    score = rc.getRoundNum() > 1500 ? 0.1f : 0f;
+                    score = targetArchons ? 0.1f : 0f;
                     break;
                 case GARDENER:
                     score = 1f;
@@ -112,8 +114,6 @@ class Tank extends Robot {
             }
         }
 
-        boolean targetArchons = rc.getTeamBullets() > 1000 || rc.getRoundNum() > 1000 || (rc.getRoundNum() > 600 && initialArchonLocations.length == 1);
-
         if (bestRobot != null) {
             MapLocation moveTo = moveToAvoidBullets(bestRobot.location, bullets, robots);
             if (moveTo == null) {
@@ -131,10 +131,13 @@ class Tank extends Robot {
                     if (firePlan == null) {
                         rc.move(moveTo);
                     } else if (Math.abs(firePlan.direction.degreesBetween(moveToDirection)) > 90) {
+                        // We are moving away from the direction we are firing in, so it is best to shoot first and move after that
                         //System.out.println("Shoot first, move after");
                         firePlan.apply(rc);
                         rc.move(moveTo);
                     } else {
+                        // We are moving in the direction we are firing in, so to avoid moving on top of own bullets
+                        // we should move first and then shoot.
                         rc.move(moveTo);
                         firePlan = fireAtNearbyRobot(friendlyRobots, robots, targetArchons);
                         if (firePlan != null) {
