@@ -19,8 +19,18 @@ parser.add_argument("-b", "--teamB", help="Team B")
 parser.add_argument("--tournament", help="Play multiple games and rank the teams", action="store_true")
 parser.add_argument("-q", "--quiet", help="Don't print bot logs", action="store_true")
 parser.add_argument("--seed", help="Seed for the game or tournament", type=int)
-parser.add_argument("--single-thread", help="Disable any parallelization", action="store_true")
+parser.add_argument("--threads", help="Number of threads to use", type=int, default=2)
+parser.add_argument("--dnaA", help="Genetic information for Team A", nargs="*")
+parser.add_argument("--dnaB", help="Genetic information for Team B", nargs="*")
 args = parser.parse_args()
+
+if args.threads <= 0:
+    print("Thread count must be positive")
+    exit(1)
+
+if args.threads % 2 != 0:
+    print("Only supports an even number of threads")
+    exit(1)
 
 red = (201, 27, 0)
 green = (0, 194, 0)
@@ -72,7 +82,7 @@ def execute(cmd, quiet):
     # return "\n".join(lines)
 
 
-def run(teamA, teamB, maps, quiet, seed):
+def run(teamA, teamB, maps, quiet, seed, teamAdna, teamBdna):
     jvmArgs = [
         "java",
         "-classpath", battlecodeJarPath,
@@ -98,19 +108,31 @@ def run(teamA, teamB, maps, quiet, seed):
     if seed is not None:
         jvmArgs.append("-Dbc.testing.seed=" + str(seed))
 
+    if teamAdna is not None:
+        for i, item in enumerate(teamAdna):
+            jvmArgs.append("-Dbc.testing.team-a.genetic." + str(i) + "=" + item)
+
+    if teamBdna is not None:
+        for i, item in enumerate(teamBdna):
+            jvmArgs.append("-Dbc.testing.team-b.genetic." + str(i) + "=" + item)
+
     jvmArgs.append("battlecode.server.Main")
     winRegex = re.compile(r"bot \(([AB])\) wins \(round (\d+)\)")
     reasonRegex = re.compile(r"Reason: The winning team won ([^\n\.]+)")
-    gen = execute(jvmArgs, quiet)
-    for line in gen:
-        win = winRegex.search(line)
-        if win is not None:
-            reason = reasonRegex.search(next(gen))
+    try:
+        gen = execute(jvmArgs, quiet)
+        for line in gen:
+            win = winRegex.search(line)
+            if win is not None:
+                reason = reasonRegex.search(next(gen))
 
-            winningTeam = win.group(1)
-            round = int(win.group(2))
-            reason = reason.group(1)
-            yield (winningTeam, round, reason)
+                winningTeam = win.group(1)
+                round = int(win.group(2))
+                reason = reason.group(1)
+                yield (winningTeam, round, reason)
+    except subprocess.CalledProcessError:
+        print("Server crashed. Ignoring the rest of the maps")
+        return
 
 
 def printResult(result):
@@ -129,11 +151,19 @@ def sigint(signal, frame):
     sys.exit(0)
 
 
-def run_tournament_part(teamA, teamB, switch, seed):
+def divide_into_chunks(items, number_of_chunks):
+    num = int(len(items) / number_of_chunks)
+    result = [items[i:i + num] for i in range(0, (number_of_chunks - 1) * num, num)]
+    result.append(items[(number_of_chunks - 1) * num:])
+    return result
+
+
+def run_tournament_part(teamA, teamB, dnaA, dnaB, switch, seed, maps):
     if switch:
         teamA, teamB = teamB, teamA
+        dnaA, dnaB = dnaB, dnaA
 
-    gen = run(teamA, teamB, maps, True, seed)
+    gen = run(teamA, teamB, maps, True, seed, dnaA, dnaB)
 
     for map in maps:
         mapStr = yellowStr + map.ljust(12) + reset + " " + ("B vs A" if switch else "A vs B") + ": "
@@ -157,26 +187,36 @@ if args.tournament:
     teamAwins = 0
     totalCount = 0
 
-    for seed in range(startSeed, startSeed + 5):
+    for seed in range(startSeed, startSeed + 4):
         # Run AvsB and BvsA in parallel
-        g1 = run_tournament_part(args.teamA, args.teamB, False, seed)
-        g2 = run_tournament_part(args.teamA, args.teamB, True, seed)
-        if args.single_thread:
+        if args.threads == 1:
+            g1 = run_tournament_part(args.teamA, args.teamB, args.dnaA, args.dnaB, False, seed, maps)
+            g2 = run_tournament_part(args.teamA, args.teamB, args.dnaA, args.dnaB, True, seed, maps)
             for teamAwon in chain(g1, g2):
                 if teamAwon:
                     teamAwins += 1
                 totalCount += 1
         else:
-            for v in zip(g1, g2):
+
+            map_chunks = divide_into_chunks(maps, args.threads // 2)
+            # At least 2 threads
+            chains = []
+            for chunk in map_chunks:
+                g1 = run_tournament_part(args.teamA, args.teamB, args.dnaA, args.dnaB, False, seed, chunk)
+                g2 = run_tournament_part(args.teamA, args.teamB, args.dnaA, args.dnaB, True, seed, chunk)
+                chains.append(g1)
+                chains.append(g2)
+
+            for v in zip(*chains):
                 for teamAwon in v:
                     if teamAwon:
                         teamAwins += 1
                     totalCount += 1
 
-        print("Team A has won " + str((teamAwins / totalCount) * 100) + "% of the time (" +
+        print("Team A has won " + str((teamAwins / totalCount) * 100 if totalCount > 0 else 50) + "% of the time (" +
               str(teamAwins) + " of " + str(totalCount) + ")")
         print("Continuing with new seed...")
 
 else:
     actualMap = maps[lowerMaps.index(args.map.lower())]
-    printResult(next(run(args.teamA, args.teamB, [actualMap], args.quiet, startSeed)))
+    printResult(next(run(args.teamA, args.teamB, [actualMap], args.quiet, startSeed, args.dnaA, args.dnaB)))
