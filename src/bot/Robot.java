@@ -914,47 +914,6 @@ abstract class Robot {
 
         if (lastBugDir == null) lastBugDir = rc.getLocation().directionTo(target);
 
-        final float dtheta = 6;
-        final int steps = (int)(360 / dtheta);
-
-        if (rc.canMove(lastBugDir) && bugTiebreaker != 0) {
-            // Turn as far as we can
-            boolean any = false;
-            for (int i = 0; i < steps; i++) {
-                Direction nextDir = lastBugDir.rotateLeftDegrees(bugTiebreaker * dtheta);
-                if (rc.canMove(nextDir)) {
-                    lastBugDir = nextDir;
-                } else {
-                    any = true;
-                    break;
-                }
-            }
-
-            // No obstacle nearby, just move to the target
-            if (!any) {
-                lastBugDir = rc.getLocation().directionTo(target);
-            }
-        } else {
-            if (bugTiebreaker == 0) {
-                Direction tieBreakerDirection = rc.getLocation().directionTo(nextPointOnPathToEnemyArchon(rc.getLocation()));
-                if (tieBreakerDirection.rotateRightDegrees(90).degreesBetween(lastBugDir) > 90 && rnd.nextFloat() < 0.7f) {
-                    // Rotate right
-                    bugTiebreaker = 1;
-                } else {
-                    // Rotate left
-                    bugTiebreaker = -1;
-                }
-            }
-
-            for (int i = 0; i < steps; i++) {
-                Direction nextDir = lastBugDir.rotateRightDegrees(bugTiebreaker * dtheta * i);
-                if (rc.canMove(nextDir)) {
-                    lastBugDir = nextDir;
-                    break;
-                }
-            }
-        }
-
         if (rc.getRoundNum() % 3 == 0) {
             positionHistory[positionHistoryIndex] = rc.getLocation();
             positionHistoryIndex = (positionHistoryIndex + 1) % positionHistory.length;
@@ -973,16 +932,71 @@ abstract class Robot {
 
             if (distanceToTarget - hitDistance < historicalMinDist - step) {
                 // Move straight to the target
-                lastBugDir = rc.getLocation().directionTo(target);
+                rc.move(rc.getLocation().directionTo(target));
                 bugTiebreaker = 0;
+                return;
             }
         }
 
-        rc.setIndicatorLine(rc.getLocation(), target, 0, 0, 0);
-        //rc.setIndicatorLine(rc.getLocation(), rc.getLocation().add(lastBugDir, 5), 255, 255, 255);
+        for (int tries = 0; tries < 3; tries++) {
+            // Try with a lower dtheta and stride if we couldn't find any direction to move in the first time
+            float dtheta = tries == 0 ? 6 : 1f + rnd.nextFloat()*0.1f;
+            float stride = tries == 0 ? type.strideRadius : type.strideRadius * rnd.nextFloat();
+            if (tries == 2) stride *= 0.3f;
 
-        if (rc.canMove(lastBugDir)) {
-            rc.move(lastBugDir);
+            final int steps = (int)(360 / dtheta);
+
+            Direction newBugDir = null;
+
+            if (rc.canMove(lastBugDir, stride) && bugTiebreaker != 0) {
+                // Turn as far as we can
+                boolean any = false;
+                for (int i = 0; i < steps; i++) {
+                    Direction nextDir = lastBugDir.rotateLeftDegrees(bugTiebreaker * i * dtheta);
+                    //rc.setIndicatorLine(rc.getLocation(), rc.getLocation().add(nextDir, 5), 0, 0, 0);
+                    if (rc.canMove(nextDir, stride)) {
+                        newBugDir = nextDir;
+                    } else {
+                        any = true;
+                        break;
+                    }
+                }
+
+                // No obstacle nearby, just move to the target
+                if (!any) {
+                    newBugDir = rc.getLocation().directionTo(target);
+                }
+            } else {
+                if (bugTiebreaker == 0) {
+                    Direction tieBreakerDirection = rc.getLocation().directionTo(nextPointOnPathToEnemyArchon(rc.getLocation()));
+                    if (tieBreakerDirection.rotateRightDegrees(90).degreesBetween(lastBugDir) > 90 && rnd.nextFloat() < 0.7f) {
+                        // Rotate right
+                        bugTiebreaker = 1;
+                    } else {
+                        // Rotate left
+                        bugTiebreaker = -1;
+                    }
+                }
+
+                for (int i = 0; i < steps; i++) {
+                    Direction nextDir = lastBugDir.rotateRightDegrees(bugTiebreaker * dtheta * i);
+                    //rc.setIndicatorLine(rc.getLocation(), rc.getLocation().add(nextDir, 5), 0, 0, 0);
+                    if (rc.canMove(nextDir, stride)) {
+                        newBugDir = nextDir;
+                        break;
+                    }
+                }
+            }
+
+            //rc.setIndicatorLine(rc.getLocation(), target, 0, 0, 0);
+            //rc.setIndicatorLine(rc.getLocation(), rc.getLocation().add(lastBugDir, 5), 255, 255, 255);
+
+            // If we can move in the new direction and (we have tried really hard or it is a small change in direction)
+            if (newBugDir != null && rc.canMove(newBugDir, stride) && (tries > 0 || lastBugDir.degreesBetween(newBugDir) < 90)) {
+                rc.move(newBugDir, stride);
+                lastBugDir = newBugDir;
+                return;
+            }
         }
     }
 
