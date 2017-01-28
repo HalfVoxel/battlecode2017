@@ -74,6 +74,8 @@ class Lumberjack extends Robot {
         System.out.println("I'm a lumberjack and I'm okay!");
     }
 
+    MapLocation target;
+
     @Override
     public void onUpdate() throws GameActionException {
         TreeInfo bestTree = findBestTreeToChop(false);
@@ -81,7 +83,13 @@ class Lumberjack extends Robot {
         if (bullets.length > 5)
             bullets = rc.senseNearbyBullets(type.strideRadius + type.bodyRadius + 3f);
         RobotInfo[] allRobots = rc.senseNearbyRobots();
-        MapLocation target = bestTree == null ? pickTarget(initialArchonLocations) : bestTree.location;
+
+        if (bestTree != null) {
+            target = bestTree.location;
+        } else if (rc.getRoundNum() % 10 == 0 || target == null || rc.getLocation().distanceTo(target) < type.strideRadius) {
+            target = pickTarget(initialArchonLocations);
+        }
+
         MapLocation moveTo = moveToAvoidBullets(target, bullets, allRobots);
         if (moveTo != null)
             rc.move(moveTo);
