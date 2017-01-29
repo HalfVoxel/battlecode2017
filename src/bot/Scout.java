@@ -130,7 +130,6 @@ class Scout extends Robot {
         RobotInfo[] friendlyRobots = rc.senseNearbyRobots(-1, ally);
         RobotInfo[] allRobots = rc.senseNearbyRobots();
         BulletInfo[] nearbyBullets = rc.senseNearbyBullets(8f);
-        float[] bulletImpactDistances = updateBulletHitDistances(nearbyBullets);
 
         int bulletsToConsider = Math.min(nearbyBullets.length, bulletX.length);
         // Discard bullets that cannot hit us and move the bullets that can hit us to the front of the array
@@ -150,6 +149,8 @@ class Scout extends Robot {
                 bulletSpeed[i] = bullet.speed;
             }
         }
+
+        float[] bulletImpactDistances = updateBulletHitDistances(nearbyBullets, bulletsToConsider);
 
         // Pick a new target with a small probability or when very close to the target
         if (rnd.nextInt(200) < 1 || myLocation.distanceTo(target) < 4f) {
