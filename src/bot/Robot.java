@@ -32,6 +32,7 @@ abstract class Robot {
     static final int PATHFINDING_TREE = 5000;
     static final int HIGH_PRIORITY = 6000;
     static final int ARCHON_BUILD_SCORE = 7001;
+    static final int ENEMIES_SPOTTED = 7100;
 
     static final int[] dx = new int[]{1, 0, -1, 0};
     static final int[] dy = new int[]{0, 1, 0, -1};
@@ -51,6 +52,8 @@ abstract class Robot {
     boolean countingAsAlive = true;
     private final Map<Integer, Float> bulletHitDistance = new HashMap<>();
     private final Map<Integer, MapLocation> unitLastLocation = new HashMap<>();
+
+    static boolean enemiesHaveBeenSpotted = false;
 
     static MapLocation explorationOrigin;
 
@@ -142,6 +145,26 @@ abstract class Robot {
         return ((rc.readBroadcast(HIGH_PRIORITY + (id >> 5)) >> id) & 1) != 0;
     }
 
+    public void markEnemySpotted(RobotInfo[] units) throws GameActionException {
+        if (!enemiesHaveBeenSpotted) {
+            int cnt = 0;
+            for (RobotInfo robot : units) {
+                if (robot.team == enemy) {
+                    if (robot.type == RobotType.SCOUT || robot.type == RobotType.ARCHON) cnt++;
+                    else cnt += 3;
+                }
+            }
+
+            // Need to spot one unit which is not a scout or archon
+            // or 3 (archon or scout) at the same time to consider the enemy as having been spotted
+            if (cnt >= 3) {
+                enemiesHaveBeenSpotted = true;
+                rc.broadcastBoolean(ENEMIES_SPOTTED, true);
+                rc.setIndicatorLine(rc.getLocation(), rc.getLocation().add(0, 20), 255, 255, 255);
+            }
+        }
+    }
+
     /**
      * Attempts to move in a given direction, while avoiding small obstacles directly in the path.
      *
@@ -196,6 +219,8 @@ abstract class Robot {
 
             considerDonating();
         }
+
+        enemiesHaveBeenSpotted = rc.readBroadcastBoolean(ENEMIES_SPOTTED);
     }
 
     void yieldAndDoBackgroundTasks() throws GameActionException {

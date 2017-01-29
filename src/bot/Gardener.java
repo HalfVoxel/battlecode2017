@@ -294,13 +294,13 @@ class Gardener extends Robot {
                 target = settledLocation;
                 hasSettled = true;
             }
-
-            //System.out.println("Lost all trees around me, moving again")
         }
 
         if (!hasSettled) {
             BulletInfo[] bullets = rc.senseNearbyBullets(type.strideRadius + type.bodyRadius + 3f);
             RobotInfo[] units = rc.senseNearbyRobots();
+
+            markEnemySpotted(units);
 
             if (!rc.hasMoved()) {
                 float d1 = rc.getLocation().distanceTo(target);
@@ -311,13 +311,8 @@ class Gardener extends Robot {
                 speedToTarget *= 0.5f;
                 speedToTarget += 0.5f * (d1 - d2);
             }
-            /*if (!rc.hasMoved() && moveToAvoidBullets(target, )) {
-                moveFailCounter = 0;
-            } else {
-                // Couldn't move there? huh
-                moveFailCounter += 1;
-                //System.out.println("Move failed")
-            }*/
+        } else if (!enemiesHaveBeenSpotted) {
+            markEnemySpotted(rc.senseNearbyRobots(type.sensorRadius, enemy));
         }
 
         /*

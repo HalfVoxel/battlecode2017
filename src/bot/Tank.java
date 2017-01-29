@@ -87,6 +87,8 @@ class Tank extends Robot {
         RobotInfo[] friendlyRobots = rc.senseNearbyRobots(-1, ally);
         BulletInfo[] bullets = rc.senseNearbyBullets(type.strideRadius + type.bodyRadius + 3f);
 
+        markEnemySpotted(robots);
+
         boolean targetArchons = rc.getTeamBullets() > 1000 || rc.getRoundNum() > 1000 || (rc.getRoundNum() > 600 && initialArchonLocations.length == 1);
 
         RobotInfo bestRobot = null;

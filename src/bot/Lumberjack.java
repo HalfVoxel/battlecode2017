@@ -97,6 +97,9 @@ class Lumberjack extends Robot {
         // See if there are any enemy robots within striking range (distance 1 from lumberjack's radius)
         RobotInfo[] robots = rc.senseNearbyRobots(GameConstants.LUMBERJACK_STRIKE_RADIUS, enemy);
         RobotInfo[] friendlyRobots = rc.senseNearbyRobots(LUMBERJACK_STRIKE_RADIUS, ally);
+
+        markEnemySpotted(allRobots);
+
         if (robots.length > 0 && !rc.hasAttacked()) {
             float myValue = 0f;
             for (RobotInfo robot : friendlyRobots) {
