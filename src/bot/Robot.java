@@ -1127,7 +1127,11 @@ abstract class Robot {
             }
         }
 
+        final float LAZY = -1000000;
+        final float MARGIN = 0.01f;
         float bestScore = -1000000f;
+        float bestBulletScore = -10000f;
+
         MapLocation bestMove = null;
         int iterationsDone = 0;
         // Save some processing power if we have no bullets to consider (will be used by e.g the exploration code)
@@ -1149,11 +1153,26 @@ abstract class Robot {
 
             iterationsDone += 1;
             if (rc.canMove(loc)) {
-                float score = getDefensiveBulletAvoidanceScore(loc, reservedNodeLocation, bulletsToConsider, bulletX, bulletY, bulletDx, bulletDy,
-                        bulletDamage, bulletSpeed, units, secondaryTarget);
-                if (score > bestScore) {
-                    bestScore = score;
+                // First check the estimated bullet damage and only if that is the same for two directions
+                // then break ties using getSecondaryMovementScore
+                float bulletScore = -getEstimatedDamageAtPosition(loc.x, loc.y, bulletsToConsider, bulletX, bulletY, bulletDx, bulletDy, bulletDamage, bulletSpeed, null);
+
+                if (bulletScore > bestBulletScore + MARGIN) {
+                    bestBulletScore = bulletScore;
                     bestMove = loc;
+                    bestScore = LAZY;
+                } else if (bulletScore > bestBulletScore - MARGIN) {
+                    // Approximately the same score
+                    if (bestScore == LAZY) {
+                        bestScore = getSecondaryMovementScore(bestMove, reservedNodeLocation, units, secondaryTarget);
+                    }
+
+                    float score = getSecondaryMovementScore(loc, reservedNodeLocation, units, secondaryTarget);
+                    if (score > bestScore) {
+                        bestBulletScore = bulletScore;
+                        bestScore = score;
+                        bestMove = loc;
+                    }
                 }
             }
         }
@@ -1169,12 +1188,7 @@ abstract class Robot {
     TreeInfo[] treeCache;
     int treeCacheRound;
 
-    float getDefensiveBulletAvoidanceScore(MapLocation loc, MapLocation reservedNodeLoc, int numBullets,
-                                           float[] bulletX, float[] bulletY, float[] bulletDx, float[] bulletDy,
-                                           float[] bulletDamage, float[] bulletSpeed,
-                                           RobotInfo[] units, MapLocation target) {
-
-
+    float getSecondaryMovementScore(MapLocation loc, MapLocation reservedNodeLoc, RobotInfo[] units, MapLocation target) {
         Team myTeam = ally;
         float score = 0f;
         boolean ignoreTarget = false;
@@ -1325,8 +1339,6 @@ abstract class Robot {
             }
         }
 
-        score -= 1000f * getEstimatedDamageAtPosition(loc.x, loc.y, numBullets, bulletX, bulletY, bulletDx, bulletDy, bulletDamage, bulletSpeed, null);
-
         return score;
     }
 
@@ -1376,9 +1388,11 @@ abstract class Robot {
 
             // Distance the bullet has to travel to get to its closest point to #loc
             float dot = -(dx * prevX + dy * prevY);
-            // Position of the closest point the bullet will be to #loc
+            // Position of the closest point the bullet will be to #loc (when #loc is at the origin)
             float closestX = prevX + dx * dot;
             float closestY = prevY + dy * dot;
+
+            // TODO: Optimize with Math.hypot?
             float sqrDistanceToLineOfTravel = closestX * closestX + closestY * closestY;
 
             // The bullet cannot possibly hit us
