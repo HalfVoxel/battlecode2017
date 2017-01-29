@@ -1480,23 +1480,10 @@ abstract class Robot {
             // It will hit us this frame
             if (timeToIntersection <= 0) {
                 dmg += bulletDamage[i];
-                intersectingBullets++;
-                closestIntersectingX = closestX;
-                closestIntersectingY = closestY;
             } else {
                 // Decrease the damage further away
                 dmg += 0.5f * bulletDamage[i] / (timeToIntersection + 1);
             }
-        }
-
-        if (intersectingBullets == 1) {
-            // Try to tweak the location so that we do not intersect the bullet anymore
-            float multiplier = (radius + 0.01f) / Math.max((float)Math.hypot(closestIntersectingX, closestIntersectingY), 0.0001f) - 1f;
-            hintedFreePositionX = locx - closestIntersectingX*multiplier;
-            hintedFreePositionY = locy - closestIntersectingY*multiplier;
-        } else {
-            hintedFreePositionX = 0;
-            hintedFreePositionY = 0;
         }
 
         return dmg;
