@@ -187,9 +187,6 @@ class Tank extends Robot {
         }
 
         if (!rc.hasAttacked()) {
-            fireAtNearbyRobot(friendlyRobots, robots, targetArchons);
-        }
-        if (!rc.hasAttacked()) {
             int nearbyGardeners = 0;
             for (RobotInfo robot : robots) {
                 if (robot.getType() == RobotType.GARDENER) {
