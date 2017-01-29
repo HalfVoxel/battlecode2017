@@ -29,9 +29,9 @@ class Gardener extends Robot {
             return false;
         }
 
-        boolean canSeeTarget = target.distanceSquaredTo(rc.getLocation()) < 0.01f || rc.canSenseAllOfCircle(target.add(0, 0.001f), freeRadius);
+        boolean canSeeTarget = rc.canSenseAllOfCircle(target, freeRadius);
 
-        return !canSeeTarget || (onMap(target.add(0, 0.001f), freeRadius) && !rc.isCircleOccupiedExceptByThisRobot(target.add(0, 0.001f), freeRadius));
+        return !canSeeTarget || (onMap(target, freeRadius) && !rc.isCircleOccupiedExceptByThisRobot(target, freeRadius));
     }
 
     MapLocation pickTarget(float freeRadius) throws GameActionException {
