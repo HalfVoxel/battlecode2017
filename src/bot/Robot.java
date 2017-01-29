@@ -679,108 +679,111 @@ abstract class Robot {
     FirePlan fireAtNearbyRobot(RobotInfo[] friendlyRobots, RobotInfo[] hostileRobots, boolean targetArchons) throws GameActionException {
         if (hostileRobots.length == 0) return null;
 
-        MapLocation myLocation = rc.getLocation();
-        int turnsLeft = rc.getRoundLimit() - rc.getRoundNum();
-
-        List<Integer> bestRobotsTried = new ArrayList<>();
-        for (int attemptN = 0; attemptN < 1; ++attemptN) {
-            RobotInfo bestRobot = null;
-            float bestScore2 = 0;
-
-            for (RobotInfo robot : hostileRobots) {
-                if (bestRobotsTried.contains(robot.ID))
-                    continue;
-                MapLocation lastLoc = unitLastLocation.get(robot.getID());
-                if (lastLoc == null) {
-                    lastLoc = robot.location;
-                    unitLastLocation.put(robot.getID(), lastLoc);
-                }
-                if (!lastLoc.equals(robot.location) && lastLoc.x >= 0) {
-                    lastLoc = new MapLocation(-1f, -1f);
-                    unitLastLocation.put(robot.getID(), lastLoc);
-                }
-                float score = 0;
-                switch (robot.type) {
-                    case GARDENER:
-                        score += 100;
-                        break;
-                    case ARCHON:
-                        score += targetArchons ? 1f : 0f;
-                        break;
-                    case SCOUT:
-                        score += 50;
-                        break;
-                    case SOLDIER:
-                        score += 250;
-                        break;
-                    case TANK:
-                        score += 200;
-                    default:
-                        score += 80;
-                        break;
-                }
-                if (lastLoc.x >= 0) {
-                    score *= 2;
-                }
-                score /= 4 + robot.health / robot.type.maxHealth;
-                score /= myLocation.distanceTo(robot.location) + 1;
-                if (score > bestScore2) {
-                    bestScore2 = score;
-                    bestRobot = robot;
-                }
-            }
-
-            if (bestRobot != null) {
-                if (rc.getType() == RobotType.SCOUT) {
-                    if (bestRobot.getType() == RobotType.SCOUT || bestRobot.getType() == RobotType.GARDENER) {
-                        if (myLocation.distanceTo(bestRobot.location) > 3f)
-                            break;
-                    } else {
-                        break;
-                    }
-                }
-                bestRobotsTried.add(bestRobot.ID);
-
-                BodyInfo firstUnitHit = linecast(bestRobot.location);
-                if (rc.getLocation().distanceTo(bestRobot.location) < 2 * type.sensorRadius && teamOf(firstUnitHit) == enemy && turnsLeft > STOP_SPENDING_AT_TIME) {
-                    Direction dir = rc.getLocation().directionTo(bestRobot.location);
-                    if (rc.canFirePentadShot() && rc.getTeamBullets() > 300 && friendlyRobots.length < hostileRobots.length && (friendlyRobots.length == 0 || hostileRobots.length >= 2)) {
-                        // ...Then fire a bullet in the direction of the enemy.
-                        //rc.firePentadShot(dir);
-                        return new FirePlan(dir, 5);
-                    }
-
-                    if (rc.canFirePentadShot() && rc.getLocation().distanceTo(bestRobot.location) < 4.5f) {
-                        //rc.firePentadShot(dir);
-                        return new FirePlan(dir, 5);
-                    }
-
-                    if (rc.canFireTriadShot() && friendlyRobots.length < hostileRobots.length && (friendlyRobots.length == 0 || hostileRobots.length >= 2)) {
-                        // ...Then fire a bullet in the direction of the enemy.
-                        //rc.fireTriadShot(dir);
-                        return new FirePlan(dir, 3);
-                    }
-
-                    if (rc.canFireTriadShot() && rc.getLocation().distanceTo(bestRobot.location) < 5.5f) {
-                        //rc.fireTriadShot(dir);
-                        return new FirePlan(dir, 3);
-                    }
-
-                    // And we have enough bullets, and haven't attacked yet this turn...
-                    if (rc.canFireSingleShot()) {
-                        // ...Then fire a bullet in the direction of the enemy.
-                        //rc.fireSingleShot(dir);
-                        return new FirePlan(dir, 1);
-                    }
-
-                    break;
-                }
-            } else {
-                break;
-            }
-            if (Clock.getBytecodesLeft() < 3000)
-                break;
+        if (rc.getRoundLimit() - rc.getRoundNum() <= STOP_SPENDING_AT_TIME) {
+            return null;
         }
+
+        MapLocation myLocation = rc.getLocation();
+
+        RobotInfo bestRobot = null;
+        float bestScore = 0;
+
+        for (RobotInfo robot : hostileRobots) {
+            MapLocation lastLoc = unitLastLocation.get(robot.ID);
+            if (lastLoc == null) {
+                lastLoc = robot.location;
+                unitLastLocation.put(robot.ID, lastLoc);
+            }
+            if (!lastLoc.equals(robot.location) && lastLoc.x >= 0) {
+                // Mark the robot as having moved at least once
+                lastLoc = new MapLocation(-1f, -1f);
+                unitLastLocation.put(robot.ID, lastLoc);
+            }
+            float score = 0;
+            switch (robot.type) {
+                case GARDENER:
+                    score += 100;
+                    break;
+                case ARCHON:
+                    score += targetArchons ? 1f : 0f;
+                    break;
+                case SCOUT:
+                    score += 50;
+                    break;
+                case SOLDIER:
+                    score += 250;
+                    break;
+                case TANK:
+                    score += 200;
+                default:
+                    score += 80;
+                    break;
+            }
+
+            // Give a higher priority to robots that do not seem to move
+            if (lastLoc.x >= 0) {
+                score *= 2;
+            }
+
+            score /= 4 + robot.health / robot.type.maxHealth;
+            score /= myLocation.distanceTo(robot.location) + 1;
+            if (score > bestScore) {
+                bestScore = score;
+                bestRobot = robot;
+            }
+        }
+
+        if (bestRobot != null) {
+            float dist = rc.getLocation().distanceTo(bestRobot.location);
+
+            if (type == RobotType.SCOUT) {
+                if (bestRobot.type == RobotType.SCOUT || bestRobot.type == RobotType.GARDENER) {
+                    if (dist > 3f)
+                        return null;
+                } else {
+                    return null;
+                }
+            }
+
+            BodyInfo firstUnitHit = linecast(bestRobot.location);
+            if (dist < 2 * type.sensorRadius && teamOf(firstUnitHit) == enemy) {
+                Direction dir = rc.getLocation().directionTo(bestRobot.location);
+
+                if (rc.canFirePentadShot()) {
+                    if (rc.getTeamBullets() > 300 && friendlyRobots.length < hostileRobots.length && (friendlyRobots.length == 0 || hostileRobots.length >= 2)) {
+                        // ...Then fire a bullet in the direction of the enemy.
+                        //rc.firePentadShot(dir);
+                        return new FirePlan(dir, 5);
+                    }
+
+                    if (dist < 4.5f) {
+                        //rc.firePentadShot(dir);
+                        return new FirePlan(dir, 5);
+                    }
+                }
+
+                if (rc.canFireTriadShot()) {
+                    if (friendlyRobots.length < hostileRobots.length && (friendlyRobots.length == 0 || hostileRobots.length >= 2)) {
+                        // ...Then fire a bullet in the direction of the enemy.
+                        //rc.fireTriadShot(dir);
+                        return new FirePlan(dir, 3);
+                    }
+
+                    if (dist < 5.5f) {
+                        //rc.fireTriadShot(dir);
+                        return new FirePlan(dir, 3);
+                    }
+                }
+
+                // And we have enough bullets, and haven't attacked yet this turn...
+                if (rc.canFireSingleShot()) {
+                    // ...Then fire a bullet in the direction of the enemy.
+                    //rc.fireSingleShot(dir);
+                    return new FirePlan(dir, 1);
+                }
+            }
+        }
+
         return null;
     }
 
