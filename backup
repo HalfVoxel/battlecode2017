@@ -3,6 +3,8 @@
 import os
 import sys
 import shutil
+import subprocess
+
 
 if len(sys.argv) < 2:
     print("Usage 'backup tag'")
@@ -14,4 +16,15 @@ if os.path.exists("backups/" + tag):
     print("Tag already exists")
     exit(1)
 
-shutil.copytree("build/classes", "backups/" + tag)
+
+def backup(tag):
+    print("Building...")
+    try:
+        subprocess.check_output(["./gradlew", "build"])
+    except:
+        return
+
+    shutil.copytree("build/classes", "backups/" + tag)
+
+
+backup(tag)
