@@ -927,6 +927,42 @@ abstract class Robot {
         return null;
     }
 
+    /**
+     * Performs a linecast using the pathfinding grid and checks for obstacles from the robot's current position to the target.
+     * @returns Remaining distance from the first obstacle to the target point.
+     * Both blocked nodes as well as unexplored nodes count as obstacles.
+     */
+    float linecastGrid(MapLocation b) throws GameActionException {
+        MapLocation a = rc.getLocation();
+        Direction dir = a.directionTo(b);
+        float dist = a.distanceTo(b);
+
+        // 2 iterations, first check a few points along the segment to quickly rule out
+        // line of sight if there is none. If that succeeds do a more precise check
+        for (int k = 0; k < 2; k++) {
+            float step = k == 0 ? PATHFINDING_NODE_SIZE*4 : PATHFINDING_NODE_SIZE * 0.7f;
+            int steps = (int)(dist / step);
+            int maxStep = k == 0 ? steps - 1 : steps;
+            for (int t = 1; t <= maxStep; t++) {
+                float f = t / (float)steps;
+                MapLocation p = a.add(dir, dist * f);
+
+                int x = (int)Math.floor((p.x - explorationOrigin.x) / PATHFINDING_NODE_SIZE);
+                int y = (int)Math.floor((p.y - explorationOrigin.y) / PATHFINDING_NODE_SIZE);
+
+                int chunk = pathfindingChunkDataForNode(x, y);
+                int blocked = (chunk >> ((y % PATHFINDING_CHUNK_SIZE) * PATHFINDING_CHUNK_SIZE + (x % PATHFINDING_CHUNK_SIZE))) & 1;
+                int fullyExplored = (chunk >>> 30) & 0x2;
+
+                if (blocked != 0 || fullyExplored == 0) {
+                    return dist * (1 - f);
+                }
+            }
+        }
+
+        return 0f;
+    }
+
     Direction lastBugDir;
     final MapLocation[] positionHistory = new MapLocation[40];
     int positionHistoryIndex = 0;
