@@ -121,6 +121,25 @@ class Archon extends Robot {
                     return true;
                 }
             }
+
+            if (rc.getRoundNum() > 70) {
+                RobotInfo[] robots = rc.senseNearbyRobots(rc.getLocation(), type.bodyRadius*2f, ally);
+                int nearbyArchons = 0;
+                for (RobotInfo robot : robots) {
+                    if (robot.type == RobotType.ARCHON) nearbyArchons++;
+                }
+
+                if (nearbyArchons > 0 && rc.getRoundNum() > 70 + ourInitialArchonLocations.length - nearbyArchons) {
+                    // Still haven't been able to build a gardener
+                    // but there are ally archons nearby.
+                    // Sacrifice this archon and hope the others will be able to build something.
+                    // Start with the archon that has the most ally archons close to it
+
+                    System.out.println("ARCHON SACRIFICE!");
+                    rc.disintegrate();
+                    return true;
+                }
+            }
         }
 
         return false;
