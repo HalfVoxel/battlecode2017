@@ -1482,7 +1482,7 @@ abstract class Robot {
                 dmg += bulletDamage[i];
             } else {
                 // Decrease the damage further away
-                dmg += 0.5f * bulletDamage[i] / (timeToIntersection + 1);
+                dmg += 0.5f * (radius-Math.sqrt(sqrDistanceToLineOfTravel) + 0.01f) * bulletDamage[i] / (timeToIntersection + 1);
             }
         }
 
