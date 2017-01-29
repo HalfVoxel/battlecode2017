@@ -38,6 +38,7 @@ parser.add_argument("--seed", help="Seed for the game or tournament", type=int)
 parser.add_argument("--threads", help="Number of threads to use", type=int, default=2)
 parser.add_argument("--dnaA", help="Genetic information for Team A", nargs="*")
 parser.add_argument("--dnaB", help="Genetic information for Team B", nargs="*")
+parser.add_argument("--serverJarPath", help="Path to server jar file")
 args = parser.parse_args()
 
 if args.threads <= 0:
@@ -65,7 +66,13 @@ active_commands = []
 print(yellowStr + "Building..." + reset, end="")
 sys.stdout.flush()
 buildOutput = subprocess.check_output(["./gradlew", "listBattleCodeJar"]).decode('utf-8')
-battlecodeJarPath = re.search("[^\n]*\.jar", buildOutput).group(0)
+
+if args.serverJarPath is not None:
+    battlecodeJarPath = args.serverJarPath
+else:
+    battlecodeJarPath = re.search("[^\n]*\.jar", buildOutput).group(0)
+    # battlecodeJarPath = "/Users/arong/Programming/competitions/battlecode2017/battlecode-server/build/libs/battlecode-server.jar"
+
 print("\r", end="")
 
 
@@ -141,7 +148,7 @@ def run(teamA, teamB, maps, quiet, seed, teamAdna, teamBdna):
         for line in gen:
             if "ARCHON SACRIFICE" in line:
                 # Important event
-                print(redStr + "An archon was sacrificed in the map '" + maps[mapIndex] + "'" + reset)
+                print("\r" + redStr + "An archon was sacrificed in the map '" + maps[mapIndex] + "'" + reset)
 
             win = winRegex.search(line)
             if win is not None:
@@ -153,7 +160,7 @@ def run(teamA, teamB, maps, quiet, seed, teamAdna, teamBdna):
                 mapIndex += 1
                 yield (winningTeam, round, reason)
     except subprocess.CalledProcessError:
-        print("Server crashed. Ignoring the rest of the maps")
+        print("\rServer crashed. Ignoring the rest of the maps")
         return
 
 
@@ -189,14 +196,13 @@ def run_tournament_part(teamA, teamB, dnaA, dnaB, switch, seed, maps):
 
     for map in maps:
         mapStr = yellowStr + map.ljust(12) + reset + " " + ("B vs A" if switch else "A vs B") + ": "
-        print(mapStr + grayStr + "..." + reset, end="")
         sys.stdout.flush()
         result = next(gen)
 
         if switch:
             result = ("B" if result[0] == "A" else "A", result[1], result[2])
 
-        print("\r" + mapStr, end="")
+        print("\r" + mapStr, end="                  ")
         printResult(result)
 
         yield result[0] == "A"
@@ -225,6 +231,9 @@ if args.tournament:
     totalCount = 0
 
     for seed in range(startSeed, startSeed + 4):
+        if seed != startSeed:
+            print("\n\nContinuing with new seed...\n")
+
         # Run AvsB and BvsA in parallel
         if args.threads == 1:
             g1 = run_tournament_part(args.teamA, args.teamB, args.dnaA, args.dnaB, False, seed, maps)
@@ -248,10 +257,9 @@ if args.tournament:
                 if teamAwon:
                     teamAwins += 1
                 totalCount += 1
-
-        print("Team A has won " + str((teamAwins / totalCount) * 100 if totalCount > 0 else 50) + "% of the time (" +
-              str(teamAwins) + " of " + str(totalCount) + ")")
-        print("Continuing with new seed...")
+                if totalCount > 100:
+                    percentage = str((teamAwins / totalCount) * 100 if totalCount > 0 else 50)
+                    print("Team A has won %s%% of the time (%s of %s)" % (percentage, teamAwins, totalCount), end="                  ")
 
 else:
     actualMap = maps[lowerMaps.index(args.map.lower())]
