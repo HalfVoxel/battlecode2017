@@ -5,20 +5,31 @@ import battlecode.common.*;
 class Tank extends Robot {
 
     MapLocation pickTarget(MapLocation[] fallBackPositions) throws GameActionException {
+        return pickTarget(fallBackPositions, 0.2f);
+    }
+
+    MapLocation pickTarget(MapLocation[] fallBackPositions, float pickFallbackProbability) throws GameActionException {
         int lastAttackingEnemySpotted = rc.readBroadcast(HIGH_PRIORITY_TARGET_OFFSET);
         MapLocation highPriorityTargetPos = readBroadcastPosition(HIGH_PRIORITY_TARGET_OFFSET + 1);
-        if (rc.getRoundNum() < lastAttackingEnemySpotted + 50 && rc.getLocation().distanceTo(highPriorityTargetPos) < type.strideRadius * 20) {
+        int limit = isDefender ? 40 : 20;
+        if (rc.getRoundNum() < lastAttackingEnemySpotted + 50 && rc.getLocation().distanceTo(highPriorityTargetPos) < type.strideRadius * limit) {
             // Defend!
             return highPriorityTargetPos;
         }
 
         MapLocation bestTarget = getHighPriorityTarget();
-        if (bestTarget != null) return bestTarget;
+        if (bestTarget != null) {
+            return bestTarget;
+        }
 
         // return pathfindingTarget();
 
-        if (rnd.nextFloat() < 0.2) {
-            return fallBackPositions[rnd.nextInt(fallBackPositions.length)];
+        if (rnd.nextFloat() < pickFallbackProbability) {
+            if (isDefender) {
+                return ourInitialArchonLocations[rnd.nextInt(ourInitialArchonLocations.length)];
+            } else {
+                return fallBackPositions[rnd.nextInt(fallBackPositions.length)];
+            }
         } else {
             Direction dir = randomDirection();
             return clampToMap(rc.getLocation().add(dir, type.strideRadius * 10), type.sensorRadius * 0.8f);
@@ -71,13 +82,18 @@ class Tank extends Robot {
     float speedToTarget = 0f;
     MapLocation target;
     int ticksMovingInTheWrongDirection = 0;
+    boolean isDefender;
 
     @Override
     public void onAwake() throws GameActionException {
         System.out.println("I'm a tank!");
         target = rc.getLocation();
 
-        target = randomChoice(initialArchonLocations, rc.getLocation());
+        if (type == RobotType.SOLDIER && spawnedCount(type) == 2) {
+            isDefender = true;
+        }
+
+        target = pickTarget(initialArchonLocations, 1f);
     }
 
     @Override
