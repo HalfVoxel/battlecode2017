@@ -25,6 +25,7 @@ maps = [
     "SparseForest", "Sprinkles", "Standoff", "TheOtherSide", "TicTacToe",
     "TreeFarm", "Turtle", "Waves", "Whirligig", "shrine",
     "Sacrifice",
+    "BattlecodeFinalShowdown",
 ]
 lowerMaps = [m.lower() for m in maps]
 
