@@ -125,7 +125,8 @@ def run(teamA, teamB, maps, quiet, seed, teamAdna, teamBdna):
         "-Dbc.server.map-path=maps",
         "-Dbc.server.debug=" + str(not quiet),
         "-Dbc.server.debug=" + str(not quiet),
-        "-Dbc.game.maps=" + ",".join(maps)
+        "-Dbc.game.maps=" + ",".join(maps),
+        '-Dbc.server.save-file=' + 'matches/' + teamA + '-vs-' + teamB + '-on-' + "_".join(maps) + '.bc17',
     ]
 
     if teamA is not None:
