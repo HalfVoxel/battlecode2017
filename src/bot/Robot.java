@@ -1032,7 +1032,7 @@ abstract class Robot {
             } else {
                 if (bugTiebreaker == 0) {
                     Direction tieBreakerDirection = rc.getLocation().directionTo(nextPointOnPathToEnemyArchon(rc.getLocation()));
-                    if (tieBreakerDirection.rotateRightDegrees(90).degreesBetween(lastBugDir) > 90 && rnd.nextFloat() < 0.7f) {
+                    if (Math.abs(tieBreakerDirection.rotateRightDegrees(90).degreesBetween(lastBugDir)) > 90 && rnd.nextFloat() < 0.7f) {
                         // Rotate right
                         bugTiebreaker = 1;
                     } else {
@@ -1055,7 +1055,7 @@ abstract class Robot {
             //rc.setIndicatorLine(rc.getLocation(), rc.getLocation().add(lastBugDir, 5), 255, 255, 255);
 
             // If we can move in the new direction and (we have tried really hard or it is a small change in direction)
-            if (newBugDir != null && rc.canMove(newBugDir, stride) && (tries > 0 || lastBugDir.degreesBetween(newBugDir) < 90)) {
+            if (newBugDir != null && rc.canMove(newBugDir, stride) && (tries > 0 || Math.abs(lastBugDir.degreesBetween(newBugDir)) < 90)) {
                 rc.move(newBugDir, stride);
                 lastBugDir = newBugDir;
                 return;
