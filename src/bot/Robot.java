@@ -1432,6 +1432,15 @@ abstract class Robot {
                                 score -= 1000;
                             }
                             break;
+                        case TANK:
+                            dis = loc.distanceTo(unit.location);
+                            if (isCoward)
+                                score += 1 / (dis + 1) - 9f / (dis * dis + 1);
+                            else
+                                score += 1.5 / (dis + 1) - 8f / (dis * dis + 1);
+                            if(dis > 8f)
+                                score += 0.3;
+                            break;
                     }
                 }
             }
