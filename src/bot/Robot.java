@@ -257,7 +257,7 @@ abstract class Robot {
         int n = Math.min(rc.readBroadcast(UNITS_IN_PRODUCTION), 100);
         for (int i = 0; i < n; i++) {
             int info = rc.readBroadcast(UNITS_IN_PRODUCTION + 1 + i);
-            int timeStarted = info & 0xFF;
+            int timeStarted = info & 0xFFFF;
             if (rc.getRoundNum() - timeStarted <= 21) {
                 counts[info >>> 16]++;
             } else {
