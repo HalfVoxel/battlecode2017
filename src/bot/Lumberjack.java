@@ -103,12 +103,33 @@ class Lumberjack extends Robot {
         if (robots.length > 0 && !rc.hasAttacked()) {
             float myValue = 0f;
             for (RobotInfo robot : friendlyRobots) {
-                if (robot.ID != rc.getID())
-                    myValue += robot.getType().bulletCost / robot.getType().maxHealth;
+                if (robot.ID != rc.getID()) {
+                    float cost;
+                    if(robot.getType() == RobotType.ARCHON){
+                        cost = 150;
+                    }
+                    else if(robot.getType() == RobotType.LUMBERJACK){
+                        cost = 90;
+                    }
+                    else{
+                        cost = robot.getType().bulletCost;
+                    }
+                    myValue += cost / robot.getType().maxHealth;
+                }
             }
             float opponentValue = 0f;
             for (RobotInfo robot : robots) {
-                opponentValue += robot.getType().bulletCost / robot.getType().maxHealth;
+                float cost;
+                if(robot.getType() == RobotType.ARCHON){
+                    cost = 150;
+                }
+                else if(robot.getType() == RobotType.LUMBERJACK){
+                    cost = 90;
+                }
+                else{
+                    cost = robot.getType().bulletCost;
+                }
+                opponentValue += cost / robot.getType().maxHealth;
             }
             // Use strike() to hit all nearby robots!
             if (opponentValue > myValue)

@@ -66,9 +66,20 @@ class Gardener extends Robot {
 
         TreeInfo[] trees = rc.senseNearbyTrees(type.sensorRadius, Team.NEUTRAL);
         float totalScore = 0f;
+        boolean onlyGardenersAndArchons = true;
+        int numGardenersAndArchons = 0;
         for (TreeInfo tree : trees) {
             // Add a small constant to make it favorable to just chop down trees for space
             totalScore += treeScore(tree, null) + 0.1f;
+            if(tree.containedRobot != null && tree.containedRobot != RobotType.ARCHON && tree.containedRobot != RobotType.GARDENER){
+                onlyGardenersAndArchons = false;
+            }
+            else if(tree.containedRobot != null){
+                numGardenersAndArchons += 1;
+            }
+        }
+        if(onlyGardenersAndArchons && spawnedCount(RobotType.LUMBERJACK) >= 2 && numGardenersAndArchons > 5){
+            totalScore *= 0.7f;
         }
 
         if (blockedByNeutralTrees) {

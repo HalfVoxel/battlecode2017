@@ -1359,6 +1359,40 @@ abstract class Robot {
                     }
                 }
             }
+        } else if(type == RobotType.GARDENER){
+            for (RobotInfo unit : units) {
+                if (unit.team == myTeam) {
+                    if (unit.ID == rc.getID())
+                        continue;
+                    if (unit.type == RobotType.ARCHON || unit.type == RobotType.TANK)
+                        score -= 1 / (unit.location.distanceTo(loc) + 1);
+                    else
+                        score -= 0.5 / (unit.location.distanceTo(loc) + 1);
+                } else {
+                    switch (unit.type) {
+                        case ARCHON:
+                            // Don't do anything
+                            break;
+                        case GARDENER:
+                            break;
+                        case SCOUT:
+                            float dis = loc.distanceTo(unit.location);
+                            score -= 1 / (dis*dis + 1);
+                            break;
+                        default: // Soldier/Tank
+                            dis = loc.distanceTo(unit.location);
+                            score -= 2 / (dis*dis + 1);
+                            break;
+                        case LUMBERJACK:
+                            dis = loc.distanceTo(unit.location);
+                            score   -= 2 / (dis + 1);
+                            if (dis < GameConstants.LUMBERJACK_STRIKE_RADIUS + 3f) {
+                                score -= 1000;
+                            }
+                            break;
+                    }
+                }
+            }
         } else {
             for (RobotInfo unit : units) {
                 if (unit.team == myTeam) {
