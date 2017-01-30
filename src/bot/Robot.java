@@ -1,6 +1,7 @@
 package bot;
 
 import battlecode.common.*;
+import org.omg.PortableInterceptor.ACTIVE;
 
 import java.util.*;
 
@@ -33,6 +34,8 @@ abstract class Robot {
     static final int HIGH_PRIORITY = 6000;
     static final int ARCHON_BUILD_SCORE = 7001;
     static final int ENEMIES_SPOTTED = 7100;
+    static final int UNITS_IN_PRODUCTION = 7200;
+    static final int ACTIVE_UNITS = 7300;
 
     static final int[] dx = new int[]{1, 0, -1, 0};
     static final int[] dy = new int[]{0, 1, 0, -1};
@@ -98,8 +101,8 @@ abstract class Robot {
         rc.broadcast(GARDENER_OFFSET, -1000);
         rc.broadcast(HIGH_PRIORITY_TARGET_OFFSET, -1000);
 
-        // Ensure we have count the number of alive archons correctly
-        rc.broadcast(RobotType.ARCHON.ordinal(), rc.getInitialArchonLocations(ally).length);
+        // Ensure we have count the number of alive archons correctly at the first frame
+        rc.broadcast(ACTIVE_UNITS + RobotType.ARCHON.ordinal(), rc.getInitialArchonLocations(ally).length);
     }
 
     /**
@@ -126,6 +129,27 @@ abstract class Robot {
 
     protected static int spawnedCount(RobotType tp) throws GameActionException {
         return rc.readBroadcast(tp.ordinal());
+    }
+
+    public static void buildRobot(RobotType tp, Direction dir) throws GameActionException {
+        rc.broadcast(tp.ordinal(), rc.readBroadcast(tp.ordinal()) + 1);
+
+        if (tp != RobotType.GARDENER) {
+            rc.buildRobot(tp, dir);
+            int n = rc.readBroadcast(UNITS_IN_PRODUCTION);
+            if (n < 99) {
+                // Add robot to a list of robots under construction
+                // This will increment the count of robots that are alive by 1
+                // for the next 20 turns until the robot starts running code
+                rc.broadcast(UNITS_IN_PRODUCTION, n + 1);
+                rc.broadcast(UNITS_IN_PRODUCTION + n + 1, rc.getRoundNum() | (tp.ordinal() << 16));
+            }
+        } else {
+            rc.hireGardener(dir);
+            // Gardener will not start running code until the next tick, but mark the unit as being active this turn
+            // so that the unit count will be correct during the next tick
+            rc.broadcast(ACTIVE_UNITS + tp.ordinal(), rc.readBroadcast(ACTIVE_UNITS + tp.ordinal()) + 1);
+        }
     }
 
     /**
@@ -218,9 +242,44 @@ abstract class Robot {
             rc.broadcast(PRIMARY_UNIT, rc.getRoundNum());
 
             considerDonating();
+            handleSpawnCounts();
         }
 
         enemiesHaveBeenSpotted = rc.readBroadcastBoolean(ENEMIES_SPOTTED);
+
+        // Increment active units count if they have enough health that they are likely to survive a longer time
+        if (rc.getHealth() > 10) rc.broadcast(ACTIVE_UNITS + type.ordinal(), rc.readBroadcast(ACTIVE_UNITS + type.ordinal()) + 1);
+    }
+
+    void handleSpawnCounts() throws GameActionException {
+        int[] counts = new int[6];
+
+        int n = Math.min(rc.readBroadcast(UNITS_IN_PRODUCTION), 100);
+        for (int i = 0; i < n; i++) {
+            int info = rc.readBroadcast(UNITS_IN_PRODUCTION + 1 + i);
+            int timeStarted = info & 0xFF;
+            if (rc.getRoundNum() - timeStarted <= 21) {
+                counts[info >>> 16]++;
+            } else {
+                // Remove from list by swapping with the last element
+                n--;
+                rc.broadcast(UNITS_IN_PRODUCTION, n);
+                rc.broadcast(UNITS_IN_PRODUCTION + 1 + i, rc.readBroadcast(UNITS_IN_PRODUCTION + 1 + n));
+                i--;
+            }
+        }
+
+        String s = "";
+        for (int i = 0; i < 6; i++) {
+            counts[i] += rc.readBroadcast(ACTIVE_UNITS + i);
+            // Copy to count of units that are alive right now
+            rc.broadcast(i, counts[i]);
+
+            // Reset active units count buffer
+            rc.broadcast(ACTIVE_UNITS + i, 0);
+            s += " " + counts[i];
+        }
+        System.out.println("Unit counts: " + s);
     }
 
     void yieldAndDoBackgroundTasks() throws GameActionException {
