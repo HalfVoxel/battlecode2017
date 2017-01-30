@@ -797,7 +797,8 @@ abstract class Robot {
                 score *= 2;
             }
 
-            score *= (robot.type.maxHealth / (4 + robot.health)) / (myLocation.distanceTo(robot.location) + 1);
+            score /= 4 + robot.health / robot.type.maxHealth;
+            score /= myLocation.distanceTo(robot.location) + 1;
             if (score > bestScore) {
                 bestScore = score;
                 bestRobot = robot;
