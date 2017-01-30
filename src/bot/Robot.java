@@ -51,7 +51,6 @@ abstract class Robot {
     static float mapEdges0, mapEdges1, mapEdges2, mapEdges3;
     boolean countingAsAlive = true;
     private final Map<Integer, Float> bulletHitDistance = new HashMap<>();
-    private final Map<Integer, MapLocation> unitLastLocation = new HashMap<>();
 
     static boolean enemiesHaveBeenSpotted = false;
 
@@ -696,6 +695,20 @@ abstract class Robot {
         }
     }
 
+    static int id0;
+    static int id1;
+    static int id2;
+    static int id3;
+    static int id4;
+
+    static MapLocation prevLoc0;
+    static MapLocation prevLoc1;
+    static MapLocation prevLoc2;
+    static MapLocation prevLoc3;
+    static MapLocation prevLoc4;
+
+    static int prevIndex;
+
     /**
      * Fire at any nearby robots if possible.
      *
@@ -712,46 +725,79 @@ abstract class Robot {
 
         RobotInfo bestRobot = null;
         float bestScore = 0;
-
+        
         for (RobotInfo robot : hostileRobots) {
-            MapLocation lastLoc = unitLastLocation.get(robot.ID);
-            if (lastLoc == null) {
-                lastLoc = robot.location;
-                unitLastLocation.put(robot.ID, lastLoc);
+            if (Clock.getBytecodesLeft() < 1500) break;
+
+            MapLocation prevLoc;
+            if (robot.ID == id0) {
+                prevLoc = prevLoc0;
+            } else if (robot.ID == id1) {
+                prevLoc = prevLoc1;
+            } else if (robot.ID == id2) {
+                prevLoc = prevLoc2;
+            } else if (robot.ID == id3) {
+                prevLoc = prevLoc3;
+            } else if (robot.ID == id4) {
+                prevLoc = prevLoc4;
+            } else {
+                // Not seen before
+                switch(prevIndex) {
+                    case 0:
+                        id0 = robot.ID;
+                        prevLoc0 = robot.location;
+                        break;
+                    case 1:
+                        id1 = robot.ID;
+                        prevLoc1 = robot.location;
+                        break;
+                    case 2:
+                        id2 = robot.ID;
+                        prevLoc2 = robot.location;
+                        break;
+                    case 3:
+                        id3 = robot.ID;
+                        prevLoc3 = robot.location;
+                        break;
+                    case 4:
+                        id4 = robot.ID;
+                        prevLoc4 = robot.location;
+                        break;
+                }
+
+                prevLoc = robot.location;
+                prevIndex = (prevIndex + 1) % 5;
             }
-            if (!lastLoc.equals(robot.location) && lastLoc.x >= 0) {
-                // Mark the robot as having moved at least once
-                lastLoc = new MapLocation(-1f, -1f);
-                unitLastLocation.put(robot.ID, lastLoc);
-            }
-            float score = 0;
+
+
+            float score;
             switch (robot.type) {
                 case GARDENER:
-                    score += 100;
+                    score = 100;
                     break;
                 case ARCHON:
-                    score += targetArchons ? 1f : 0f;
+                    score = targetArchons ? 1f : 0f;
                     break;
                 case SCOUT:
-                    score += 50;
+                    score = 50;
                     break;
                 case SOLDIER:
-                    score += 250;
+                    score = 250;
                     break;
                 case TANK:
-                    score += 200;
+                    score = 280;
+                    break;
                 default:
-                    score += 80;
+                    score = 80;
                     break;
             }
 
             // Give a higher priority to robots that do not seem to move
-            if (lastLoc.x >= 0) {
+            if (robot.location.isWithinDistance(prevLoc, 0.3f)) {
                 score *= 2;
             }
 
-            score /= 4 + robot.health / robot.type.maxHealth;
-            score /= myLocation.distanceTo(robot.location) + 1;
+            score *= (robot.type.maxHealth / (4 + robot.health)) / (myLocation.distanceTo(robot.location) + 1);
             if (score > bestScore) {
                 bestScore = score;
                 bestRobot = robot;
