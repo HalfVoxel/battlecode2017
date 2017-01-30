@@ -1207,9 +1207,9 @@ abstract class Robot {
             } else {
                 Direction dir = randomDirection();
                 float r = rnd.nextFloat();
-                if (r < 0.5f)
+                if (r < 0.8f)
                     loc = myLocation.add(dir, type.strideRadius);
-                else if (r < 0.7f)
+                else if (r < 0.9f)
                     loc = myLocation.add(dir, type.strideRadius * 0.5f);
                 else
                     loc = myLocation.add(dir, 0.2f);
@@ -1516,7 +1516,8 @@ abstract class Robot {
                 dmg += bulletDamage[i];
             } else {
                 // Decrease the damage further away
-                dmg += 0.5f * (radius-Math.sqrt(sqrDistanceToLineOfTravel) + 0.01f) * bulletDamage[i] / (timeToIntersection + 1);
+                double dis = radius-Math.sqrt(sqrDistanceToLineOfTravel);
+                dmg += 0.5f * (radius-Math.sqrt(sqrDistanceToLineOfTravel) + 0.01f + (dis < 0.3 ? 0.5f : 0f)) * bulletDamage[i] / (timeToIntersection + 1);
             }
         }
 
