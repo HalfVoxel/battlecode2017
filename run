@@ -259,8 +259,8 @@ if args.tournament:
                     teamAwins += 1
                 totalCount += 1
                 if totalCount > 100:
-                    percentage = str((teamAwins / totalCount) * 100 if totalCount > 0 else 50)
-                    print("Team A has won %s%% of the time (%s of %s)" % (percentage, teamAwins, totalCount), end="                  ")
+                    percentage = (teamAwins / totalCount) * 100 if totalCount > 0 else 50
+                    print("Team A has won %.1f%% of the time (%s of %s)" % (percentage, teamAwins, totalCount), end="                  ")
 
 else:
     actualMap = maps[lowerMaps.index(args.map.lower())]
