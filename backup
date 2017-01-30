@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 
 import os
-import sys
+import argparse
 import shutil
 import subprocess
 
+parser = argparse.ArgumentParser(description='Run BattleCode Bots')
+parser.add_argument("tag")
+parser.add_argument("--nobuild", help="Don't build first", action="store_true")
+args = parser.parse_args()
 
-if len(sys.argv) < 2:
-    print("Usage 'backup tag'")
-    exit(1)
-
-tag = sys.argv[1]
+tag = args.tag
 
 if os.path.exists("backups/" + tag):
     print("Tag already exists")
@@ -18,11 +18,12 @@ if os.path.exists("backups/" + tag):
 
 
 def backup(tag):
-    print("Building...")
-    try:
-        subprocess.check_output(["./gradlew", "build"])
-    except:
-        return
+    if not args.nobuild:
+        print("Building...")
+        try:
+            subprocess.check_output(["./gradlew", "build"])
+        except:
+            return
 
     shutil.copytree("build/classes", "backups/" + tag)
 

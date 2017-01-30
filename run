@@ -64,7 +64,7 @@ reset = "\033[0m"
 clearScreen = "\033[2J"
 active_commands = []
 
-print(yellowStr + "Building..." + reset, end="")
+print(yellowStr + "Building..." + reset)
 sys.stdout.flush()
 buildOutput = subprocess.check_output(["./gradlew", "listBattleCodeJar"]).decode('utf-8')
 
@@ -74,7 +74,16 @@ else:
     battlecodeJarPath = re.search("[^\n]*\.jar", buildOutput).group(0)
     # battlecodeJarPath = "/Users/arong/Programming/competitions/battlecode2017/battlecode-server/build/libs/battlecode-server.jar"
 
-print("\r", end="")
+print(yellowStr + "Backing up..." + reset)
+backupTag = "tmp" + str(random.randint(0, 10000000))
+subprocess.call(["./backup", backupTag, "--nobuild"])
+
+
+if args.teamA is None:
+    args.teamA = backupTag
+
+if args.teamB is None:
+    args.teamB = backupTag
 
 
 def execute(cmd, quiet):
