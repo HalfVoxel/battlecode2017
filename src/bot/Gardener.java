@@ -24,34 +24,51 @@ class Gardener extends Robot {
         }
     }
 
-    boolean likelyValidTarget(MapLocation target, float freeRadius) throws GameActionException {
-        if (spawnPos.isWithinDistance(target, type.bodyRadius * 8)) {
-            return false;
+    float likelyValidTarget(MapLocation target, float freeRadius) throws GameActionException {
+        if (!onMap(target, freeRadius)) {
+            return 0;
         }
 
-        boolean canSeeTarget = rc.canSenseAllOfCircle(target, freeRadius);
+        float score = 1;
 
-        return !canSeeTarget || (onMap(target, freeRadius) && !rc.isCircleOccupiedExceptByThisRobot(target, freeRadius));
+        if (rc.canSenseAllOfCircle(target, freeRadius)) {
+            if (!rc.isCircleOccupiedExceptByThisRobot(target, freeRadius)) {
+                score += 5;
+            }
+
+            if (!rc.isCircleOccupiedExceptByThisRobot(target, type.bodyRadius)) {
+                score += 2f;
+            }
+        }
+
+        score += Math.min(spawnPos.distanceTo(target)/(type.bodyRadius * 8), 1) * 3f;
+        return score;
     }
 
     MapLocation pickTarget(float freeRadius) throws GameActionException {
-        MapLocation target;
-        int tests = 0;
-        do {
+        MapLocation target = null;
+        float bestScore = -1000f;
+
+        for (int i = 0; i < 10; i++) {
             // Pick a new target
             // Generate a random direction
             Direction dir = randomDirection();
-            target = clampToMap(rc.getLocation().add(dir, type.strideRadius * 5), freeRadius);
+            MapLocation tg = clampToMap(rc.getLocation().add(dir, type.strideRadius * 5 * rnd.nextFloat()), freeRadius);
 
-            if (rnd.nextFloat() < 0.5) {
+            float score = likelyValidTarget(tg, freeRadius);
+
+            /*if (rnd.nextFloat() < 0.5) {
                 // Ensure it is far away from the spawn pos
                 for (int i = 0; i < 4; i++) {
                     target = clampToMap(spawnPos.add(spawnPos.directionTo(target), Math.max(spawnPos.distanceTo(target), type.bodyRadius * 8)), freeRadius);
                 }
-            }
+            }*/
 
-            tests += 1;
-        } while (tests < 10 && !likelyValidTarget(target, freeRadius));
+            if (score > bestScore) {
+                bestScore = score;
+                target = tg;
+            }
+        }
 
         return target;
     }
@@ -111,53 +128,40 @@ class Gardener extends Robot {
         return false;
     }
 
-    MapLocation plantTrees(MapLocation settledLocation) throws GameActionException {
+    // Store a single reserved location
+    // Check it every frame. Store round number
+    // Keep a score, change the reserved location if a better reserved location is detected
+
+    MapLocation plantTrees(MapLocation settledLocation, boolean allowTreePlanting) throws GameActionException {
         blockedByNeutralTrees = false;
 
-        for (int tries = 0; tries < 2; tries++) {
+        if (allowTreePlanting) {
+            for (int tries = 0; tries < 2; tries++) {
+                for (int i = 0; i < 6; i++) {
+                    Direction dir = new Direction(2 * (float)Math.PI * i / 6f);
+                    MapLocation origPos = settledLocation != null ? settledLocation : rc.getLocation();
+                    MapLocation plantPos = origPos.add(dir, type.bodyRadius + type.strideRadius + GameConstants.BULLET_TREE_RADIUS);
 
-            for (int i = 0; i < 6; i++) {
-                if (rc.hasMoved()) break;
-
-                Direction dir = new Direction(2 * (float)Math.PI * i / 6f);
-                MapLocation origPos = settledLocation != null ? settledLocation : rc.getLocation();
-                MapLocation plantPos = origPos.add(dir, type.bodyRadius + type.strideRadius + GameConstants.BULLET_TREE_RADIUS);
-                if (rc.isCircleOccupiedExceptByThisRobot(plantPos, GameConstants.BULLET_TREE_RADIUS + 0.01f) || !onMap(plantPos, GameConstants.BULLET_TREE_RADIUS + 0.01f)) {
-                    TreeInfo tree = rc.senseTreeAtLocation(plantPos);
-                    if (tries > 0 && ((tree != null && tree.team != ally) || (tree == null && rc.senseNearbyTrees(plantPos, GameConstants.BULLET_TREE_RADIUS + 0.01f, Team.NEUTRAL).length > 0))) {
-                        blockedByNeutralTrees = true;
-                        rc.setIndicatorDot(plantPos, 255, 0, 255);
+                    if (rc.isCircleOccupiedExceptByThisRobot(plantPos, GameConstants.BULLET_TREE_RADIUS + 0.01f) || !onMap(plantPos, GameConstants.BULLET_TREE_RADIUS + 0.01f)) {
+                        TreeInfo tree = rc.senseTreeAtLocation(plantPos);
+                        if (tries > 0 && ((tree != null && tree.team != ally) || (tree == null && rc.senseNearbyTrees(plantPos, GameConstants.BULLET_TREE_RADIUS + 0.01f, Team.NEUTRAL).length > 0))) {
+                            blockedByNeutralTrees = true;
+                            rc.setIndicatorDot(plantPos, 255, 0, 255);
+                        } else {
+                            rc.setIndicatorDot(plantPos, 255, 0, 0);
+                        }
+                        continue;
                     } else {
-                        rc.setIndicatorDot(plantPos, 255, 0, 0);
+                        rc.setIndicatorDot(plantPos, 0, 255, 0);
                     }
-                    continue;
-                } else {
-                    rc.setIndicatorDot(plantPos, 0, 255, 0);
+
+                    if (rc.canPlantTree(dir)) {
+                        rc.plantTree(dir);
+                        System.out.println("Planted tree");
+                        settledLocation = origPos;
+                        return settledLocation;
+                    }
                 }
-
-
-                //MapLocation moveToPos = origPos.add(dir, type.strideRadius - 0.02f);
-
-                /*if (rc.canMove(moveToPos)) {
-                    rc.move(moveToPos);
-                } else if (tries == 0) {
-                    tryAgain = true;
-                    continue;
-                }*/
-
-                if (rc.canPlantTree(dir)) {
-                    rc.plantTree(dir);
-                    System.out.println("Planted tree");
-                    settledLocation = origPos;
-                    return settledLocation;
-                }
-
-                /*yieldAndDoBackgroundTasks();
-                for (int t = 0; t < 5 && !rc.canMove(origPos); t++) yieldAndDoBackgroundTasks();
-                // Move back
-                if (rc.canMove(origPos)) {
-                    rc.move(origPos);
-                }*/
             }
         }
 
@@ -201,6 +205,9 @@ class Gardener extends Robot {
         buildLumberjackInDenseForests();
     }
 
+    int[] buildOrderCountNoEnemies = new int[] { 1, 1, 1, 1, 2, 2, 2, 2, 3 };
+    int[] buildOrderCountEnemies = new int[]   { 1, 1, 1, 2, 3, 4, 5, 6, 8 };
+
     @Override
     public void onUpdate() throws GameActionException {
         int turnsLeft = rc.getRoundLimit() - rc.getRoundNum();
@@ -237,18 +244,32 @@ class Gardener extends Robot {
         if (turnsLeft > STOP_SPENDING_AT_TIME)
             saveForLumberjack = buildLumberjackInDenseForests();
 
-        boolean invalidTarget = (moveFailCounter > 5 || speedToTarget < type.strideRadius * 0.2f || !likelyValidTarget(target, desiredRadius)) && !hasSettled;
+        boolean invalidTarget = (moveFailCounter > 5 || speedToTarget < type.strideRadius * 0.2f) && !hasSettled;
         boolean canSeeTarget = target.distanceSquaredTo(rc.getLocation()) < 0.01f || rc.canSenseAllOfCircle(target, desiredRadius);
 
         RobotType buildTarget;
         if (scoutCount == 0)
             buildTarget = RobotType.SCOUT;
-
         else
             buildTarget = RobotType.SOLDIER;
         int buildTargetCount = buildTarget == RobotType.SCOUT ? scoutCount : soldierCount;
-        if ((!hasBuiltScout || Math.pow(rc.getTreeCount() + 1, 0.9) > buildTargetCount) && !saveForTank &&
-                rc.isBuildReady() && rc.hasRobotBuildRequirements(buildTarget) && !saveForLumberjack) {
+        boolean saveForUnit;
+        int[] buildOrder = enemiesHaveBeenSpotted ? buildOrderCountEnemies : buildOrderCountNoEnemies;
+        double shouldHaveBuilt;
+        if (rc.getTreeCount() < buildOrder.length) {
+            shouldHaveBuilt = buildOrder[rc.getTreeCount()];
+        } else {
+            if (enemiesHaveBeenSpotted) {
+                shouldHaveBuilt = Math.pow(rc.getTreeCount() + 1, 0.9) + 1;
+            } else {
+                shouldHaveBuilt = Math.pow(0.5f * rc.getTreeCount() + 1, 0.5);
+            }
+        }
+        shouldHaveBuilt += Math.floor(rc.getTeamBullets() / 500);
+        saveForUnit = !hasBuiltScout || shouldHaveBuilt > buildTargetCount;
+        //saveForUnit = !hasBuiltScout || Math.pow(rc.getTreeCount() + 1, 0.9) > buildTargetCount;
+
+        if (saveForUnit && !saveForTank && !saveForLumberjack && rc.isBuildReady() && rc.hasRobotBuildRequirements(buildTarget)) {
             saveForTank = true;
             boolean built = false;
             for (int i = 0; i < 6; i++) {
@@ -267,6 +288,7 @@ class Gardener extends Robot {
                 // Noes! Could not build ANYWHERE!
                 rc.setIndicatorDot(rc.getLocation(), 255, 192, 203);
                 rc.broadcast(GARDENER_CAN_PROBABLY_BUILD, rc.readBroadcast(GARDENER_CAN_PROBABLY_BUILD) + 1);
+                saveForUnit = false;
             }
         } else {
             rc.broadcast(GARDENER_CAN_PROBABLY_BUILD, 0);
@@ -294,9 +316,10 @@ class Gardener extends Robot {
             }
         }
 
-        if (canSeeTarget && ((!invalidTarget && rc.getLocation().distanceSquaredTo(target) < 2f) || unsettledTime > 30) && !saveForTank && turnsLeft > STOP_SPENDING_AT_TIME && rc.hasTreeBuildRequirements() && rc.isBuildReady()) {
+        if (canSeeTarget && ((!invalidTarget && rc.getLocation().distanceSquaredTo(target) < 2f) || unsettledTime > 30)) {
             // At target
-            MapLocation settledLocation = plantTrees(hasSettled ? target : null);
+            boolean allowPlantingTrees = !saveForTank && !saveForUnit && turnsLeft > STOP_SPENDING_AT_TIME && rc.hasTreeBuildRequirements() && rc.isBuildReady();
+            MapLocation settledLocation = plantTrees(hasSettled ? target : null, allowPlantingTrees);
             if (settledLocation != null) {
                 if (!hasSettled) {
                     // Just settled
