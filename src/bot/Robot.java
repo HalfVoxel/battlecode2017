@@ -540,19 +540,21 @@ abstract class Robot {
     }
 
     static void broadcastArchonLocation(RobotInfo robot) throws GameActionException {
-        // Have we seen this ID before?
-        for (int i = 0; i < opponentArchonLocations.length; i++) {
-            if (opponentArchonIds[i] == robot.ID) {
-                opponentArchonLocations[i] = robot.location;
-                broadcastArchonLocation2(robot, i);
-                return;
+        // Have we seen this ID before? If not, maybe after reading broadcasts?
+        for (int it = 0; it < 2; it++) {
+            for (int i = 0; i < opponentArchonLocations.length; i++) {
+                if (opponentArchonIds[i] == robot.ID) {
+                    opponentArchonLocations[i] = robot.location;
+                    broadcastArchonLocation2(robot, i);
+                    return;
+                }
             }
+            readArchonLocations();
         }
 
         // Find the nearest archon and claim it
         int bestIndex = -1;
         float bestDistance = 1e30f;
-        readArchonLocations();
         for (int i = 0; i < opponentArchonLocations.length; i++) {
             if (opponentArchonIds[i] == -1) {
                 float dist = robot.location.distanceTo(opponentArchonLocations[i]);
