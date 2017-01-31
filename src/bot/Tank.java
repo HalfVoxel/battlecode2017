@@ -10,11 +10,13 @@ class Tank extends Robot {
 
     MapLocation pickTarget(MapLocation[] fallBackPositions, float pickFallbackProbability) throws GameActionException {
         int lastAttackingEnemySpotted = rc.readBroadcast(HIGH_PRIORITY_TARGET_OFFSET);
-        MapLocation highPriorityTargetPos = readBroadcastPosition(HIGH_PRIORITY_TARGET_OFFSET + 1);
-        int limit = isDefender ? 40 : 20;
-        if (rc.getRoundNum() < lastAttackingEnemySpotted + 50 && rc.getLocation().distanceTo(highPriorityTargetPos) < type.strideRadius * limit) {
-            // Defend!
-            return highPriorityTargetPos;
+        if (rc.getRoundNum() < lastAttackingEnemySpotted + 50) {
+            MapLocation highPriorityTargetPos = readBroadcastPosition(HIGH_PRIORITY_TARGET_OFFSET + 1);
+            int limit = isDefender ? 40 : 20;
+            if (rc.getLocation().distanceTo(highPriorityTargetPos) < type.strideRadius * limit) {
+                // Defend!
+                return highPriorityTargetPos;
+            }
         }
 
         MapLocation bestTarget = getHighPriorityTarget();
@@ -52,27 +54,39 @@ class Tank extends Robot {
         }
     }
 
+    MapLocation highPriorityTargetCache;
+    int highPriorityTargetCacheTime;
+
     MapLocation getHighPriorityTarget() throws GameActionException {
+        if (rc.getRoundNum() == highPriorityTargetCacheTime) return highPriorityTargetCache;
+
         MapLocation bestTarget = null;
         float bestPriority = 0.0f;
+        MapLocation myLocation = rc.getLocation();
 
         for (int i = 0; i < NUMBER_OF_TARGETS; ++i) {
             int offset = TARGET_OFFSET + 10 * i;
-            int timeSpotted = rc.readBroadcast(offset);
             MapLocation loc = readBroadcastPosition(offset + 2);
-            float lastEventPriority = rc.readBroadcast(offset + 1) / (rc.getRoundNum() - timeSpotted + 5.0f);
-            lastEventPriority /= loc.distanceSquaredTo(rc.getLocation()) + 10;
-            //System.out.println("Target " + loc + " from frame " + timeSpotted + " has priority " + lastEventPriority);
-            if (loc.distanceTo(rc.getLocation()) < 30f && lastEventPriority > bestPriority) {
-                bestPriority = lastEventPriority;
-                bestTarget = loc;
+            if (loc.distanceTo(myLocation) < 30f) {
+                int timeSpotted = rc.readBroadcast(offset);
+                float lastEventPriority = rc.readBroadcast(offset + 1) / (rc.getRoundNum() - timeSpotted + 5.0f);
+                lastEventPriority /= loc.distanceSquaredTo(myLocation) + 10;
+                //System.out.println("Target " + loc + " from frame " + timeSpotted + " has priority " + lastEventPriority);
+                if (lastEventPriority > bestPriority) {
+                    bestPriority = lastEventPriority;
+                    bestTarget = loc;
+                }
             }
         }
+
+        highPriorityTargetCacheTime = rc.getRoundNum();
+
         if (bestTarget != null && bestPriority > 0.02) {
-            //System.out.println("Heading for nearby target " + bestTarget);
+            highPriorityTargetCache = bestTarget;
             return bestTarget;
         }
 
+        highPriorityTargetCache = null;
         return null;
     }
 
@@ -111,7 +125,7 @@ class Tank extends Robot {
         float bestRobotScore = 0f;
         for (RobotInfo robot : robots) {
             float score;
-            switch (robot.getType()) {
+            switch (robot.type) {
                 case ARCHON:
                     score = targetArchons ? 0.1f : 0f;
                     break;

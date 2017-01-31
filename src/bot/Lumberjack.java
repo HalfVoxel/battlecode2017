@@ -157,11 +157,8 @@ class Lumberjack extends Robot {
             }
             strikeScore *= RobotType.LUMBERJACK.attackPower;
             bestTree = findBestTreeToChop(true);
-            //System.out.println("Chop score: " + chopScore);
-            //System.out.println("Strike score: " + strikeScore);
             if (strikeScore > chopScore || (strikeScore > 0 && (bestTree == null || !rc.canChop(bestTree.ID)))) {
                 rc.strike();
-                //System.out.println("Lumberjack struck trees");
             } else if (bestTree != null && rc.canChop(bestTree.ID)) {
                 rc.chop(bestTree.ID);
             }

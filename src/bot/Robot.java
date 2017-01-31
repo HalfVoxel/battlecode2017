@@ -1172,10 +1172,12 @@ abstract class Robot {
     MapLocation moveToAvoidBullets(MapLocation secondaryTarget, BulletInfo[] bullets, RobotInfo[] units) throws GameActionException {
         if (rc.hasMoved()) return null;
 
+        MapLocation myLocation = rc.getLocation();
+
         MapLocation reservedNodeLocation = null;
         if (type != RobotType.GARDENER) {
             // Test a random node inside the body radius
-            MapLocation rndPos = rc.getLocation().add(rnd.nextFloat() * (float)Math.PI * 2, rnd.nextFloat() * (type.bodyRadius + PATHFINDING_NODE_SIZE * 0.5f));
+            MapLocation rndPos = myLocation.add(rnd.nextFloat() * (float)Math.PI * 2, rnd.nextFloat() * (type.bodyRadius + PATHFINDING_NODE_SIZE * 0.5f));
 
             int index = snapToNode(rndPos);
             int x = index % PATHFINDING_WORLD_WIDTH;
@@ -1192,11 +1194,11 @@ abstract class Robot {
             return null;
         }
 
-        MapLocation myLocation = rc.getLocation();
         int numMovesToConsider = 0;
 
-        if (secondaryTarget != null && myLocation.distanceTo(secondaryTarget) > 0) {
-            movesToConsider[numMovesToConsider++] = myLocation.add(myLocation.directionTo(secondaryTarget), Math.min(myLocation.distanceTo(secondaryTarget), type.strideRadius));
+        Direction dirToSecondaryTarget = myLocation.directionTo(secondaryTarget);
+        if (dirToSecondaryTarget != null) {
+            movesToConsider[numMovesToConsider++] = myLocation.add(dirToSecondaryTarget, Math.min(myLocation.distanceTo(secondaryTarget), type.strideRadius));
             if (rc.getType() == RobotType.LUMBERJACK) {
                 movesToConsider[numMovesToConsider++] = myLocation;
             }
@@ -1214,9 +1216,9 @@ abstract class Robot {
         }
 
         if (previousBestMove != null && Math.hypot(previousBestMove.x, previousBestMove.y) > 0.01f) {
-            MapLocation move = previousBestMove.translate(rc.getLocation().x, rc.getLocation().y);
+            MapLocation move = previousBestMove.translate(myLocation.x, myLocation.y);
             movesToConsider[numMovesToConsider++] = move;
-            rc.setIndicatorLine(rc.getLocation(), move, 255, 0, 0);
+            //rc.setIndicatorLine(myLocation, move, 255, 0, 0);
         }
 
         int bulletsToConsider = Math.min(bullets.length, bulletX.length);
@@ -1290,7 +1292,7 @@ abstract class Robot {
 
         // We need to check again that the move is legal, in case we exceeded the byte code limit
         if (bestMove != null && rc.canMove(bestMove)) {
-            previousBestMove = bestMove.translate(-rc.getLocation().x, -rc.getLocation().y);
+            previousBestMove = bestMove.translate(-myLocation.x, -myLocation.y);
             return bestMove;
         }
         return null;
@@ -1307,8 +1309,12 @@ abstract class Robot {
 
         if (type == RobotType.ARCHON) {
             // Sense nearby trees but re-use the cache if we have already sensed them during this tick
-            TreeInfo[] trees = treeCache = treeCacheRound == rc.getRoundNum() ? treeCache : rc.senseNearbyTrees(type.sensorRadius);
-            for (TreeInfo tree : trees) {
+            if (treeCacheRound != rc.getRoundNum()) {
+                treeCacheRound = rc.getRoundNum();
+                treeCache = rc.senseNearbyTrees();
+            }
+
+            for (TreeInfo tree : treeCache) {
                 if (tree.getTeam() == Team.NEUTRAL) {
                     if (tree.containedBullets > 0) {
                         ignoreTarget = true;
@@ -1342,8 +1348,12 @@ abstract class Robot {
 
         if (type == RobotType.LUMBERJACK) {
             // Sense nearby trees but re-use the cache if we have already sensed them during this tick
-            TreeInfo[] trees = treeCache = treeCacheRound == rc.getRoundNum() ? treeCache : rc.senseNearbyTrees(type.sensorRadius);
-            for (TreeInfo tree : trees) {
+            if (treeCacheRound != rc.getRoundNum()) {
+                treeCacheRound = rc.getRoundNum();
+                treeCache = rc.senseNearbyTrees();
+            }
+
+            for (TreeInfo tree : treeCache) {
                 if (tree.team == Team.NEUTRAL) {
                     score += Math.sqrt((tree.containedRobot != null ? tree.containedRobot.bulletCost * 1.5f : 0) + tree.containedBullets + 1) / (loc.distanceTo(tree.location) + 1);
                 } else if (tree.team == myTeam) {
