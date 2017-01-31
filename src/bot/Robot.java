@@ -527,9 +527,7 @@ abstract class Robot {
 
         for (int i = 0; i < count; i++) {
             int ind = ARCHON_LOCATIONS + i*3;
-            float x = rc.readBroadcastFloat(ind + 0);
-            float y = rc.readBroadcastFloat(ind + 1);
-            opponentArchonLocations[i] = new MapLocation(x, y);
+            opponentArchonLocations[i] = readBroadcastPosition(ind);
             opponentArchonIds[i] = rc.readBroadcast(ind + 2);
         }
         return opponentArchonLocations;
@@ -537,8 +535,7 @@ abstract class Robot {
 
     static void broadcastArchonLocation2(RobotInfo robot, int index) throws GameActionException {
         int ind = ARCHON_LOCATIONS + index*3;
-        rc.broadcastFloat(ind + 0, robot.location.x);
-        rc.broadcastFloat(ind + 1, robot.location.y);
+        broadcast(ind, robot.location);
         rc.broadcast(ind + 2, robot.ID);
     }
 
