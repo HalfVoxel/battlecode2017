@@ -185,6 +185,18 @@ class Gardener extends Robot {
         }
     }
 
+    int bulletsInNearbyTrees() {
+        int s = 0;
+        for (TreeInfo tree : rc.senseNearbyTrees(-1, Team.NEUTRAL)) {
+            if (tree.containedBullets > 0) {
+                // +1 because it is is easier for a scout to get the bullets than some other
+                // unit just randomly stumbling in to one.
+                s += tree.containedBullets + 1;
+            }
+        }
+        return s;
+    }
+
     MapLocation target;
     final int STOP_SPENDING_AT_TIME = 100;
     final float desiredRadius = type.bodyRadius + 2.01f * GameConstants.BULLET_TREE_RADIUS;
@@ -204,8 +216,8 @@ class Gardener extends Robot {
         buildLumberjackInDenseForests();
     }
 
-    int[] buildOrderCountNoEnemies = new int[] { 1, 1, 1, 1, 2, 2, 2, 2, 3 };
-    int[] buildOrderCountEnemies = new int[]   { 1, 1, 1, 2, 3, 4, 5, 6, 8 };
+    int[] buildOrderCountNoEnemies = new int[] { 1, 1, 1, 1, 2, 2, 2, 3, 4 };
+    int[] buildOrderCountEnemies = new int[]   { 1, 1, 1, 2, 2, 2, 3, 3, 5 };
 
     @Override
     public void onUpdate() throws GameActionException {
@@ -247,11 +259,11 @@ class Gardener extends Robot {
         boolean canSeeTarget = target.distanceSquaredTo(rc.getLocation()) < 0.01f || rc.canSenseAllOfCircle(target, desiredRadius);
 
         RobotType buildTarget;
-        if (scoutCount == 0)
+        if (scoutCount == 0 && (accurateSpawnedCount(RobotType.SOLDIER) >= 2 || bulletsInNearbyTrees() >= 50))
             buildTarget = RobotType.SCOUT;
         else
             buildTarget = RobotType.SOLDIER;
-        int buildTargetCount = buildTarget == RobotType.SCOUT ? scoutCount : soldierCount;
+        int buildTargetCount = buildTarget == RobotType.SCOUT ? accurateSpawnedCount(RobotType.SCOUT) : accurateSpawnedCount(RobotType.SOLDIER);
         boolean saveForUnit;
         int[] buildOrder = enemiesHaveBeenSpotted ? buildOrderCountEnemies : buildOrderCountNoEnemies;
         double shouldHaveBuilt;
@@ -264,7 +276,7 @@ class Gardener extends Robot {
                 shouldHaveBuilt = Math.pow(0.5f * rc.getTreeCount() + 1, 0.5);
             }
         }
-        shouldHaveBuilt += Math.floor(rc.getTeamBullets() / 500);
+        shouldHaveBuilt += Math.floor(rc.getTeamBullets() / 600);
         saveForUnit = !hasBuiltScout || shouldHaveBuilt > buildTargetCount;
         //saveForUnit = !hasBuiltScout || Math.pow(rc.getTreeCount() + 1, 0.9) > buildTargetCount;
 

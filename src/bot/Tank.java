@@ -103,9 +103,10 @@ class Tank extends Robot {
         System.out.println("I'm a tank!");
         target = rc.getLocation();
 
-        if (type == RobotType.SOLDIER && spawnedCount(type) == 2) {
-            isDefender = true;
-        }
+        isDefender = false;
+//        if (type == RobotType.SOLDIER && spawnedCount(type) == 2) {
+//            isDefender = true;
+//        }
 
         target = pickTarget(null, 1f);
     }
@@ -120,6 +121,16 @@ class Tank extends Robot {
         markEnemySpotted(robots);
 
         boolean targetArchons = rc.getTeamBullets() > 1000 || rc.getRoundNum() > 1000 || (rc.getRoundNum() > 600 && initialArchonLocations.length == 1);
+
+        // Turn from defender to attacker when another friendly soldier is spotted
+        // (they will sort of attack as a team)
+        if (isDefender) {
+            for (RobotInfo robot : friendlyRobots) {
+                if (robot.type == RobotType.SOLDIER) {
+                    isDefender = false;
+                }
+            }
+        }
 
         RobotInfo bestRobot = null;
         float bestRobotScore = 0f;
