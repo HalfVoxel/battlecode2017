@@ -100,8 +100,7 @@ class Gardener extends Robot {
             for (int i = 0; i < 6; i++) {
                 Direction dir = randomDirection();
                 if (rc.canBuildRobot(RobotType.LUMBERJACK, dir)) {
-                    rc.buildRobot(RobotType.LUMBERJACK, dir);
-                    rc.broadcast(RobotType.LUMBERJACK.ordinal(), spawnedCount(RobotType.LUMBERJACK) + 1);
+                    buildRobot(RobotType.LUMBERJACK, dir);
                     lastBuildLumberjackTime = rc.getRoundNum();
                     return false;
                 }
@@ -254,8 +253,7 @@ class Gardener extends Robot {
             for (int i = 0; i < 6; i++) {
                 Direction dir = new Direction(2 * (float)Math.PI * i / 6f);
                 if (rc.canBuildRobot(buildTarget, dir) && turnsLeft > STOP_SPENDING_AT_TIME) {
-                    rc.buildRobot(buildTarget, dir);
-                    rc.broadcast(buildTarget.ordinal(), buildTargetCount + 1);
+                    buildRobot(buildTarget, dir);
                     rc.broadcast(GARDENER_CAN_PROBABLY_BUILD, 0);
                     hasBuiltScout = true;
                     built = true;
@@ -329,9 +327,9 @@ class Gardener extends Robot {
         /*
         // Randomly attempt to build a soldier or lumberjack in this direction
         if (rc.canBuildRobot(RobotType.SOLDIER, dir) && Math.random < .01) {
-            rc.buildRobot(RobotType.SOLDIER, dir)
+            buildRobot(RobotType.SOLDIER, dir)
         } else if (rc.canBuildRobot(RobotType.LUMBERJACK, dir) && Math.random < .01 && rc.isBuildReady) {
-            rc.buildRobot(RobotType.LUMBERJACK, dir)
+            buildRobot(RobotType.LUMBERJACK, dir)
         }
         // Move randomly
         tryMove(randomDirection)

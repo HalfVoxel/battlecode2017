@@ -113,10 +113,7 @@ class Archon extends Robot {
                 Direction dir = randomDirection();
                 if (rc.canHireGardener(dir)) {
                     System.out.println("ARCHON SACRIFICE!");
-                    rc.hireGardener(dir);
-                    int gardenerCount = spawnedCount(RobotType.GARDENER);
-                    rc.broadcast(RobotType.GARDENER.ordinal(), gardenerCount + 1);
-
+                    buildRobot(RobotType.GARDENER, dir);
                     rc.disintegrate();
                     return true;
                 }
@@ -168,9 +165,7 @@ class Archon extends Robot {
 
         if (bestDir != null && rc.canHireGardener(bestDir)) {
             // Looks good
-            rc.hireGardener(bestDir);
-            int gardenerCount = spawnedCount(RobotType.GARDENER);
-            rc.broadcast(RobotType.GARDENER.ordinal(), gardenerCount + 1);
+            buildRobot(RobotType.GARDENER, bestDir);
             return true;
         }
 
