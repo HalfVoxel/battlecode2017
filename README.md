@@ -1,5 +1,6 @@
 Battlecode Bot
 ===========================
+Team: Arbitrary Graph Restoration Fund
 
 ## Overview
 
@@ -12,6 +13,8 @@ Run a game using
 ./run -a versionA
 # to run the two specified versions against each other on a specific map
 ./run -a versionA -b versionB -m sparseforest
+# to run a tournament where two versions battle each other in all maps
+./run -a versionA -b versionB --tournament
 ~~~
 
 New backup versions can be created using the `backup` script
