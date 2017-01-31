@@ -124,6 +124,17 @@ class Scout extends Robot {
     @Override
     public void onUpdate() throws GameActionException {
         shakeNearbyTrees();
+
+        while(rc.getRobotCount() == 1) {
+            TreeInfo atTree = rc.senseTreeAtLocation(rc.getLocation());
+            if (atTree != null && atTree.radius > type.bodyRadius && rc.senseNearbyRobots(type.bodyRadius + type.bulletSpeed, enemy).length == 0) {
+                rc.move(atTree.location);
+                yieldAndDoBackgroundTasks();
+            } else {
+                break;
+            }
+        }
+
         MapLocation myLocation = rc.getLocation();
         // See if there are any nearby enemy robots
         RobotInfo[] robots = rc.senseNearbyRobots(-1, enemy);
