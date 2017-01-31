@@ -787,6 +787,8 @@ abstract class Robot {
 
     static int prevIndex;
 
+    static boolean alternationIndex;
+
     /**
      * Fire at any nearby robots if possible.
      *
@@ -903,12 +905,14 @@ abstract class Robot {
                     if (rc.getTeamBullets() > 300 && friendlyRobots.length < hostileRobots.length && (friendlyRobots.length == 0 || hostileRobots.length >= 2)) {
                         // ...Then fire a bullet in the direction of the enemy.
                         //rc.firePentadShot(dir);
-                        return new FirePlan(dir, 5);
+                        alternationIndex = !alternationIndex;
+                        return new FirePlan(dir, alternationIndex ? 5 : 3);
                     }
 
                     if (dist < 5.5f) {
                         //rc.firePentadShot(dir);
-                        return new FirePlan(dir, 5);
+                        alternationIndex = !alternationIndex;
+                        return new FirePlan(dir, alternationIndex ? 5 : 3);
                     }
                 }
 
