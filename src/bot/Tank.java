@@ -4,11 +4,11 @@ import battlecode.common.*;
 
 class Tank extends Robot {
 
-    MapLocation pickTarget(MapLocation[] fallBackPositions) throws GameActionException {
+    static MapLocation pickTarget(MapLocation[] fallBackPositions) throws GameActionException {
         return pickTarget(fallBackPositions, 0.2f);
     }
 
-    MapLocation pickTarget(MapLocation[] fallBackPositions, float pickFallbackProbability) throws GameActionException {
+    static MapLocation pickTarget(MapLocation[] fallBackPositions, float pickFallbackProbability) throws GameActionException {
         int lastAttackingEnemySpotted = rc.readBroadcast(HIGH_PRIORITY_TARGET_OFFSET);
         if (rc.getRoundNum() < lastAttackingEnemySpotted + 50) {
             MapLocation highPriorityTargetPos = readBroadcastPosition(HIGH_PRIORITY_TARGET_OFFSET + 1);
@@ -41,7 +41,7 @@ class Tank extends Robot {
         }
     }
 
-    MapLocation pathfindingTarget() throws GameActionException {
+    static MapLocation pathfindingTarget() throws GameActionException {
         MapLocation c = rc.getLocation();
         for (int i = 0; i < 5; i++) {
             MapLocation next = nextPointOnPathToEnemyArchon(c);
@@ -57,10 +57,10 @@ class Tank extends Robot {
         }
     }
 
-    MapLocation highPriorityTargetCache;
-    int highPriorityTargetCacheTime;
+    static MapLocation highPriorityTargetCache;
+    static int highPriorityTargetCacheTime;
 
-    MapLocation getHighPriorityTarget() throws GameActionException {
+    static MapLocation getHighPriorityTarget() throws GameActionException {
         if (rc.getRoundNum() == highPriorityTargetCacheTime) return highPriorityTargetCache;
 
         MapLocation bestTarget = null;
@@ -96,10 +96,10 @@ class Tank extends Robot {
     // Exponentially decaying weighted average of the speed the unit has
     // toward the target. If this is very low (or negative) then the unit
     // is not making much progress and maybe a different target should be chosen
-    float speedToTarget = 0f;
-    MapLocation target;
-    int ticksMovingInTheWrongDirection = 0;
-    boolean isDefender;
+    static float speedToTarget = 0f;
+    static MapLocation target;
+    static int ticksMovingInTheWrongDirection = 0;
+    static boolean isDefender;
 
     @Override
     public void onAwake() throws GameActionException {

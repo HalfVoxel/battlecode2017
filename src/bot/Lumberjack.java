@@ -6,9 +6,9 @@ import static battlecode.common.GameConstants.LUMBERJACK_STRIKE_RADIUS;
 
 class Lumberjack extends Robot {
 
-    private float chopScore = 0;
+    private static float chopScore = 0;
 
-    TreeInfo findBestTreeToChop(boolean mustBeChopable) throws GameActionException {
+    static TreeInfo findBestTreeToChop(boolean mustBeChopable) throws GameActionException {
         TreeInfo[] trees;
         if (mustBeChopable)
             trees = rc.senseNearbyTrees(3f);
@@ -53,7 +53,7 @@ class Lumberjack extends Robot {
         return bestTree;
     }
 
-    MapLocation pickTarget(MapLocation[] fallBackPositions) throws GameActionException {
+    static MapLocation pickTarget(MapLocation[] fallBackPositions) throws GameActionException {
         int lastAttackingEnemySpotted = rc.readBroadcast(HIGH_PRIORITY_TARGET_OFFSET);
         MapLocation highPriorityTargetPos = readBroadcastPosition(HIGH_PRIORITY_TARGET_OFFSET + 1);
         if (rc.getRoundNum() < lastAttackingEnemySpotted + 50 && rc.getLocation().distanceTo(highPriorityTargetPos) < type.strideRadius * 20) {
@@ -74,7 +74,7 @@ class Lumberjack extends Robot {
         System.out.println("I'm a lumberjack and I'm okay!");
     }
 
-    MapLocation target;
+    static MapLocation target;
 
     @Override
     public void onUpdate() throws GameActionException {

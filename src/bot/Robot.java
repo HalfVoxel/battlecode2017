@@ -13,7 +13,7 @@ abstract class Robot {
     static RobotType type = null;
     static MapLocation spawnPos = null;
     static Random rnd;
-    int roundAtStart = 0;
+    static int roundAtStart = 0;
 
     static Team enemy;
     static Team ally;
@@ -53,8 +53,8 @@ abstract class Robot {
 
     static int mapEdgesDetermined = 0;
     static float mapEdges0, mapEdges1, mapEdges2, mapEdges3;
-    boolean countingAsAlive = true;
-    private final Map<Integer, Float> bulletHitDistance = new HashMap<>();
+    static boolean countingAsAlive = true;
+    static private final Map<Integer, Float> bulletHitDistance = new HashMap<>();
 
     static boolean enemiesHaveBeenSpotted = false;
 
@@ -146,7 +146,7 @@ abstract class Robot {
      *
      * @param id ID of the entity, assumed to be in the range 0...32000.
      */
-    void markAsHighPriority(int id) throws GameActionException {
+    static void markAsHighPriority(int id) throws GameActionException {
         // Note that the right shift by id will only use the last 5 bits
         // and thus this will pick out the id'th bit in the broadcast array when starting
         // from the offset HIGH_PRIORITY
@@ -154,11 +154,11 @@ abstract class Robot {
         rc.broadcast(HIGH_PRIORITY + (id >> 5), rc.readBroadcast(HIGH_PRIORITY + (id >> 5)) | (1 << id));
     }
 
-    boolean isHighPriority(int id) throws GameActionException {
+    static boolean isHighPriority(int id) throws GameActionException {
         return ((rc.readBroadcast(HIGH_PRIORITY + (id >> 5)) >> id) & 1) != 0;
     }
 
-    public void markEnemySpotted(RobotInfo[] units) throws GameActionException {
+    static public void markEnemySpotted(RobotInfo[] units) throws GameActionException {
         if (!enemiesHaveBeenSpotted) {
             int cnt = 0;
             for (RobotInfo robot : units) {
@@ -184,7 +184,7 @@ abstract class Robot {
      * @param dir The intended direction of movement
      * @return true if a move was performed
      */
-    boolean tryMove(Direction dir) throws GameActionException {
+    static boolean tryMove(Direction dir) throws GameActionException {
         return tryMove(dir, 20, 3, type.strideRadius);
     }
 
@@ -196,7 +196,7 @@ abstract class Robot {
      * @param checksPerSide Number of extra directions checked on each side, if intended direction was unavailable
      * @return true if a move was performed
      */
-    boolean tryMove(Direction dir, float degreeOffset, int checksPerSide, float distance) throws GameActionException {
+    static boolean tryMove(Direction dir, float degreeOffset, int checksPerSide, float distance) throws GameActionException {
         // First, try intended direction
         if (rc.canMove(dir, distance)) {
             rc.move(dir, distance);
@@ -223,7 +223,7 @@ abstract class Robot {
         return false;
     }
 
-    void onStartOfTick() throws GameActionException {
+    static void onStartOfTick() throws GameActionException {
         roundAtStart = rc.getRoundNum();
 
         if (rc.readBroadcast(PRIMARY_UNIT) != rc.getRoundNum()) {
@@ -236,7 +236,7 @@ abstract class Robot {
         enemiesHaveBeenSpotted = rc.readBroadcastBoolean(ENEMIES_SPOTTED);
     }
 
-    void yieldAndDoBackgroundTasks() throws GameActionException {
+    static void yieldAndDoBackgroundTasks() throws GameActionException {
         updateLiveness();
         if (Clock.getBytecodesLeft() > 1000) determineMapSize();
         if (Clock.getBytecodesLeft() > 1000 || rc.getType() == RobotType.GARDENER) shakeNearbyTrees();
@@ -251,7 +251,7 @@ abstract class Robot {
         onStartOfTick();
     }
 
-    MapLocation nextPointOnPathToEnemyArchon(MapLocation loc) throws GameActionException {
+    static MapLocation nextPointOnPathToEnemyArchon(MapLocation loc) throws GameActionException {
         MapLocation relativePos = loc.translate(-explorationOrigin.x, -explorationOrigin.y);
         int nx = (int)Math.floor(relativePos.x / PATHFINDING_NODE_SIZE);
         int ny = (int)Math.floor(relativePos.y / PATHFINDING_NODE_SIZE);
@@ -282,14 +282,14 @@ abstract class Robot {
         return rc.readBroadcast(PATHFINDING + index);
     }
 
-    boolean isNodeReserved(int x, int y) throws GameActionException {
+    static boolean isNodeReserved(int x, int y) throws GameActionException {
         int cx = x / PATHFINDING_CHUNK_SIZE;
         int cy = y / PATHFINDING_CHUNK_SIZE;
         int index = cy * (PATHFINDING_WORLD_WIDTH / PATHFINDING_CHUNK_SIZE) + cx;
         return ((rc.readBroadcast(PATHFINDING_TREE + index) >> ((y % PATHFINDING_CHUNK_SIZE) * PATHFINDING_CHUNK_SIZE + (x % PATHFINDING_CHUNK_SIZE))) & 1) != 0;
     }
 
-    void reserveNode(int x, int y) throws GameActionException {
+    static void reserveNode(int x, int y) throws GameActionException {
         int cx = x / PATHFINDING_CHUNK_SIZE;
         int cy = y / PATHFINDING_CHUNK_SIZE;
         int index = cy * (PATHFINDING_WORLD_WIDTH / PATHFINDING_CHUNK_SIZE) + cx;
@@ -322,7 +322,7 @@ abstract class Robot {
         return explorationOrigin.translate((x + 0.5f) * PATHFINDING_NODE_SIZE, (y + 0.5f) * PATHFINDING_NODE_SIZE);
     }
 
-    void broadcastExploration() throws GameActionException {
+    static void broadcastExploration() throws GameActionException {
         if (!doChunkJob()) return;
 
         // Determine chunk
@@ -387,16 +387,16 @@ abstract class Robot {
         }
     }
 
-    private MapLocation jobChunkCenter;
-    private int jobChunkIndex;
-    private int jobChunkNx;
-    private int jobChunkNy;
-    private int jobChunkNodeIndex;
-    private int jobChunkInfo;
-    private int jobNodeSkips = 0;
-    private boolean jobChunkWasOutdated;
+    static private MapLocation jobChunkCenter;
+    static private int jobChunkIndex;
+    static private int jobChunkNx;
+    static private int jobChunkNy;
+    static private int jobChunkNodeIndex;
+    static private int jobChunkInfo;
+    static private int jobNodeSkips = 0;
+    static private boolean jobChunkWasOutdated;
 
-    boolean doChunkJob() throws GameActionException {
+    static boolean doChunkJob() throws GameActionException {
         if (jobChunkCenter == null) return true;
 
         // Check if we can still see the whole chunk
@@ -479,29 +479,29 @@ abstract class Robot {
     /**
      * True if the location is on the map using the information known so far
      */
-    boolean onMap(MapLocation pos) {
+    static boolean onMap(MapLocation pos) {
         return pos.x <= mapEdges0 && pos.y <= mapEdges1 && pos.x >= mapEdges2 && pos.y >= mapEdges3;
     }
 
     /**
      * True if the location is at least margin units from the edge of the map using the information known so far
      */
-    boolean onMap(MapLocation pos, float margin) {
+    static boolean onMap(MapLocation pos, float margin) {
         return pos.x <= mapEdges0 - margin && pos.y <= mapEdges1 - margin && pos.x >= mapEdges2 + margin && pos.y >= mapEdges3 + margin;
     }
 
-    boolean onMapX(float xcoord, float margin) {
+    static boolean onMapX(float xcoord, float margin) {
         return xcoord <= mapEdges0 - margin && xcoord >= mapEdges2 + margin;
     }
 
-    boolean onMapY(float ycoord, float margin) {
+    static boolean onMapY(float ycoord, float margin) {
         return ycoord <= mapEdges1 - margin && ycoord >= mapEdges3 + margin;
     }
 
     /**
      * Clamp the location so that it lies on the map using the information known so far
      */
-    MapLocation clampToMap(MapLocation pos) {
+    static MapLocation clampToMap(MapLocation pos) {
         return clampToMap(pos, 0);
     }
 
@@ -672,7 +672,7 @@ abstract class Robot {
         return new MapLocation(rc.readBroadcastFloat(channel), rc.readBroadcastFloat(channel + 1));
     }
 
-    void updateLiveness() throws GameActionException {
+    static void updateLiveness() throws GameActionException {
         float countAsDeadLimit = rc.getType() == RobotType.SCOUT ? 4 : 10;
         if (countingAsAlive && rc.getHealth() <= countAsDeadLimit) {
             rc.broadcast(type.ordinal(), spawnedCount(type) - 1);
@@ -691,7 +691,7 @@ abstract class Robot {
         rc.setIndicatorDot(pos, (int)(r * 255f), (int)(g * 255f), (int)(b * 255f));
     }
 
-    void shakeNearbyTrees() throws GameActionException {
+    static void shakeNearbyTrees() throws GameActionException {
         if (rc.canShake()) {
             TreeInfo[] trees = rc.senseNearbyTrees(type.bodyRadius + GameConstants.INTERACTION_DIST_FROM_EDGE - 0.001f);
             TreeInfo bestTree = null;
@@ -711,7 +711,7 @@ abstract class Robot {
         }
     }
 
-    void determineMapSize() throws GameActionException {
+    static void determineMapSize() throws GameActionException {
         // Abort if all map edges have already been determined
         if (mapEdgesDetermined == 0xF) return;
 
@@ -786,7 +786,7 @@ abstract class Robot {
      *
      * @return Plan for firing. Call plan.apply to actually fire the bullets.
      */
-    FirePlan fireAtNearbyRobot(RobotInfo[] friendlyRobots, RobotInfo[] hostileRobots, boolean targetArchons) throws GameActionException {
+    static FirePlan fireAtNearbyRobot(RobotInfo[] friendlyRobots, RobotInfo[] hostileRobots, boolean targetArchons) throws GameActionException {
         if (hostileRobots.length == 0) return null;
 
         if (rc.getRoundLimit() - rc.getRoundNum() <= STOP_SPENDING_AT_TIME) {
@@ -954,7 +954,7 @@ abstract class Robot {
      * <p>
      * Returns a very large number if no tree was hit.
      */
-    float raycastForTree(MapLocation a, Direction dir) throws GameActionException {
+    static float raycastForTree(MapLocation a, Direction dir) throws GameActionException {
         int t = 1;
         boolean hasBeenInside = false;
         while (true) {
@@ -980,7 +980,7 @@ abstract class Robot {
      * Uses sampling so it is not perfectly accurate.
      * Also uses the radius of the robot for collision detection.
      */
-    float linecastDistance(MapLocation b) throws GameActionException {
+    static float linecastDistance(MapLocation b) throws GameActionException {
         MapLocation a = rc.getLocation();
         Direction dir = a.directionTo(b);
         float dist = a.distanceTo(b);
@@ -1017,7 +1017,7 @@ abstract class Robot {
      * First body on the line segment going from the edge of this robot to the specified location.
      * Uses sampling so it is not perfectly accurate.
      */
-    BodyInfo linecast(MapLocation b) throws GameActionException {
+    static BodyInfo linecast(MapLocation b) throws GameActionException {
         MapLocation a = rc.getLocation();
         Direction dir = a.directionTo(b);
         float dist = a.distanceTo(b);
@@ -1051,7 +1051,7 @@ abstract class Robot {
      * @returns Remaining distance from the first obstacle to the target point.
      * Both blocked nodes as well as unexplored nodes count as obstacles.
      */
-    float linecastGrid(MapLocation b) throws GameActionException {
+    static float linecastGrid(MapLocation b) throws GameActionException {
         MapLocation a = rc.getLocation();
         Direction dir = a.directionTo(b);
         float dist = a.distanceTo(b);
@@ -1082,12 +1082,12 @@ abstract class Robot {
         return 0f;
     }
 
-    Direction lastBugDir;
-    final MapLocation[] positionHistory = new MapLocation[40];
-    int positionHistoryIndex = 0;
-    int bugTiebreaker = 0;
+    static Direction lastBugDir;
+    static final MapLocation[] positionHistory = new MapLocation[40];
+    static int positionHistoryIndex = 0;
+    static int bugTiebreaker = 0;
 
-    void distBug(MapLocation target) throws GameActionException {
+    static void distBug(MapLocation target) throws GameActionException {
         final float step = 0.2f;
 
         float distanceToTarget = rc.getLocation().distanceTo(target);
@@ -1182,14 +1182,14 @@ abstract class Robot {
         }
     }
 
-    int fallbackMovementDirection = 1;
-    float fallbackDirectionLimit = 0.5f;
-    int movementBlockedTicks = 0;
+    static int fallbackMovementDirection = 1;
+    static float fallbackDirectionLimit = 0.5f;
+    static int movementBlockedTicks = 0;
 
     /**
      * Moves toward the target and turns to follow object contours if necessary
      */
-    void optimisticBug(MapLocation target, BulletInfo[] bullets, RobotInfo[] units) throws GameActionException {
+    static void optimisticBug(MapLocation target, BulletInfo[] bullets, RobotInfo[] units) throws GameActionException {
         Direction desiredDir = rc.getLocation().directionTo(target);
         float desiredStride = Math.min(rc.getLocation().distanceTo(target), type.strideRadius);
 
@@ -1231,17 +1231,17 @@ abstract class Robot {
         }
     }
 
-    MapLocation previousBestMove;
+    static MapLocation previousBestMove;
 
-    final float[] bulletX = new float[100];
-    final float[] bulletY = new float[100];
-    final float[] bulletDx = new float[100];
-    final float[] bulletDy = new float[100];
-    final float[] bulletDamage = new float[100];
-    final float[] bulletSpeed = new float[100];
-    final MapLocation[] movesToConsider = new MapLocation[100];
+    static final float[] bulletX = new float[100];
+    static final float[] bulletY = new float[100];
+    static final float[] bulletDx = new float[100];
+    static final float[] bulletDy = new float[100];
+    static final float[] bulletDamage = new float[100];
+    static final float[] bulletSpeed = new float[100];
+    static final MapLocation[] movesToConsider = new MapLocation[100];
 
-    MapLocation moveToAvoidBullets(MapLocation secondaryTarget, BulletInfo[] bullets, RobotInfo[] units) throws GameActionException {
+    static MapLocation moveToAvoidBullets(MapLocation secondaryTarget, BulletInfo[] bullets, RobotInfo[] units) throws GameActionException {
         if (rc.hasMoved()) return null;
 
         MapLocation myLocation = rc.getLocation();
@@ -1370,10 +1370,10 @@ abstract class Robot {
         return null;
     }
 
-    TreeInfo[] treeCache;
-    int treeCacheRound;
+    static TreeInfo[] treeCache;
+    static int treeCacheRound;
 
-    float getSecondaryMovementScore(MapLocation loc, MapLocation reservedNodeLoc, RobotInfo[] units, MapLocation target) {
+    static float getSecondaryMovementScore(MapLocation loc, MapLocation reservedNodeLoc, RobotInfo[] units, MapLocation target) {
         Team myTeam = ally;
         float score = 0f;
         boolean ignoreTarget = false;
@@ -1581,7 +1581,7 @@ abstract class Robot {
     /**
      * Determine whether a bullet can possibly hit us
      */
-    boolean bulletCanHitUs(MapLocation loc, BulletInfo bullet) {
+    static boolean bulletCanHitUs(MapLocation loc, BulletInfo bullet) {
         float radius = type.bodyRadius + type.strideRadius;
         float sqrRadius = radius * radius;
         // Current bullet position
@@ -1608,7 +1608,7 @@ abstract class Robot {
     /**
      * Estimated damage from bullets when moving to the specified position
      */
-    float getEstimatedDamageAtPosition(float locx, float locy, int numBullets, float[] bulletX, float[] bulletY
+    static float getEstimatedDamageAtPosition(float locx, float locy, int numBullets, float[] bulletX, float[] bulletY
             , float[] bulletDx, float[] bulletDy, float[] bulletDamage, float[] bulletSpeed, float[] bulletImpactDistances) {
         float dmg = 0f;
         float radius = type.bodyRadius;
@@ -1662,7 +1662,7 @@ abstract class Robot {
         return dmg;
     }
 
-    float[] updateBulletHitDistances(BulletInfo[] nearbyBullets, int bulletsToConsider) throws GameActionException {
+    static float[] updateBulletHitDistances(BulletInfo[] nearbyBullets, int bulletsToConsider) throws GameActionException {
         float[] bulletImpactDistances = new float[bulletsToConsider];
         int w1 = Clock.getBytecodeNum();
         for (int i = 0; i < bulletsToConsider; i++) {
@@ -1679,7 +1679,7 @@ abstract class Robot {
         return bulletImpactDistances;
     }
 
-    float bulletImpactDistance(BulletInfo bullet) throws GameActionException {
+    static float bulletImpactDistance(BulletInfo bullet) throws GameActionException {
         if (!bulletHitDistance.containsKey(bullet.getID())) {
             float v = raycastForTree(bullet.location, bullet.dir);
             bulletHitDistance.put(bullet.getID(), v);
@@ -1693,7 +1693,7 @@ abstract class Robot {
         return values.length > 0 ? values[(int)(rnd.nextFloat() * values.length)] : def;
     }
 
-    void considerDonating() throws GameActionException {
+    static void considerDonating() throws GameActionException {
         // Cases to handle (the current code does not necessarily handle all of these well)
         // 1. We have a strong economy and military and can soon win using VPs
         //   Buy all the VPs
@@ -1748,7 +1748,7 @@ abstract class Robot {
         }
     }
 
-    void fireAtNearbyTree(TreeInfo[] trees) throws GameActionException {
+    static void fireAtNearbyTree(TreeInfo[] trees) throws GameActionException {
         int turnsLeft = rc.getRoundLimit() - rc.getRoundNum();
 
         for (TreeInfo tree : trees) {
