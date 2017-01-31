@@ -132,6 +132,7 @@ class Lumberjack extends Robot {
         }
 
         if (!rc.hasAttacked()) {
+            // Check if it is better to use strike or chop
             float strikeScore = 0;
             if (friendlyRobots.length > 0)
                 strikeScore -= 1000;

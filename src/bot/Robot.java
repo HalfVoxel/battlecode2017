@@ -1246,6 +1246,9 @@ abstract class Robot {
         float bestScore = -1000000f;
         float bestBulletScore = -10000f;
 
+        // Primary bullet avoidance loop
+        // Tests various directions to move in and picks the "best" one
+        // for some defintion of best.
         MapLocation bestMove = null;
         int iterationsDone = 0;
         // Save some processing power if we have no bullets to consider (will be used by e.g the exploration code)
@@ -1291,7 +1294,7 @@ abstract class Robot {
             }
         }
 
-        // We need to check again that the move is legal, in case we exceeded the byte code limit
+        // We need to check again that the move is legal, in case we exceeded the bytecode limit
         if (bestMove != null && rc.canMove(bestMove)) {
             previousBestMove = bestMove.translate(-myLocation.x, -myLocation.y);
             return bestMove;
@@ -1477,7 +1480,7 @@ abstract class Robot {
                             else
                                 score += 1 / (dis + 1);
                             break;
-                        default: // Soldier/Tank
+                        default: // Soldier
                             dis = loc.distanceTo(unit.location);
                             if (isCoward)
                                 score += 1 / (dis + 1) - 7f / (dis * dis + 1);

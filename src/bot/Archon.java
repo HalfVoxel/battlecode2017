@@ -289,6 +289,9 @@ class Archon extends Robot {
         }*/
     }
 
+    /** A highly optimised pathfinding routine.
+     * Implements a BFS.
+     */
     void pathfinding() throws GameActionException {
         if (explored == null) {
             // Pathfinding not started yet

@@ -196,6 +196,7 @@ class Gardener extends Robot {
         }
 
         if (!hasSettled) {
+            // Find trees that have low health and move toward them
             unsettledTime += 1;
             TreeInfo[] trees = rc.senseNearbyTrees(type.sensorRadius, ally);
             TreeInfo minHealthTree = null;
