@@ -1093,6 +1093,28 @@ abstract class Robot {
     static int positionHistoryIndex = 0;
     static int bugTiebreaker = 0;
 
+    static boolean isStuck () {
+        if (rc.getRoundNum() < 30) return false;
+        int cnt = 0;
+        for (int i = positionHistory.length - 1; i > 0; i -= 5) {
+            if (positionHistory[i] != null) {
+                cnt++;
+                if (!rc.getLocation().isWithinDistance(positionHistory[i], type.strideRadius * 3)) {
+                    return false;
+                }
+            }
+        }
+
+        return cnt > 3;
+    }
+
+    static void addToPositionHistory() {
+        if (rc.getRoundNum() % 3 == 0) {
+            positionHistory[positionHistoryIndex] = rc.getLocation();
+            positionHistoryIndex = (positionHistoryIndex + 1) % positionHistory.length;
+        }
+    }
+
     static void distBug(MapLocation target) throws GameActionException {
         final float step = 0.2f;
 
@@ -1103,10 +1125,7 @@ abstract class Robot {
 
         if (lastBugDir == null) lastBugDir = rc.getLocation().directionTo(target);
 
-        if (rc.getRoundNum() % 3 == 0) {
-            positionHistory[positionHistoryIndex] = rc.getLocation();
-            positionHistoryIndex = (positionHistoryIndex + 1) % positionHistory.length;
-        }
+        addToPositionHistory();
 
         float historicalMinDist = distanceToTarget;
         for (MapLocation pos : positionHistory) {
@@ -1270,6 +1289,8 @@ abstract class Robot {
             distBug(secondaryTarget);
             // optimisticBug(secondaryTarget)
             return null;
+        } else {
+            addToPositionHistory();
         }
 
         int numMovesToConsider = 0;

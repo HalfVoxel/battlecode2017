@@ -110,6 +110,12 @@ class Tank extends Robot {
         target = pickTarget(null, 1f);
     }
 
+    static void fireAtNearbyNeutralTree(TreeInfo[] trees) throws GameActionException {
+        if (rc.getTeamBullets() < 100 || rc.getRoundLimit() - rc.getRoundNum() <= STOP_SPENDING_AT_TIME || trees.length == 0) return;
+
+        rc.firePentadShot(rc.getLocation().directionTo(trees[0].location));
+    }
+
     @Override
     public void onUpdate() throws GameActionException {
         // See if there are any nearby enemy robots
@@ -201,6 +207,10 @@ class Tank extends Robot {
             float d2 = rc.getLocation().distanceTo(target);
             speedToTarget *= 0.5f;
             speedToTarget += 0.5f * (d1 - d2);
+
+            if (isStuck()) {
+                fireAtNearbyNeutralTree(rc.senseNearbyTrees(type.bodyRadius + 1, Team.NEUTRAL));
+            }
 
             if (getHighPriorityTarget() != null) {
                 target = pickTarget(null);

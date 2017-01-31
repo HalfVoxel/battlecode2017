@@ -7,9 +7,9 @@ public strictfp class RobotPlayer {
 
     @SuppressWarnings("unused")
     public static void run(RobotController rc) {
-        Robot robot = null;
         try {
             Robot.init(rc);
+            Robot robot = null;
             switch (rc.getType()) {
                 case ARCHON:
                     robot = new Archon();
@@ -33,22 +33,13 @@ public strictfp class RobotPlayer {
 
             robot.onAwake();
             robot.onStartOfTick();
+            //noinspection InfiniteLoopStatement
+            while(true) {
+                robot.onUpdate();
+            }
         } catch (Exception e) {
             System.out.println("Exception in " + rc.getType());
             e.printStackTrace();
-        }
-
-        //noinspection InfiniteLoopStatement
-        while (true) {
-            try {
-                //noinspection InfiniteLoopStatement
-                while(true) {
-                    robot.onUpdate();
-                }
-            } catch (Exception e) {
-                System.out.println("Exception in " + rc.getType());
-                e.printStackTrace();
-            }
         }
     }
 }
