@@ -57,8 +57,6 @@ class Gardener extends Robot {
     }
 
     boolean buildLumberjackInDenseForests() throws GameActionException {
-        //if (spawnedCount(RobotType.LUMBERJACK) >= 2) return
-
         // Don't create lumberjacks too often (the previous one might not have had much time to chop down trees yet)
         if (rc.getRoundNum() < lastBuildLumberjackTime + 50) {
             return false;
@@ -135,29 +133,12 @@ class Gardener extends Robot {
                     rc.setIndicatorDot(plantPos, 0, 255, 0);
                 }
 
-
-                //MapLocation moveToPos = origPos.add(dir, type.strideRadius - 0.02f);
-
-                /*if (rc.canMove(moveToPos)) {
-                    rc.move(moveToPos);
-                } else if (tries == 0) {
-                    tryAgain = true;
-                    continue;
-                }*/
-
                 if (rc.canPlantTree(dir)) {
                     rc.plantTree(dir);
                     System.out.println("Planted tree");
                     settledLocation = origPos;
                     return settledLocation;
                 }
-
-                /*yieldAndDoBackgroundTasks();
-                for (int t = 0; t < 5 && !rc.canMove(origPos); t++) yieldAndDoBackgroundTasks();
-                // Move back
-                if (rc.canMove(origPos)) {
-                    rc.move(origPos);
-                }*/
             }
         }
 
@@ -274,7 +255,6 @@ class Gardener extends Robot {
 
         if (invalidTarget && movesWithTarget > 3) {
             target = pickTarget(desiredRadius);
-            //System.out.println("Picked new target " + target)
             moveFailCounter = 0;
             movesWithTarget = 0;
             rc.setIndicatorDot(target, 255, 0, 0);
@@ -326,16 +306,6 @@ class Gardener extends Robot {
             markEnemySpotted(rc.senseNearbyRobots(type.sensorRadius, enemy));
         }
 
-        /*
-        // Randomly attempt to build a soldier or lumberjack in this direction
-        if (rc.canBuildRobot(RobotType.SOLDIER, dir) && Math.random < .01) {
-            rc.buildRobot(RobotType.SOLDIER, dir)
-        } else if (rc.canBuildRobot(RobotType.LUMBERJACK, dir) && Math.random < .01 && rc.isBuildReady) {
-            rc.buildRobot(RobotType.LUMBERJACK, dir)
-        }
-        // Move randomly
-        tryMove(randomDirection)
-        */
         // Clock.yield() makes the robot wait until the next turn, then it will perform this loop again
         water();
         yieldAndDoBackgroundTasks();

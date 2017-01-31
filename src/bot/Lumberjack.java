@@ -38,14 +38,6 @@ class Lumberjack extends Robot {
                     bestScore = score;
                     bestTree = tree;
                 }
-                /*if (!badTrees.containsKey(tree.getID()) || rc.getRoundNum() > badTrees.get(tree.getID())) {
-                    // debug_setIndicatorDot(tree.location, score);
-
-                    if (score > bestScore) {
-                        bestScore = score;
-                        bestTree = tree;
-                    }
-                }*/
             }
         }
         chopScore = bestScore * GameConstants.LUMBERJACK_CHOP_DAMAGE;

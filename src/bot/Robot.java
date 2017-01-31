@@ -135,6 +135,9 @@ abstract class Robot {
         return new Direction(rnd.nextFloat() * 2 * (float)Math.PI);
     }
 
+    /** Number of alive units of a particular type.
+     * Sometimes returns the wrong results, but if we fix it the bot gets worse!
+     */
     protected static int spawnedCount(RobotType tp) throws GameActionException {
         return rc.readBroadcast(tp.ordinal());
     }
@@ -334,8 +337,6 @@ abstract class Robot {
 
         cx /= PATHFINDING_CHUNK_SIZE;
         cy /= PATHFINDING_CHUNK_SIZE;
-
-        //MapLocation chunkCenter0 = origin.translate((cx + 0.5f) * PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE, (cy + 0.5f) * PATHFINDING_CHUNK_SIZE * PATHFINDING_NODE_SIZE);
 
         int recalculationTime = (rc.getRoundNum() / 100) & 0xF;
 
@@ -651,7 +652,6 @@ abstract class Robot {
 
         for (int i = 0; i < NUMBER_OF_TARGETS; ++i) {
             int offset = TARGET_OFFSET + 10 * i;
-            //int timeSpotted = rc.readBroadcast(offset);
             float lastEventPriority = rc.readBroadcastFloat(offset + 1);
             MapLocation loc = readBroadcastPosition(offset + 2);
             if (loc.distanceTo(rc.getLocation()) < 4f && 2 * priority < lastEventPriority) {
@@ -663,11 +663,6 @@ abstract class Robot {
     static void broadcast(int channel, MapLocation pos) throws GameActionException {
         rc.broadcastFloat(channel, pos.x);
         rc.broadcastFloat(channel + 1, pos.y);
-    }
-
-    static void broadcast(int channel, long v) throws GameActionException {
-        rc.broadcast(channel, (int)(v >>> 32));
-        rc.broadcast(channel + 1, (int)v);
     }
 
     static long readBroadcastLong(int channel) throws GameActionException {
@@ -809,6 +804,8 @@ abstract class Robot {
         for (RobotInfo robot : hostileRobots) {
             if (Clock.getBytecodesLeft() < 1500) break;
 
+            // Very hacky 5 element cache (because HashMaps use a lot of bytecodes).
+            // Stores the first position we saw a unit at
             MapLocation prevLoc;
             if (robot.ID == id0) {
                 prevLoc = prevLoc0;
@@ -904,13 +901,11 @@ abstract class Robot {
                 if (rc.canFirePentadShot()) {
                     if (rc.getTeamBullets() > 300 && friendlyRobots.length < hostileRobots.length && (friendlyRobots.length == 0 || hostileRobots.length >= 2)) {
                         // ...Then fire a bullet in the direction of the enemy.
-                        //rc.firePentadShot(dir);
                         alternationIndex = !alternationIndex;
                         return new FirePlan(dir, alternationIndex ? 5 : 3);
                     }
 
                     if (dist < 5.5f) {
-                        //rc.firePentadShot(dir);
                         alternationIndex = !alternationIndex;
                         return new FirePlan(dir, alternationIndex ? 5 : 3);
                     }
@@ -919,12 +914,10 @@ abstract class Robot {
                 if (rc.canFireTriadShot()) {
                     if (friendlyRobots.length < hostileRobots.length && (friendlyRobots.length == 0 || hostileRobots.length >= 2)) {
                         // ...Then fire a bullet in the direction of the enemy.
-                        //rc.fireTriadShot(dir);
                         return new FirePlan(dir, 3);
                     }
 
-                    if (dist < 6.0f) {
-                        //rc.fireTriadShot(dir);
+                    if (dist < 6.5f) {
                         return new FirePlan(dir, 3);
                     }
                 }
@@ -932,7 +925,6 @@ abstract class Robot {
                 // And we have enough bullets, and haven't attacked yet this turn...
                 if (rc.canFireSingleShot()) {
                     // ...Then fire a bullet in the direction of the enemy.
-                    //rc.fireSingleShot(dir);
                     return new FirePlan(dir, 1);
                 }
             }
@@ -1056,42 +1048,6 @@ abstract class Robot {
         return null;
     }
 
-    /**
-     * Performs a linecast using the pathfinding grid and checks for obstacles from the robot's current position to the target.
-     * @returns Remaining distance from the first obstacle to the target point.
-     * Both blocked nodes as well as unexplored nodes count as obstacles.
-     */
-    static float linecastGrid(MapLocation b) throws GameActionException {
-        MapLocation a = rc.getLocation();
-        Direction dir = a.directionTo(b);
-        float dist = a.distanceTo(b);
-
-        // 2 iterations, first check a few points along the segment to quickly rule out
-        // line of sight if there is none. If that succeeds do a more precise check
-        for (int k = 0; k < 2; k++) {
-            float step = k == 0 ? PATHFINDING_NODE_SIZE*4 : PATHFINDING_NODE_SIZE * 0.7f;
-            int steps = (int)(dist / step);
-            int maxStep = k == 0 ? steps - 1 : steps;
-            for (int t = 1; t <= maxStep; t++) {
-                float f = t / (float)steps;
-                MapLocation p = a.add(dir, dist * f);
-
-                int x = (int)Math.floor((p.x - explorationOrigin.x) / PATHFINDING_NODE_SIZE);
-                int y = (int)Math.floor((p.y - explorationOrigin.y) / PATHFINDING_NODE_SIZE);
-
-                int chunk = pathfindingChunkDataForNode(x, y);
-                int blocked = (chunk >> ((y % PATHFINDING_CHUNK_SIZE) * PATHFINDING_CHUNK_SIZE + (x % PATHFINDING_CHUNK_SIZE))) & 1;
-                int fullyExplored = (chunk >>> 30) & 0x2;
-
-                if (blocked != 0 || fullyExplored == 0) {
-                    return dist * (1 - f);
-                }
-            }
-        }
-
-        return 0f;
-    }
-
     static Direction lastBugDir;
     static final MapLocation[] positionHistory = new MapLocation[40];
     static int positionHistoryIndex = 0;
@@ -1134,7 +1090,6 @@ abstract class Robot {
         float historicalMinDist = distanceToTarget;
         for (MapLocation pos : positionHistory) {
             if (pos != null) {
-                //rc.setIndicatorDot(positionHistory[i], 0, 0, 0);
                 historicalMinDist = Math.min(historicalMinDist, pos.distanceTo(target));
             }
         }
@@ -1164,7 +1119,6 @@ abstract class Robot {
                 boolean any = false;
                 for (int i = 0; i < steps; i++) {
                     Direction nextDir = lastBugDir.rotateLeftDegrees(bugTiebreaker * i * dtheta);
-                    //rc.setIndicatorLine(rc.getLocation(), rc.getLocation().add(nextDir, 5), 0, 0, 0);
                     if (rc.canMove(nextDir, stride)) {
                         newBugDir = nextDir;
                     } else {
@@ -1191,7 +1145,6 @@ abstract class Robot {
 
                 for (int i = 0; i < steps; i++) {
                     Direction nextDir = lastBugDir.rotateRightDegrees(bugTiebreaker * dtheta * i);
-                    //rc.setIndicatorLine(rc.getLocation(), rc.getLocation().add(nextDir, 5), 0, 0, 0);
                     if (rc.canMove(nextDir, stride)) {
                         newBugDir = nextDir;
                         break;
@@ -1199,63 +1152,11 @@ abstract class Robot {
                 }
             }
 
-            //rc.setIndicatorLine(rc.getLocation(), target, 0, 0, 0);
-            //rc.setIndicatorLine(rc.getLocation(), rc.getLocation().add(lastBugDir, 5), 255, 255, 255);
-
             // If we can move in the new direction and (we have tried really hard or it is a small change in direction)
             if (newBugDir != null && rc.canMove(newBugDir, stride) && (tries > 0 || Math.abs(lastBugDir.degreesBetween(newBugDir)) < 90)) {
                 rc.move(newBugDir, stride);
                 lastBugDir = newBugDir;
                 return;
-            }
-        }
-    }
-
-    static int fallbackMovementDirection = 1;
-    static float fallbackDirectionLimit = 0.5f;
-    static int movementBlockedTicks = 0;
-
-    /**
-     * Moves toward the target and turns to follow object contours if necessary
-     */
-    static void optimisticBug(MapLocation target, BulletInfo[] bullets, RobotInfo[] units) throws GameActionException {
-        Direction desiredDir = rc.getLocation().directionTo(target);
-        float desiredStride = Math.min(rc.getLocation().distanceTo(target), type.strideRadius);
-
-        // Already at target
-        if (desiredDir == null) return;
-
-        final int steps = 12;
-        float radiansPerStep = fallbackMovementDirection * fallbackDirectionLimit * (float)Math.PI / (float)steps;
-        for (int i = 0; i < steps; i++) {
-            float angle = i * radiansPerStep;
-            Direction dir = desiredDir.rotateLeftRads(angle);
-            //rc.setIndicatorLine(rc.getLocation(), rc.getLocation().add(dir, type.strideRadius), 200, fallbackMovementDirection > 0 ? 255 : 0, 200);
-            if (rc.canMove(dir, desiredStride)) {
-                if (angle <= Math.PI * 0.5f + 0.001f) {
-                    fallbackDirectionLimit = 0.5f;
-                }
-                rc.move(dir, desiredStride);
-                movementBlockedTicks = 0;
-                break;
-            }
-        }
-
-        if (!rc.hasMoved()) {
-            // Failed to move while the limit was 0.5, then increase it to 1.0
-            // and move in the other direction.
-            if (fallbackDirectionLimit == 0.5f) {
-                fallbackDirectionLimit = 1f;
-                fallbackMovementDirection *= -1;
-                movementBlockedTicks = 0;
-                optimisticBug(target, bullets, units);
-            } else {
-                movementBlockedTicks += 1;
-                if (movementBlockedTicks > 6) {
-                    fallbackMovementDirection *= -1;
-                    movementBlockedTicks = 0;
-                    optimisticBug(target, bullets, units);
-                }
             }
         }
     }
@@ -1291,7 +1192,6 @@ abstract class Robot {
 
         if (bullets.length == 0 && type != RobotType.LUMBERJACK && type != RobotType.ARCHON && reservedNodeLocation == null) {
             distBug(secondaryTarget);
-            // optimisticBug(secondaryTarget)
             return null;
         } else {
             addToPositionHistory();
@@ -1311,8 +1211,6 @@ abstract class Robot {
 
         if (units.length > 0) {
             // Move away from unit
-            //Direction dir = myLocation.directionTo(units[0].location);
-            //movesToConsider[numMovesToConsider++] = myLocation.add(dir.opposite(), type.strideRadius);
             float dist = units[0].location.distanceTo(myLocation);
             Direction dir = units[0].location.directionTo(myLocation).rotateRightRads(type.strideRadius / dist);
             movesToConsider[numMovesToConsider++] = units[0].location.add(dir, dist);
