@@ -22,6 +22,8 @@ class Archon extends Robot {
         System.out.println("Archon index: " + archonIndex);
     }
 
+    float nearbyBulletsWeight = 0;
+
     @Override
     public void onUpdate() throws GameActionException {
         int gardenerCount = spawnedCount(RobotType.GARDENER);
@@ -37,13 +39,13 @@ class Archon extends Robot {
         RobotInfo[] robots = rc.senseNearbyRobots();
         for (RobotInfo robot : robots) {
             if (robot.getTeam() == ally) {
-                if (robot.getType() == RobotType.GARDENER) {
+                if (robot.type == RobotType.GARDENER) {
                     buildScore -= 1f / (rc.getLocation().distanceTo(robot.location));
                 } else {
                     buildScore -= 0.5f / (rc.getLocation().distanceTo(robot.location));
                 }
             } else {
-                if (robot.getType() != RobotType.GARDENER && robot.getType() != RobotType.ARCHON)
+                if (robot.type != RobotType.GARDENER && robot.type != RobotType.ARCHON)
                     buildScore -= 2f / (rc.getLocation().distanceTo(robot.location));
             }
         }
@@ -55,6 +57,11 @@ class Archon extends Robot {
                 buildScore -= Math.pow(tree.getRadius(), 1.5) * 0.1f / (rc.getLocation().distanceTo(tree.location));
             }
         }
+
+        // Avoid building gardeners near bullets
+        nearbyBulletsWeight = Math.max(nearbyBulletsWeight * 0.95f, Math.min(rc.senseNearbyBullets().length, 3));
+        buildScore -= 0.5f * nearbyBulletsWeight;
+
         float bestBuildScore = -1000000f;
         for (int i = 0; i < initialArchonLocations.length; i += 1) {
             int roundNum = rc.readBroadcast(ARCHON_BUILD_SCORE + 2 * i + 1);
@@ -67,7 +74,9 @@ class Archon extends Robot {
         boolean isGoodArchon = (buildScore >= bestBuildScore - 0.5);
 
         boolean gardenersSeemToBeBlocked = rc.readBroadcast(GARDENER_CAN_PROBABLY_BUILD) > gardenerCount * 20 + 10;
-        if (rc.hasRobotBuildRequirements(RobotType.GARDENER) && isGoodArchon && (gardenersSeemToBeBlocked || gardenerCount < 1 || rc.getTreeCount() > 4 * gardenerCount || rc.getTeamBullets() > RobotType.TANK.bulletCost + 100) && !saveForTank) {
+        boolean mayBuildGardener = gardenersSeemToBeBlocked || gardenerCount < 1 || rc.getTreeCount() > 4 * gardenerCount || rc.getTeamBullets() > RobotType.TANK.bulletCost + 100;
+        mayBuildGardener |= rc.getTreeCount() >= 1 && rc.getTreeCount() + spawnedCount(RobotType.GARDENER) < 16 && rc.getTeamBullets() > RobotType.SOLDIER.bulletCost + 40;
+        if (rc.hasRobotBuildRequirements(RobotType.GARDENER) && isGoodArchon && mayBuildGardener && !saveForTank) {
             // Spend more time trying to find a position to build a gardener on if we haven't built any gardeners yet
             int iterations = gardenerCount == 0 ? 100 : 20;
             boolean couldBuild = tryHireGardener(iterations);
