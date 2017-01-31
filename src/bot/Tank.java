@@ -28,12 +28,9 @@ class Tank extends Robot {
 
         if (rnd.nextFloat() < pickFallbackProbability) {
             if (isDefender) {
-                return ourInitialArchonLocations[rnd.nextInt(ourInitialArchonLocations.length)];
+                return pickRandomSpreadOutTarget(ourInitialArchonLocations, 1);
             } else {
-                if (fallBackPositions == null) {
-                    fallBackPositions = readArchonLocations();
-                }
-                return fallBackPositions[rnd.nextInt(fallBackPositions.length)];
+                return pickRandomSpreadOutTarget(fallBackPositions == null ? readArchonLocations() : fallBackPositions, 0);
             }
         } else {
             Direction dir = randomDirection();
@@ -72,7 +69,7 @@ class Tank extends Robot {
             MapLocation loc = readBroadcastPosition(offset + 2);
             if (loc.distanceTo(myLocation) < 30f) {
                 int timeSpotted = rc.readBroadcast(offset);
-                float lastEventPriority = rc.readBroadcast(offset + 1) / (rc.getRoundNum() - timeSpotted + 5.0f);
+                float lastEventPriority = rc.readBroadcastFloat(offset + 1) / (rc.getRoundNum() - timeSpotted + 5.0f);
                 lastEventPriority /= loc.distanceSquaredTo(myLocation) + 10;
                 //System.out.println("Target " + loc + " from frame " + timeSpotted + " has priority " + lastEventPriority);
                 if (lastEventPriority > bestPriority) {

@@ -7,9 +7,6 @@ import java.util.*;
 abstract class Robot {
     static RobotController rc = null;
 
-    /**
-     * rc.getType, should ideally be called 'type' but that is unfortunately a keyword
-     */
     static RobotType type = null;
     static MapLocation spawnPos = null;
     static Random rnd;
@@ -31,6 +28,7 @@ abstract class Robot {
     static final int NUMBER_OF_TARGETS = 4;
     static final int ARCHON_COUNT = 2900;
     static final int ARCHON_LOCATIONS = 2901;
+    static final int RANDOM_LAST = 2997;
     static final int PATHFINDING = 3000;
     static final int PATHFINDING_RESULT_TO_ENEMY_ARCHON = 4000;
     static final int PATHFINDING_TREE = 5000;
@@ -62,7 +60,7 @@ abstract class Robot {
 
     public static void init(RobotController rc) throws GameActionException {
         Robot.rc = rc;
-        rnd = new Random(System.getProperty("bc.testing.seed", "0").hashCode());
+        rnd = new Random(System.getProperty("bc.testing.seed", "0").hashCode() + 1);
         type = rc.getType();
         spawnPos = rc.getLocation();
 
@@ -578,7 +576,7 @@ abstract class Robot {
     }
 
     static void broadcastEnemyLocations() throws GameActionException {
-        int priority = 0;
+        float priority = 0;
         float friendlyMilitaryUnits = 0;
         float maxScore = 0;
         MapLocation maxScoreLocation = null;
@@ -601,7 +599,7 @@ abstract class Robot {
                         score = 0;
                         break;
                     case SOLDIER:
-                        score = 0;
+                        score = (type == RobotType.GARDENER && rc.getHealth() < type.maxHealth ? 80f : 0f);
                         break;
                     case TANK:
                         score = 0;
@@ -619,20 +617,25 @@ abstract class Robot {
             }
         }
         priority /= Math.sqrt(friendlyMilitaryUnits + 2);
+
         if (maxScoreLocation != null) {
             int index = -1;
             boolean isBetter = true;
             for (int i = 0; i < NUMBER_OF_TARGETS; ++i) {
                 int offset = TARGET_OFFSET + 10 * i;
                 int timeSpotted = rc.readBroadcast(offset);
-                int lastEventPriority = rc.readBroadcast(offset + 1);
+                int timeAgo = rc.getRoundNum() - timeSpotted;
+                float lastEventPriority = rc.readBroadcastFloat(offset + 1);
                 MapLocation loc = readBroadcastPosition(offset + 2);
-                if (lastEventPriority / (20 + rc.getRoundNum() - timeSpotted) < priority / 20 && loc.distanceTo(maxScoreLocation) < 20f) {
-                    index = i;
-                    rc.broadcast(offset + 1, 0);
-                }
-                if (lastEventPriority / (20 + rc.getRoundNum() - timeSpotted) >= priority / 20 && loc.distanceTo(maxScoreLocation) < 20f) {
-                    isBetter = false;
+                float distCap = (timeAgo > 10 ? 20f : 10f);
+                if (loc.distanceTo(maxScoreLocation) < distCap) {
+                    if (lastEventPriority / (20 + timeAgo) < priority / 20) {
+                        lastEventPriority = 0;
+                        rc.broadcast(offset + 1, 0);
+                    }
+                    else {
+                        isBetter = false;
+                    }
                 }
                 if (lastEventPriority == 0) {
                     index = i;
@@ -641,17 +644,18 @@ abstract class Robot {
             if (isBetter && index != -1) {
                 int offset = TARGET_OFFSET + 10 * index;
                 rc.broadcast(offset, rc.getRoundNum());
-                rc.broadcast(offset + 1, priority);
+                rc.broadcastFloat(offset + 1, priority);
                 broadcast(offset + 2, maxScoreLocation);
             }
         }
+
         for (int i = 0; i < NUMBER_OF_TARGETS; ++i) {
             int offset = TARGET_OFFSET + 10 * i;
             //int timeSpotted = rc.readBroadcast(offset);
-            int lastEventPriority = rc.readBroadcast(offset + 1);
+            float lastEventPriority = rc.readBroadcastFloat(offset + 1);
             MapLocation loc = readBroadcastPosition(offset + 2);
             if (loc.distanceTo(rc.getLocation()) < 4f && 2 * priority < lastEventPriority) {
-                rc.broadcast(offset + 1, 2 * priority);
+                rc.broadcastFloat(offset + 1, 2 * priority);
             }
         }
     }
@@ -1692,7 +1696,33 @@ abstract class Robot {
     }
 
     static <T> T randomChoice(T[] values, T def) {
-        return values.length > 0 ? values[(int)(rnd.nextFloat() * values.length)] : def;
+        return values.length > 0 ? values[rnd.nextInt(values.length)] : def;
+    }
+
+    static <T> T randomChoice(T[] values) {
+        return values[rnd.nextInt(values.length)];
+    }
+
+    static MapLocation pickRandomSpreadOutTarget(MapLocation[] cands, int index) throws GameActionException {
+        int r = rnd.nextInt(cands.length);
+        if (r + 1 == rc.readBroadcast(RANDOM_LAST + index)) {
+            r = rnd.nextInt(cands.length);
+        }
+        rc.broadcast(RANDOM_LAST + index, r + 1);
+        return cands[r];
+    }
+
+    static MapLocation pickRandomCloseTarget(MapLocation[] cands) {
+        MapLocation chosen = cands[0];
+        float sump = 0;
+        for (MapLocation cand : cands) {
+            float p = 0.1f + 1f / (1f + rc.getLocation().distanceTo(cand));
+            sump += p;
+            if (p / sump <= rnd.nextFloat()) {
+                chosen = cand;
+            }
+        }
+        return chosen;
     }
 
     static void considerDonating() throws GameActionException {

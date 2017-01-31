@@ -62,7 +62,10 @@ class Lumberjack extends Robot {
         }
 
         if (rnd.nextFloat() < 0.2) {
-            return fallBackPositions[rnd.nextInt(fallBackPositions.length)];
+            if (fallBackPositions == null) {
+                fallBackPositions = readArchonLocations();
+            }
+            return pickRandomSpreadOutTarget(fallBackPositions, 2);
         } else {
             Direction dir = randomDirection();
             return clampToMap(rc.getLocation().add(dir, type.strideRadius * 10), type.sensorRadius * 0.8f);
@@ -87,7 +90,7 @@ class Lumberjack extends Robot {
         if (bestTree != null) {
             target = bestTree.location;
         } else if (rc.getRoundNum() % 10 == 0 || target == null || rc.getLocation().distanceTo(target) < type.strideRadius) {
-            target = pickTarget(initialArchonLocations);
+            target = pickTarget(null);
         }
 
         MapLocation moveTo = moveToAvoidBullets(target, bullets, allRobots);

@@ -251,7 +251,7 @@ class Archon extends Robot {
         for (int i = 0; i < NUMBER_OF_TARGETS; ++i) {
             int offset = TARGET_OFFSET + 10 * i;
             int timeSpotted = rc.readBroadcast(offset);
-            float priority = rc.readBroadcast(offset + 1) / (rc.getRoundNum() - timeSpotted + 5.0f);
+            float priority = rc.readBroadcastFloat(offset + 1) / (rc.getRoundNum() - timeSpotted + 5.0f);
             System.out.println("Target number " + i);
             System.out.println("Time spotted: " + timeSpotted);
             System.out.println("Priority: " + priority);
