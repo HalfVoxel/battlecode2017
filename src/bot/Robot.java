@@ -1522,6 +1522,8 @@ abstract class Robot {
                         continue;
                     if (unit.type == RobotType.ARCHON || unit.type == RobotType.TANK)
                         score -= 1 / (unit.location.distanceTo(loc) + 1);
+                    else if (unit.type == RobotType.GARDENER)
+                        score -= 2 / (unit.location.distanceTo(loc) + 1);
                     else
                         score -= 0.5 / (unit.location.distanceTo(loc) + 1);
                 } else {
