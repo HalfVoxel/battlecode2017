@@ -38,6 +38,7 @@ abstract class Robot {
     static final int ENEMIES_SPOTTED = 7100;
     static final int UNITS_IN_PRODUCTION = 7200;
     static final int ACTIVE_UNITS = 7300;
+    static final int LOSSY_UNIT_COUNT = 7320;
 
     static final int[] dx = new int[]{1, 0, -1, 0};
     static final int[] dy = new int[]{0, 1, 0, -1};
@@ -105,7 +106,8 @@ abstract class Robot {
         rc.broadcast(HIGH_PRIORITY_TARGET_OFFSET, -1000);
 
         // Ensure we have count the number of alive archons correctly at the first frame
-        rc.broadcast(ACTIVE_UNITS + RobotType.ARCHON.ordinal(), rc.getInitialArchonLocations(ally).length);
+        rc.broadcast(ACTIVE_UNITS + RobotType.ARCHON.ordinal(), ourInitialArchonLocations.length);
+        rc.broadcast(LOSSY_UNIT_COUNT + RobotType.ARCHON.ordinal(), ourInitialArchonLocations.length);
 
         rc.broadcast(ARCHON_COUNT, initialArchonLocations.length);
         for (int i = 0; i < initialArchonLocations.length; i++) {
@@ -139,11 +141,16 @@ abstract class Robot {
     }
 
     protected static int spawnedCount(RobotType tp) throws GameActionException {
+        return rc.readBroadcast(LOSSY_UNIT_COUNT + tp.ordinal());
+    }
+
+    protected static int accurateSpawnedCount(RobotType tp) throws GameActionException {
         return rc.readBroadcast(tp.ordinal());
     }
 
     public static void buildRobot(RobotType tp, Direction dir) throws GameActionException {
         rc.broadcast(tp.ordinal(), rc.readBroadcast(tp.ordinal()) + 1);
+        rc.broadcast(LOSSY_UNIT_COUNT + tp.ordinal(), spawnedCount(tp) + 1);
 
         if (tp != RobotType.GARDENER) {
             rc.buildRobot(tp, dir);
@@ -155,6 +162,7 @@ abstract class Robot {
                 rc.broadcast(UNITS_IN_PRODUCTION, n + 1);
                 rc.broadcast(UNITS_IN_PRODUCTION + n + 1, rc.getRoundNum() | (tp.ordinal() << 16));
             }
+
         } else {
             rc.hireGardener(dir);
             // Gardener will not start running code until the next tick, but mark the unit as being active this turn
@@ -262,7 +270,7 @@ abstract class Robot {
         if (rc.getHealth() > 10) rc.broadcast(ACTIVE_UNITS + type.ordinal(), rc.readBroadcast(ACTIVE_UNITS + type.ordinal()) + 1);
     }
 
-    void handleSpawnCounts() throws GameActionException {
+    static void handleSpawnCounts() throws GameActionException {
         int[] counts = new int[6];
 
         int n = Math.min(rc.readBroadcast(UNITS_IN_PRODUCTION), 100);
@@ -740,10 +748,10 @@ abstract class Robot {
     static void updateLiveness() throws GameActionException {
         float countAsDeadLimit = rc.getType() == RobotType.SCOUT ? 4 : 10;
         if (countingAsAlive && rc.getHealth() <= countAsDeadLimit) {
-            rc.broadcast(type.ordinal(), spawnedCount(type) - 1);
+            rc.broadcast(LOSSY_UNIT_COUNT + type.ordinal(), spawnedCount(type) - 1);
             countingAsAlive = false;
         } else if (!countingAsAlive && rc.getHealth() > countAsDeadLimit) {
-            rc.broadcast(type.ordinal(), spawnedCount(type) + 1);
+            rc.broadcast(LOSSY_UNIT_COUNT + type.ordinal(), spawnedCount(type) + 1);
             countingAsAlive = true;
         }
     }
