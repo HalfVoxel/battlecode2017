@@ -113,7 +113,7 @@ class Tank extends Robot {
     static void fireAtNearbyNeutralTree(TreeInfo[] trees) throws GameActionException {
         if (rc.getTeamBullets() < 100 || rc.getRoundLimit() - rc.getRoundNum() <= STOP_SPENDING_AT_TIME || trees.length == 0) return;
 
-        rc.firePentadShot(rc.getLocation().directionTo(trees[0].location));
+        rc.fireSingleShot(rc.getLocation().directionTo(trees[0].location));
     }
 
     @Override
