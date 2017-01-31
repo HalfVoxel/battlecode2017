@@ -906,7 +906,7 @@ abstract class Robot {
                         return new FirePlan(dir, 5);
                     }
 
-                    if (dist < 4.5f) {
+                    if (dist < 5.5f) {
                         //rc.firePentadShot(dir);
                         return new FirePlan(dir, 5);
                     }
@@ -919,7 +919,7 @@ abstract class Robot {
                         return new FirePlan(dir, 3);
                     }
 
-                    if (dist < 5.5f) {
+                    if (dist < 6.0f) {
                         //rc.fireTriadShot(dir);
                         return new FirePlan(dir, 3);
                     }
