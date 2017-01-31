@@ -19,6 +19,8 @@ abstract class Robot {
     static Team ally;
     static MapLocation[] initialArchonLocations;
     static MapLocation[] ourInitialArchonLocations;
+    private static MapLocation[] opponentArchonLocations;
+    private static int[] opponentArchonIds;
 
     static final int MAP_EDGE_BROADCAST_OFFSET = 10;
     static final int HIGH_PRIORITY_TARGET_OFFSET = 20;
@@ -27,6 +29,8 @@ abstract class Robot {
     static final int PRIMARY_UNIT = 50;
     static final int TARGET_OFFSET = 60;
     static final int NUMBER_OF_TARGETS = 4;
+    static final int ARCHON_COUNT = 2900;
+    static final int ARCHON_LOCATIONS = 2901;
     static final int PATHFINDING = 3000;
     static final int PATHFINDING_RESULT_TO_ENEMY_ARCHON = 4000;
     static final int PATHFINDING_TREE = 5000;
@@ -79,6 +83,8 @@ abstract class Robot {
         } else {
             explorationOrigin = readBroadcastPosition(EXPLORATION_ORIGIN);
         }
+
+        readArchonLocations();
     }
 
     /**
@@ -99,6 +105,14 @@ abstract class Robot {
 
         // Ensure we have count the number of alive archons correctly
         rc.broadcast(RobotType.ARCHON.ordinal(), rc.getInitialArchonLocations(ally).length);
+
+        rc.broadcast(ARCHON_COUNT, initialArchonLocations.length);
+        for (int i = 0; i < initialArchonLocations.length; i++) {
+            int ind = ARCHON_LOCATIONS + i*3;
+            rc.broadcastFloat(ind + 0, initialArchonLocations[i].x);
+            rc.broadcastFloat(ind + 1, initialArchonLocations[i].y);
+            rc.broadcast(ind + 2, -1);
+        }
     }
 
     /**
@@ -494,7 +508,7 @@ abstract class Robot {
     /**
      * Clamp the location so that it lies on the map using the information known so far
      */
-    MapLocation clampToMap(MapLocation pos, float margin) {
+    static MapLocation clampToMap(MapLocation pos, float margin) {
         float x = pos.x;
         float y = pos.y;
         x = Math.min(x, mapEdges0 - margin);
@@ -504,7 +518,67 @@ abstract class Robot {
         return new MapLocation(x, y);
     }
 
-    void broadcastEnemyLocations() throws GameActionException {
+    static MapLocation[] readArchonLocations() throws GameActionException {
+        int count = rc.readBroadcast(ARCHON_COUNT);
+        if (opponentArchonLocations == null || count != opponentArchonLocations.length) {
+            opponentArchonLocations = new MapLocation[count];
+            opponentArchonIds = new int[count];
+        }
+
+        for (int i = 0; i < count; i++) {
+            int ind = ARCHON_LOCATIONS + i*3;
+            float x = rc.readBroadcastFloat(ind + 0);
+            float y = rc.readBroadcastFloat(ind + 1);
+            opponentArchonLocations[i] = new MapLocation(x, y);
+            opponentArchonIds[i] = rc.readBroadcast(ind + 2);
+        }
+        return opponentArchonLocations;
+    }
+
+    static void broadcastArchonLocation2(RobotInfo robot, int index) throws GameActionException {
+        int ind = ARCHON_LOCATIONS + index*3;
+        rc.broadcastFloat(ind + 0, robot.location.x);
+        rc.broadcastFloat(ind + 1, robot.location.y);
+        rc.broadcast(ind + 2, robot.ID);
+    }
+
+    static void broadcastArchonLocation(RobotInfo robot) throws GameActionException {
+        // Have we seen this ID before?
+        for (int i = 0; i < opponentArchonLocations.length; i++) {
+            if (opponentArchonIds[i] == robot.ID) {
+                opponentArchonLocations[i] = robot.location;
+                broadcastArchonLocation2(robot, i);
+                return;
+            }
+        }
+
+        // Find the nearest archon and claim it
+        int bestIndex = -1;
+        float bestDistance = 1e30f;
+        readArchonLocations();
+        for (int i = 0; i < opponentArchonLocations.length; i++) {
+            if (opponentArchonIds[i] == -1) {
+                float dist = robot.location.distanceTo(opponentArchonLocations[i]);
+                if (dist < bestDistance) {
+                    bestDistance = dist;
+                    bestIndex = i;
+                }
+            }
+        }
+        if (bestIndex != -1) {
+            opponentArchonLocations[bestIndex] = robot.location;
+            opponentArchonIds[bestIndex] = robot.ID;
+            broadcastArchonLocation2(robot, bestIndex);
+            return;
+        }
+
+        // Fallback: add a new archon
+        readArchonLocations();
+        rc.broadcast(ARCHON_COUNT, opponentArchonLocations.length + 1);
+        broadcastArchonLocation2(robot, opponentArchonLocations.length);
+    }
+
+    static void broadcastEnemyLocations() throws GameActionException {
         int priority = 0;
         float friendlyMilitaryUnits = 0;
         float maxScore = 0;
@@ -515,6 +589,7 @@ abstract class Robot {
                 float score = 0;
                 switch (robot.type) {
                     case ARCHON:
+                        broadcastArchonLocation(robot);
                         score = 0;
                         break;
                     case GARDENER:

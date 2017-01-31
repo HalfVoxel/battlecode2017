@@ -30,6 +30,9 @@ class Tank extends Robot {
             if (isDefender) {
                 return ourInitialArchonLocations[rnd.nextInt(ourInitialArchonLocations.length)];
             } else {
+                if (fallBackPositions == null) {
+                    fallBackPositions = readArchonLocations();
+                }
                 return fallBackPositions[rnd.nextInt(fallBackPositions.length)];
             }
         } else {
@@ -107,7 +110,7 @@ class Tank extends Robot {
             isDefender = true;
         }
 
-        target = pickTarget(initialArchonLocations, 1f);
+        target = pickTarget(null, 1f);
     }
 
     @Override
@@ -191,7 +194,7 @@ class Tank extends Robot {
 
             boolean canSeeTarget = target.distanceSquaredTo(rc.getLocation()) < 10f;
             if (canSeeTarget) {
-                target = pickTarget(initialArchonLocations);
+                target = pickTarget(null);
             }
 
             float d1 = rc.getLocation().distanceTo(target);
@@ -203,12 +206,12 @@ class Tank extends Robot {
             speedToTarget += 0.5f * (d1 - d2);
 
             if (getHighPriorityTarget() != null) {
-                target = pickTarget(initialArchonLocations);
+                target = pickTarget(null);
             } else {
                 if (speedToTarget < type.strideRadius * 0.2f) {
                     ticksMovingInTheWrongDirection++;
                     if (ticksMovingInTheWrongDirection > 40) {
-                        target = pickTarget(initialArchonLocations);
+                        target = pickTarget(null);
                     }
                 } else {
                     ticksMovingInTheWrongDirection = 0;
