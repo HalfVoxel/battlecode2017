@@ -917,7 +917,7 @@ abstract class Robot {
                         return new FirePlan(dir, 3);
                     }
 
-                    if (dist < 6.5f) {
+                    if (dist < 6.0f) {
                         return new FirePlan(dir, 3);
                     }
                 }
